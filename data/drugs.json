@@ -1,0 +1,82 @@
+[
+  {
+    "id": "aspirin",
+    "name": "Aspirin",
+    "activeIngredient": "Asetilsalisilik Asit",
+    "category": "Ağrı Kesici / Antitrombosit",
+    "verificationStatus": "verified",
+    "notes": "COX inhibitörü; düşük dozda antitrombosit, yüksek dozda analjezik etki"
+  },
+  {
+    "id": "warfarin",
+    "name": "Coumadin (Warfarin)",
+    "activeIngredient": "Warfarin Sodyum",
+    "category": "Antikoagülan",
+    "verificationStatus": "verified",
+    "notes": "K vitamini antagonisti; INR takibi gerektirir"
+  },
+  {
+    "id": "metformin",
+    "name": "Metformin",
+    "activeIngredient": "Metformin HCl",
+    "category": "Antidiyabetik",
+    "verificationStatus": "verified",
+    "notes": "Böbreklerden atılır; böbrek fonksiyonu takibi önemlidir"
+  },
+  {
+    "id": "enalapril",
+    "name": "Enalapril",
+    "activeIngredient": "Enalapril Maleat",
+    "category": "ACE İnhibitörü (Tansiyon İlacı)",
+    "verificationStatus": "verified",
+    "notes": "Anjiyotensin dönüştürücü enzim inhibitörü"
+  },
+  {
+    "id": "amoksisilin",
+    "name": "Amoksisilin",
+    "activeIngredient": "Amoksisilin Trihidrat",
+    "category": "Antibiyotik (Penisilin grubu)",
+    "verificationStatus": "verified",
+    "notes": "Geniş spektrumlu beta-laktam antibiyotik"
+  },
+  {
+    "id": "omeprazol",
+    "name": "Omeprazol",
+    "activeIngredient": "Omeprazol",
+    "category": "Proton Pompası İnhibitörü (Mide İlacı)",
+    "verificationStatus": "verified",
+    "notes": "CYP2C19 inhibitörü; diğer ilaçların metabolizmasını etkileyebilir"
+  },
+  {
+    "id": "ibuprofen",
+    "name": "İbuprofen",
+    "activeIngredient": "İbuprofen",
+    "category": "NSAID (Nonsteroid Antienflamatuar)",
+    "verificationStatus": "verified",
+    "notes": "COX-1 ve COX-2 inhibitörü; GI ve renal yan etkiler mümkün"
+  },
+  {
+    "id": "diklofenak",
+    "name": "Diklofenak",
+    "activeIngredient": "Diklofenak Sodyum",
+    "category": "NSAID (Nonsteroid Antienflamatuar)",
+    "verificationStatus": "verified",
+    "notes": "Güçlü COX inhibitörü; GI ve kardiyovasküler risk profili mevcut"
+  },
+  {
+    "id": "metoprolol",
+    "name": "Metoprolol",
+    "activeIngredient": "Metoprolol Tartarat",
+    "category": "Beta Bloker (Kalp / Tansiyon İlacı)",
+    "verificationStatus": "verified",
+    "notes": "Selektif beta-1 adrenerjik reseptör blokeri"
+  },
+  {
+    "id": "parasetamol",
+    "name": "Parasetamol",
+    "activeIngredient": "Parasetamol (Asetaminofen)",
+    "category": "Analjezik / Antipiretik",
+    "verificationStatus": "verified",
+    "notes": "NSAID değildir; GI ve renal yan etki profili düşüktür"
+  }
+]

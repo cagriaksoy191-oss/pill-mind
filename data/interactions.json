@@ -1,0 +1,122 @@
+[
+  {
+    "id": "aspirin-warfarin",
+    "drug1": "aspirin",
+    "drug2": "warfarin",
+    "severity": "high",
+    "summary": "Birlikte kullanıldığında kanama riski artabilir. Her iki ilaç da pıhtılaşmayı farklı mekanizmalarla etkiler.",
+    "source": "FDA Warfarin Label; Drugs.com; NIH PubMed",
+    "sourceLabel": "FDA Prospektüsü + Klinik Kaynak",
+    "verificationStatus": "verified"
+  },
+  {
+    "id": "ibuprofen-warfarin",
+    "drug1": "ibuprofen",
+    "drug2": "warfarin",
+    "severity": "high",
+    "summary": "NSAID ve antikoagülan birlikte kullanıldığında kanama riski artabilir, özellikle mide-bağırsak kanaması.",
+    "source": "FDA İbuprofen Label; Drugs.com",
+    "sourceLabel": "FDA Prospektüsü",
+    "verificationStatus": "verified"
+  },
+  {
+    "id": "ibuprofen-aspirin",
+    "drug1": "ibuprofen",
+    "drug2": "aspirin",
+    "severity": "high",
+    "summary": "İki NSAID birlikte kullanıldığında mide-bağırsak kanaması riski artabilir. İbuprofen aspirin'in kardiyoprotektif etkisini azaltabilir.",
+    "source": "FDA NSAID Guidance; MedicalNewsToday; NIH PubMed",
+    "sourceLabel": "FDA Kılavuzu + Klinik Kaynak",
+    "verificationStatus": "verified"
+  },
+  {
+    "id": "ibuprofen-enalapril",
+    "drug1": "ibuprofen",
+    "drug2": "enalapril",
+    "severity": "medium",
+    "summary": "NSAID grubu ilaçlar ACE inhibitörlerinin tansiyon düşürücü etkisini azaltabilir ve böbrek fonksiyonlarını etkileyebilir.",
+    "source": "FDA Enalapril Label; bpac.org.nz; Pharmacy Times; NIH",
+    "sourceLabel": "FDA Prospektüsü + Klinik Kaynak",
+    "verificationStatus": "verified"
+  },
+  {
+    "id": "diklofenak-warfarin",
+    "drug1": "diklofenak",
+    "drug2": "warfarin",
+    "severity": "high",
+    "summary": "NSAID ve antikoagülan birlikte kullanıldığında kanama riski artabilir. Diklofenak mide-bağırsak kanaması riskini tek başına da artırabilir.",
+    "source": "FDA Diklofenak Label; Drugs.com; ACC.org; ESC",
+    "sourceLabel": "FDA Prospektüsü + Kardiyoloji Derneği",
+    "verificationStatus": "verified"
+  },
+  {
+    "id": "diklofenak-aspirin",
+    "drug1": "diklofenak",
+    "drug2": "aspirin",
+    "severity": "high",
+    "summary": "İki NSAID birlikte kullanıldığında mide-bağırsak yan etki riski artabilir. Diklofenak aspirin'in antitrombosit etkisini azaltabilir.",
+    "source": "NIH PubMed; Drugs.com; NHS UK; GoodRx",
+    "sourceLabel": "Klinik Kaynak + Resmi Sağlık Kurumu",
+    "verificationStatus": "verified"
+  },
+  {
+    "id": "diklofenak-enalapril",
+    "drug1": "diklofenak",
+    "drug2": "enalapril",
+    "severity": "medium",
+    "summary": "NSAID grubu ilaçlar ACE inhibitörlerinin etkisini azaltabilir ve böbrek fonksiyonlarını olumsuz etkileyebilir.",
+    "source": "FDA NSAID Label; bpac.org.nz; Pharmacy Times",
+    "sourceLabel": "FDA Prospektüsü + Klinik Kaynak",
+    "verificationStatus": "verified"
+  },
+  {
+    "id": "metformin-enalapril",
+    "drug1": "metformin",
+    "drug2": "enalapril",
+    "severity": "low",
+    "summary": "Genellikle birlikte kullanılabilir. Ancak her iki ilaç da böbrek fonksiyonlarını etkileyebileceğinden düzenli böbrek takibi önerilir.",
+    "source": "Drugs.com; NIH PubMed; RxFiles",
+    "sourceLabel": "Klinik Kaynak",
+    "verificationStatus": "verified"
+  },
+  {
+    "id": "omeprazol-warfarin",
+    "drug1": "omeprazol",
+    "drug2": "warfarin",
+    "severity": "medium",
+    "summary": "Omeprazol, CYP2C19 enzimini inhibe ederek warfarinin etkisini artırabilir. INR takibi önemlidir.",
+    "source": "FDA Omeprazol (Prilosec) Label; Drugs.com; NIH PubMed",
+    "sourceLabel": "FDA Prospektüsü + Klinik Kaynak",
+    "verificationStatus": "verified"
+  },
+  {
+    "id": "aspirin-enalapril",
+    "drug1": "aspirin",
+    "drug2": "enalapril",
+    "severity": "medium",
+    "summary": "Yüksek doz aspirin ACE inhibitörlerinin tansiyon düşürücü etkisini azaltabilir. Düşük doz aspirin genellikle sorun oluşturmaz.",
+    "source": "AHA Journals; Drugs.com; NIH PubMed; CCJM",
+    "sourceLabel": "Kardiyoloji Derneği + Klinik Kaynak",
+    "verificationStatus": "verified"
+  },
+  {
+    "id": "ibuprofen-metformin",
+    "drug1": "ibuprofen",
+    "drug2": "metformin",
+    "severity": "medium",
+    "summary": "İbuprofen böbrek fonksiyonlarını azaltarak metforminin vücutta birikmesine yol açabilir. Dolaylı bir etkileşimdir.",
+    "source": "Patient.info; Drugs.com; Optum",
+    "sourceLabel": "Klinik Kaynak",
+    "verificationStatus": "verified"
+  },
+  {
+    "id": "aspirin-metoprolol",
+    "drug1": "aspirin",
+    "drug2": "metoprolol",
+    "severity": "low",
+    "summary": "Genellikle birlikte uyumlu olarak değerlendirilir ve kardiyovasküler hastalarda sıkça birlikte kullanılır.",
+    "source": "Drugs.com; NIH PubMed; Medicine.com",
+    "sourceLabel": "Klinik Kaynak",
+    "verificationStatus": "verified"
+  }
+]

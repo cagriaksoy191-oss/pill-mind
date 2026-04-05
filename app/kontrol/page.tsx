@@ -24,13 +24,18 @@ interface InteractionResult {
 
 interface ExplainResponse {
   explanation: string;
+  source?: string;
+  generatedAt?: string;
+  disclaimer?: string;
+  fallbackReason?: string;
 }
 
 export default function KontrolPage() {
   const drugs = getAllDrugs();
   const [selectedDrugs, setSelectedDrugs] = useState<string[]>([]);
   const [results, setResults] = useState<InteractionResult[] | null>(null);
-  const [explanations, setExplanations] = useState<Record<string, string>>({});
+  const [explanations, setExplanations] = useState<Record<string, ExplainResponse>>({});
+  const [loadingExplanations, setLoadingExplanations] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(false);
   const [noInteraction, setNoInteraction] = useState(false);
   const [hasError, setHasError] = useState(false);
@@ -65,29 +70,33 @@ export default function KontrolPage() {
       }
 
       setResults(interactions);
-
-      // Step 2: Fetch explanations for each interaction (mock or Gemini)
-      const explainPromises = interactions.map(async (item) => {
-        const res = await fetch("/api/explain", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ interactionId: item.interaction.id }),
-        });
-        const data: ExplainResponse = await res.json();
-        return { id: item.interaction.id, explanation: data.explanation };
-      });
-
-      const explainResults = await Promise.all(explainPromises);
-      const explMap: Record<string, string> = {};
-      for (const e of explainResults) {
-        explMap[e.id] = e.explanation;
-      }
-      setExplanations(explMap);
     } catch {
       setHasError(true);
       setResults(null);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function fetchExplanation(interactionId: string, force = false) {
+    // Force istenmiyorsa ve daha önce alınmış geçerli bir açıklama varsa yeniden atma
+    if (!force && explanations[interactionId]) {
+      return; 
+    }
+
+    setLoadingExplanations((prev) => ({ ...prev, [interactionId]: true }));
+    try {
+      const res = await fetch("/api/explain", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ interactionId }),
+      });
+      const data: ExplainResponse = await res.json();
+      setExplanations((prev) => ({ ...prev, [interactionId]: data }));
+    } catch {
+      setExplanations((prev) => ({ ...prev, [interactionId]: { explanation: "Bir hata oluştu.", source: "fallback", fallbackReason: "timeout" } }));
+    } finally {
+      setLoadingExplanations((prev) => ({ ...prev, [interactionId]: false }));
     }
   }
 
@@ -132,9 +141,12 @@ export default function KontrolPage() {
             <h1 className="text-2xl font-bold text-slate-800 mb-2">
               İlaç Etkileşim Kontrolü
             </h1>
-            <p className="text-slate-500 mb-6">
+            <p className="text-slate-500 mb-6 relative">
               Kontrol etmek istediğiniz ilaçları seçin. En az 2 ilaç
               gereklidir.
+              <span className="block mt-3 text-xs bg-slate-50 text-slate-500 p-2.5 rounded-lg border border-slate-200">
+                 <strong>Bilgi:</strong> Bu demo sürümü 10 temel ilacı ve aralarındaki doğrulanmış seçili etkileşimleri kapsar.
+              </span>
             </p>
 
             <DrugSelector
@@ -225,14 +237,17 @@ export default function KontrolPage() {
             {/* No interactions found (in our dataset) */}
             {noInteraction && (
               <div className="bg-slate-50 border-2 border-slate-200 rounded-xl p-6 text-center">
-                <span className="text-3xl block mb-3">ℹ️</span>
+                <span className="text-3xl block mb-3">📋</span>
                 <h3 className="font-semibold text-slate-800 mb-2">
                   Bilinen Etkileşim Kaydı Bulunmadı
                 </h3>
                 <p className="text-sm text-slate-600 leading-relaxed max-w-lg mx-auto">
-                  Seçtiğiniz ilaçlar arasında veri setimizde bilinen önemli bir etkileşim kaydı bulunmadı. 
-                  <strong className="block mt-2">Bu, etkileşim olmadığı anlamına gelmez.</strong>
-                  Herhangi bir ilacı kullanmadan önce daima doktorunuza veya eczacınıza danışın.
+                  Sistemimizde mevcut olan ilaç etkileşim veri setinde, seçtiğiniz ilaçlar arasında kritik bir eşleşme bulunmadı.
+                  <strong className="block mt-3 font-medium bg-amber-50 rounded-lg px-3 py-2.5 border border-amber-200 text-amber-800 mb-3 text-left shadow-sm">
+                    <span className="block text-amber-900 font-bold mb-0.5 text-xs uppercase tracking-wide">Demo Kapsam Sınırı</span>
+                    Bu demo sürümü sadece 10 ilaç ve doğrulanmış seçili etkileşim kayıtlarını kapsamaktadır. Etkileşim kaydı bulunmaması, gerçekte bir risk olmadığı anlamına gelmez.
+                  </strong>
+                  Herhangi bir ilacı kullanmadan veya tedavi planınıza eklemeden önce daima sağlık profesyonelinize danışın.
                 </p>
               </div>
             )}
@@ -243,6 +258,7 @@ export default function KontrolPage() {
                 {results.map((item) => (
                   <ResultCard
                     key={item.interaction.id}
+                    interactionId={item.interaction.id}
                     drug1Name={item.drug1Name}
                     drug2Name={item.drug2Name}
                     severity={item.interaction.severity}
@@ -250,10 +266,9 @@ export default function KontrolPage() {
                     sourceLabel={item.interaction.sourceLabel}
                     verificationStatus={item.interaction.verificationStatus}
                     source={item.interaction.source}
-                    explanation={
-                      explanations[item.interaction.id] ??
-                      "Açıklama yükleniyor..."
-                    }
+                    explanationData={explanations[item.interaction.id]}
+                    isExplanationLoading={!!loadingExplanations[item.interaction.id]}
+                    onExplainRequested={fetchExplanation}
                   />
                 ))}
               </div>

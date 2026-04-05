@@ -8,21 +8,32 @@ interface ResultCardProps {
   drug2Name: string;
   severity: string;
   summary: string;
-  explanation: string;
+  interactionId: string;
   sourceLabel?: string;
   verificationStatus?: string;
   source?: string;
+  explanationData?: {
+    explanation: string;
+    source?: string;
+    generatedAt?: string;
+    fallbackReason?: string;
+  };
+  isExplanationLoading?: boolean;
+  onExplainRequested: (id: string, force: boolean) => void;
 }
 
 export default function ResultCard({
+  interactionId,
   drug1Name,
   drug2Name,
   severity,
   summary,
-  explanation,
   sourceLabel,
   verificationStatus,
   source,
+  explanationData,
+  isExplanationLoading,
+  onExplainRequested,
 }: ResultCardProps) {
   const [isOpen, setIsOpen] = useState(false);
   const colors = getSeverityColor(severity);
@@ -54,8 +65,14 @@ export default function ResultCard({
         </div>
 
         <button
-          onClick={() => setIsOpen(!isOpen)}
-          className={`mt-3 text-sm font-medium ${colors.text} hover:underline cursor-pointer`}
+          onClick={() => {
+            const nextIsOpen = !isOpen;
+            setIsOpen(nextIsOpen);
+            if (nextIsOpen && !explanationData && !isExplanationLoading) {
+              onExplainRequested(interactionId, false);
+            }
+          }}
+          className={`mt-3 text-sm font-medium ${colors.text} hover:underline cursor-pointer transition-colors`}
         >
           {isOpen ? "Detayı gizle ▲" : "Detayı gör ▼"}
         </button>
@@ -66,12 +83,71 @@ export default function ResultCard({
           <div className="flex gap-2">
             <span className="text-xl">🤖</span>
             <div className="flex-1">
-              <p className="text-sm text-slate-800 leading-relaxed font-medium">
-                Açıklama:
-              </p>
-              <p className="text-sm text-slate-700 leading-relaxed mt-1">
-                {explanation}
-              </p>
+              
+              {isExplanationLoading ? (
+                <div className="flex items-center gap-3 text-slate-500 py-4">
+                  <svg className="animate-spin h-5 w-5 text-indigo-500" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  <span className="text-sm font-medium">Canlı açıklama hazırlanıyor...</span>
+                </div>
+              ) : explanationData ? (
+                <>
+                  <div className="flex flex-wrap items-center gap-2 mb-2">
+                    <p className="text-sm font-semibold text-slate-800">
+                      Açıklama Katmanı
+                    </p>
+                    {explanationData.source === "gemini_live" ? (
+                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-purple-50 text-purple-700 border border-purple-200">
+                        <span className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse"></span>
+                        Canlı AI Açıklaması
+                      </span>
+                    ) : explanationData.source === "gemini_cached" ? (
+                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                        Önbelleklenmiş AI Açıklaması
+                      </span>
+                    ) : explanationData.source === "fallback" ? (
+                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
+                        {explanationData.fallbackReason === "rate_limited" || explanationData.fallbackReason === "timeout"
+                          ? "AI Yoğun - Yedek Açıklama"
+                          : explanationData.fallbackReason === "unsafe_output"
+                          ? "Sınırlı Çıktı - Yedek Açıklama"
+                          : explanationData.fallbackReason === "missing_api_key" || explanationData.fallbackReason === "demo_mode"
+                          ? "Offline Demo - Yedek Açıklama"
+                          : "Yedek Açıklama"}
+                      </span>
+                    ) : null}
+                    {explanationData.generatedAt && (
+                       <span className="text-[11px] text-slate-400 font-medium">
+                         • {explanationData.generatedAt}
+                       </span>
+                    )}
+                  </div>
+                  <p className="text-sm text-slate-700 leading-relaxed md:pr-4">
+                    {explanationData.explanation}
+                  </p>
+                  
+                  {/* Retry butonu ve alt metin sadece rate_limited veya timeout'da gösterilir */}
+                  {(explanationData.fallbackReason === "rate_limited" || explanationData.fallbackReason === "timeout") && (
+                    <div className="mt-3 flex items-center justify-between bg-slate-50 border border-slate-200 rounded p-2">
+                      <p className="text-xs text-slate-500 italic">
+                        Not: Canlı AI katmanı şu an yoğun olabilir. Yedek açıklama gösteriliyor.
+                      </p>
+                      <button 
+                        onClick={() => onExplainRequested(interactionId, true)} 
+                        className="ml-3 px-3 py-1 shrink-0 bg-white border border-slate-300 rounded shadow-sm hover:bg-slate-50 text-indigo-600 text-xs font-semibold cursor-pointer transition-colors"
+                      >
+                        Tekrar Dene
+                      </button>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="py-4 text-sm text-slate-500">
+                  Açıklama yüklenemedi. Lütfen tekrar deneyin.
+                </div>
+              )}
             </div>
           </div>
           

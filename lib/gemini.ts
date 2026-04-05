@@ -23,7 +23,7 @@ interface DrugRecord {
 
 interface GeminiResult {
   explanation: string;
-  source: "gemini";
+  source: "gemini_live";
 }
 
 // ---------------------------------------------------------------------------
@@ -78,7 +78,7 @@ export function getInteractionContext(interactionId: string) {
 }
 
 /** Returns true when Gemini should be skipped entirely. */
-export function shouldUseMock(): boolean {
+export function shouldUseFallback(): boolean {
   return DEMO_MODE || !GEMINI_API_KEY;
 }
 
@@ -86,6 +86,24 @@ export function shouldUseMock(): boolean {
 export function isOutputSafe(text: string): boolean {
   const lower = text.toLocaleLowerCase("tr");
   return !UNSAFE_PATTERNS.some((p) => lower.includes(p));
+}
+
+/** Heuristic quality gate for user-facing AI explanations. */
+export function isExplanationComplete(text: string): boolean {
+  const normalized = text.replace(/\s+/g, " ").trim();
+
+  if (normalized.length < 120) return false;
+  if (normalized.split(" ").filter(Boolean).length < 18) return false;
+  if (!/[.!?…]["')\]]*\s*$/u.test(normalized)) return false;
+
+  if (
+    /^(merhaba|selam|tabii|elbette|tabi)\b/iu.test(normalized) &&
+    normalized.length < 180
+  ) {
+    return false;
+  }
+
+  return true;
 }
 
 // ---------------------------------------------------------------------------
@@ -100,21 +118,22 @@ function buildPrompt(ctx: NonNullable<ReturnType<typeof getInteractionContext>>)
         ? "orta"
         : "düşük";
 
-  return `Sen bir ilaç bilgilendirme asistanısın. Görevin aşağıdaki iki ilaç arasındaki bilinen etkileşimi sade ve anlaşılır Türkçe ile açıklamak.
+  return `Sen deneyimli bir sağlık iletişim asistanısın. Görevin, tıbbi verilerden gelen ilaç etkileşim uyarılarını hastanın anlayabileceği sade, güven verici ve anlaşılır bir Türkçe ile hasta diline çevirmek.
 
 KURALLAR:
-- Tanı koyma, tedavi önerme, doz önerme, muadil ilaç önerme.
-- "Kullanmayın", "bırakın", "kesinlikle güvenli", "kesinlikle tehlikeli" gibi kesin hükümler verme.
-- Sadece bilgilendir. Kullanıcıyı doktoruna veya eczacısına danışmaya yönlendir.
-- Yanıtı 2-4 kısa paragraf olarak ver.
-- Tıbbi jargonu mümkün olduğunca azalt.
+- Kesinlikle kendi inisiyatifinle tanı koyma, tedavi önerme, dozaj belirtme veya muadil önerme.
+- "Kullanmayın", "bırakın", "kesinlikle güvenlidir", "tehlikelidir" gibi hastayı paniğe sevk edecek kesin hükümler verme.
+- Konuyu mekanik bir robot gibi özetlemekten kaçın; empatik ve doğal bir insan gibi konuş.
+- Yanıtları 2 veya en fazla 3 kısa cümleden oluşan paragraflar halinde yaz.
+- Tüm tıbbi jargonu (örn. agregasyon, metabolizma inhibisyonu, izoenzim) sıradan bir insanın anlayabileceği gibi izah et.
+- Metnin sonuna doktor veya eczacıya danışılması gerektiğini nazikçe ekle.
 
 İLAÇ 1: ${ctx.drug1Name} (Etken madde: ${ctx.drug1Ingredient})
 İLAÇ 2: ${ctx.drug2Name} (Etken madde: ${ctx.drug2Ingredient})
 ETKİLEŞİM ŞİDDETİ: ${severityLabel}
-KISA ÖZET: ${ctx.interaction.summary}
+KISA ETKİLEŞİM ÖZETİ: ${ctx.interaction.summary}
 
-Lütfen bu etkileşimi sade Türkçe ile açıkla ve sonunda doktoruna/eczacısına danışmasını öner.`;
+Açıklama:`;
 }
 
 /**
@@ -125,39 +144,90 @@ export async function callGemini(
 ): Promise<GeminiResult> {
   const prompt = buildPrompt(ctx);
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
-
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: {
-        temperature: 0.4,
-        maxOutputTokens: 512,
-        topP: 0.9,
+  const bodyPayload = JSON.stringify({
+    contents: [{ parts: [{ text: prompt }] }],
+    generationConfig: {
+      temperature: 0.3,
+      maxOutputTokens: 384,
+      topP: 0.9,
+      thinkingConfig: {
+        thinkingBudget: 0,
       },
-      safetySettings: [
-        { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
-        { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
-      ],
-    }),
-    signal: AbortSignal.timeout(10_000), // 10s hard timeout
+    },
+    safetySettings: [
+      { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
+      { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
+    ],
   });
 
-  if (!res.ok) {
-    const errorBody = await res.text().catch(() => "unknown");
-    throw new Error(`Gemini API ${res.status}: ${errorBody}`);
+  const baseModels = [
+    GEMINI_MODEL,
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
+    "gemini-flash-lite-latest",
+    "gemini-2.0-flash-lite",
+  ].filter(Boolean) as string[];
+  
+  const uniqueModels = Array.from(new Set(baseModels));
+
+  let lastError: Error | null = null;
+
+  for (const model of uniqueModels) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+      
+      let res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: bodyPayload,
+        signal: AbortSignal.timeout(12_000),
+      });
+
+      if (res.status === 429) {
+        // Backoff and retry once for this model
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: bodyPayload,
+          signal: AbortSignal.timeout(12_000),
+        });
+      }
+
+      if (!res.ok) {
+        const errorBody = await res.text().catch(() => "unknown");
+        throw new Error(`API Error ${res.status}: ${errorBody}`);
+      }
+
+      const data = await res.json();
+      const candidate = data?.candidates?.[0];
+      const finishReason: string | undefined = candidate?.finishReason;
+      const text = (candidate?.content?.parts ?? [])
+        .map((part: { text?: string }) =>
+          typeof part?.text === "string" ? part.text : ""
+        )
+        .filter(Boolean)
+        .join("\n\n")
+        .trim();
+
+      if (!text) {
+        throw new Error("Empty response from model");
+      }
+
+      if (finishReason && finishReason !== "STOP") {
+        throw new Error(`Incomplete response from model (${finishReason})`);
+      }
+
+      if (!isExplanationComplete(text)) {
+        throw new Error("Incomplete response from model");
+      }
+
+      return { explanation: text, source: "gemini_live" };
+    } catch (e) {
+      lastError = e instanceof Error ? e : new Error(String(e));
+      console.warn(`[GEMINI] Model ${model} failed, trying next. Error: ${lastError.message}`);
+    }
   }
 
-  const data = await res.json();
-
-  const text: string | undefined =
-    data?.candidates?.[0]?.content?.parts?.[0]?.text;
-
-  if (!text || text.trim().length === 0) {
-    throw new Error("Gemini returned empty response");
-  }
-
-  return { explanation: text.trim(), source: "gemini" };
+  throw lastError ?? new Error("Tüm Gemini modelleri başarısız oldu.");
 }

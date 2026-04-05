@@ -17,7 +17,7 @@ PillMind, kullanıcının seçtiği ilaçlar arasındaki bilinen etkileşimleri 
 | İlaç seçimi (autocomplete) | ✅ Çalışıyor |
 | Etkileşim kontrolü | ✅ Çalışıyor (küratörlü JSON'dan) |
 | Sonuç kartları (🟢🟡🔴) | ✅ Çalışıyor |
-| Türkçe açıklamalar | ✅ Gemini API + mock fallback |
+| Türkçe açıklamalar | ✅ Gemini API + yedek açıklama (fallback) |
 | Disclaimer | ✅ Her ekranda |
 | Gemini API entegrasyonu | ✅ Aktif (güvenli fallback ile) |
 | Cloud Vision OCR | ⏳ Bonus — opsiyonel |
@@ -25,9 +25,10 @@ PillMind, kullanıcının seçtiği ilaçlar arasındaki bilinen etkileşimleri 
 ## 🧠 AI Mimarisi
 
 - **Etkileşim kararı**: Küratörlü JSON verisinden — AI karar vermiyor
-- **Açıklama katmanı**: Google Gemini API — sadece bilgilendirme üretir
-- **Güvenlik**: Gemini çıktısı output guard ile kontrol edilir, riskli ifadeler varsa mock'a düşer
-- **Fallback**: API yoksa, hata olursa veya çıktı güvensizse → otomatik mock yanıt
+- **Açıklama katmanı**: Google Gemini API — sadece kullanıcı "Detayı gör" dediğinde çalışır (on-demand/lazy-load)
+- **Güvenlik**: Gemini çıktısı output guard ile kontrol edilir, riskli ifadeler varsa yedek açıklamaya düşer
+- **Fallback / Yoğunluk Yönetimi**: API kotası dolduğunda veya hata alındığında sistem çökmez. Yalnızca tamamlanmış ve kullanıcıya gösterilebilir kalite eşiğini geçen canlı AI yanıtları dosya sistemindeki runtime cache'e (`.cache/`) alınır. Sadece gerekli durumlarda "Yedek Açıklama" görüntülenir.
+- **Prewarm Mekanizması**: Demo günü için, canlı API kotasını tüketmemek adına öncelikli kombinasyonların API yanıtları `npm run prewarm:demo` komutuyla önceden hazır edilebilir.
 - **API key**: Sadece `.env.local` içinde tutulur (gitignore'da)
 
 ## ✅ Veri Doğrulama Durumu
@@ -51,11 +52,14 @@ npm run dev
 
 # Build
 npm run build
+
+# Demo öncesi AI cache'i önden ısıtma (Prewarm)
+npm run prewarm:demo
 ```
 
 Uygulama varsayılan olarak `http://localhost:3000` adresinde açılır.
 
-> **Not**: `.env.example` sadece şablondur, gerçek anahtarlar `.env.local` içindedir ve commit edilmez.
+> **Not**: `.env.example` sadece şablondur, gerçek anahtarlar `.env.local` içindedir ve commit edilmez. `.cache/` klasörü runtime amaçlıdır ve git'e dahil edilmez.
 
 ## Önemli Dosyalar
 
@@ -64,10 +68,10 @@ Uygulama varsayılan olarak `http://localhost:3000` adresinde açılır.
 | `docs/` | Jüri soru-cevapları, demo akışı, sunum özetleri |
 | `data/drugs.json` | 10 ilaç — tamamı doğrulanmış demo seti |
 | `data/interactions.json` | 12 etkileşim — tamamı kaynaklı |
-| `data/mock-responses.json` | Sade Türkçe açıklama mock'ları |
+| `data/fallback-responses.json` | Yedek açıklama havuzu (Gemini hata verirse kullanılır) |
 | `data/verification-report.md` | Veri doğrulama raporu |
 | `app/api/check/route.ts` | Etkileşim kontrol API (JSON lookup) |
-| `app/api/explain/route.ts` | Açıklama API (Gemini + mock fallback) |
+| `app/api/explain/route.ts` | Açıklama API (Gemini + fallback, kalite kontrollü runtime cache) |
 | `lib/gemini.ts` | Gemini REST client + prompt + output guard |
 | `components/` | DrugSelector, ResultCard, Disclaimer |
 | `.env.example` | API key şablonu (gerçek key buraya yazılmaz) |

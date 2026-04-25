@@ -108,8 +108,9 @@ export default function KontrolPage() {
     setHasError(false);
   }
 
+  const selectedSet = new Set(selectedDrugs);
   const selectedDrugNames = drugs
-    .filter((d) => selectedDrugs.includes(d.id))
+    .filter((d) => selectedSet.has(d.id))
     .map((d) => d.name);
 
   return (

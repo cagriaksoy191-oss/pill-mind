@@ -24,14 +24,17 @@ export default function DrugSelector({
   const [isOpen, setIsOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
+  const selectedSet = new Set(selected);
+  const lowerQuery = query.toLowerCase();
+
   const filtered = drugs.filter(
     (d) =>
-      !selected.includes(d.id) &&
-      (d.name.toLowerCase().includes(query.toLowerCase()) ||
-        d.activeIngredient.toLowerCase().includes(query.toLowerCase()))
+      !selectedSet.has(d.id) &&
+      (d.name.toLowerCase().includes(lowerQuery) ||
+        d.activeIngredient.toLowerCase().includes(lowerQuery))
   );
 
-  const selectedDrugs = drugs.filter((d) => selected.includes(d.id));
+  const selectedDrugs = drugs.filter((d) => selectedSet.has(d.id));
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {

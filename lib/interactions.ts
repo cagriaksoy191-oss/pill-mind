@@ -25,6 +25,41 @@ export interface CheckResult {
   drug2Name: string;
 }
 
+const SEVERITY_LABELS: Record<string, string> = {
+  high: "Potansiyel Önemli Etkileşim",
+  medium: "Dikkat Edilmesi Gereken Etkileşim",
+  low: "Olası Hafif Etkileşim / İzlem Önerisi",
+};
+
+const SEVERITY_COLORS: Record<
+  string,
+  {
+    bg: string;
+    border: string;
+    badge: string;
+    text: string;
+  }
+> = {
+  high: {
+    bg: "bg-red-50",
+    border: "border-red-300",
+    badge: "bg-red-600 text-white",
+    text: "text-red-800",
+  },
+  medium: {
+    bg: "bg-amber-50",
+    border: "border-amber-300",
+    badge: "bg-amber-500 text-white",
+    text: "text-amber-800",
+  },
+  low: {
+    bg: "bg-green-50",
+    border: "border-green-300",
+    badge: "bg-green-600 text-white",
+    text: "text-green-800",
+  },
+};
+
 /**
  * Returns all drugs from the curated dataset.
  */
@@ -71,16 +106,7 @@ export function findInteractions(drugIds: string[]): CheckResult[] {
  * Severity label mapping for UI display (safe language)
  */
 export function getSeverityLabel(severity: string): string {
-  switch (severity) {
-    case "high":
-      return "Potansiyel Önemli Etkileşim";
-    case "medium":
-      return "Dikkat Edilmesi Gereken Etkileşim";
-    case "low":
-      return "Olası Hafif Etkileşim / İzlem Önerisi";
-    default:
-      return "Bilgi mevcut değil";
-  }
+  return SEVERITY_LABELS[severity] || "Bilgi mevcut değil";
 }
 
 export function getSeverityColor(severity: string): {
@@ -89,34 +115,12 @@ export function getSeverityColor(severity: string): {
   badge: string;
   text: string;
 } {
-  switch (severity) {
-    case "high":
-      return {
-        bg: "bg-red-50",
-        border: "border-red-300",
-        badge: "bg-red-600 text-white",
-        text: "text-red-800",
-      };
-    case "medium":
-      return {
-        bg: "bg-amber-50",
-        border: "border-amber-300",
-        badge: "bg-amber-500 text-white",
-        text: "text-amber-800",
-      };
-    case "low":
-      return {
-        bg: "bg-green-50",
-        border: "border-green-300",
-        badge: "bg-green-600 text-white",
-        text: "text-green-800",
-      };
-    default:
-      return {
-        bg: "bg-gray-50",
-        border: "border-gray-300",
-        badge: "bg-gray-500 text-white",
-        text: "text-gray-700",
-      };
-  }
+  return (
+    SEVERITY_COLORS[severity] || {
+      bg: "bg-gray-50",
+      border: "border-gray-300",
+      badge: "bg-gray-500 text-white",
+      text: "text-gray-700",
+    }
+  );
 }

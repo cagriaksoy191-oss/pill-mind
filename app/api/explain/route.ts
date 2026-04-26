@@ -90,10 +90,62 @@ function saveCache(interactionId: string, entry: CacheEntry) {
   persistCache(cache);
 }
 
-export async function POST(request: Request) {
-  const disclaimer =
-    "Bu açıklama bilgilendirme amaçlıdır ve tıbbi tavsiye niteliği taşımaz.";
+const DISCLAIMER = "Bu açıklama bilgilendirme amaçlıdır ve tıbbi tavsiye niteliği taşımaz.";
 
+function getFallbackResponse(interactionId: string): string {
+  const responses = fallbackResponses as Record<string, string>;
+  return (
+    responses[interactionId] ??
+    responses["_default"] ??
+    "Yedek açıklama geçici olarak yüklenemedi."
+  );
+}
+
+function createFallbackResponse(interactionId: string, reason: string) {
+  return NextResponse.json({
+    explanation: getFallbackResponse(interactionId),
+    source: "fallback" as const,
+    generatedAt: undefined,
+    disclaimer: DISCLAIMER,
+    fallbackReason: reason,
+  });
+}
+
+function getCachedResponse(interactionId: string, refresh: boolean) {
+  const cache = getCache();
+  const cached = cache.get(interactionId);
+
+  if (cached && !isCacheEntryValid(cached)) {
+    cache.delete(interactionId);
+    persistCache(cache);
+    return null;
+  }
+
+  if (!refresh && cached && isCacheEntryValid(cached)) {
+    console.log(`[API_EXPLAIN] gemini_cached: ${interactionId}`);
+    return NextResponse.json({
+      explanation: cached.explanation,
+      source: "gemini_cached" as const,
+      generatedAt: cached.generatedAt,
+      disclaimer: DISCLAIMER,
+    });
+  }
+
+  if (refresh && cached) {
+    console.log(`[API_EXPLAIN] refresh requested; bypassing cache for: ${interactionId}`);
+  }
+
+  return null;
+}
+
+function mapErrorToFallbackReason(e: unknown): string {
+  const errorMsg = e instanceof Error ? e.message : String(e);
+  if (errorMsg.includes("429") || errorMsg.includes("quota")) return "rate_limited";
+  if (errorMsg.includes("timeout") || errorMsg.includes("AbortError")) return "timeout";
+  return "api_error";
+}
+
+export async function POST(request: Request) {
   const generatedAt = new Intl.DateTimeFormat('tr-TR', { 
     hour: '2-digit', minute: '2-digit', second: '2-digit' 
   }).format(new Date());
@@ -115,64 +167,23 @@ export async function POST(request: Request) {
       );
     }
 
-    // ── Helper: return fallback response ──
-    const getFallbackResponse = () => {
-      const responses = fallbackResponses as Record<string, string>;
-      return (
-        responses[interactionId] ??
-        responses["_default"] ??
-        "Yedek açıklama geçici olarak yüklenemedi."
-      );
-    };
-
     // ── Path 1: Demo mode or missing key → mock ──
     if (shouldUseFallback()) {
       const reason = !process.env.GOOGLE_API_KEY ? "missing_api_key" : "demo_mode";
       console.log(`[API_EXPLAIN] fallback_reason: ${reason}`);
-      return NextResponse.json({
-        explanation: getFallbackResponse(),
-        source: "fallback" as const,
-        generatedAt: undefined,
-        disclaimer,
-        fallbackReason: reason,
-      });
+      return createFallbackResponse(interactionId, reason);
     }
 
     // ── Path 1.5: Check Cache ──
-    const cache = getCache();
-    const cached = cache.get(interactionId);
-    if (cached && !isCacheEntryValid(cached)) {
-      cache.delete(interactionId);
-      persistCache(cache);
-    }
-
-    if (!refresh && cached && isCacheEntryValid(cached)) {
-      console.log(`[API_EXPLAIN] gemini_cached: ${interactionId}`);
-      return NextResponse.json({
-        explanation: cached.explanation,
-        source: "gemini_cached" as const,
-        generatedAt: cached.generatedAt,
-        disclaimer,
-      });
-    }
-
-    if (refresh && cached) {
-      console.log(`[API_EXPLAIN] refresh requested; bypassing cache for: ${interactionId}`);
-    }
+    const cachedResponse = getCachedResponse(interactionId, refresh);
+    if (cachedResponse) return cachedResponse;
 
     // ── Path 2: Try real Gemini ──
     const ctx = getInteractionContext(interactionId);
 
     if (!ctx) {
       console.log("[API_EXPLAIN] fallback_reason: unknown_interaction");
-      // Unknown interaction — mock is the safest response
-      return NextResponse.json({
-        explanation: getFallbackResponse(),
-        source: "fallback" as const,
-        generatedAt: undefined,
-        disclaimer,
-        fallbackReason: "unknown_interaction",
-      });
+      return createFallbackResponse(interactionId, "unknown_interaction");
     }
 
     try {
@@ -181,24 +192,12 @@ export async function POST(request: Request) {
       // ── Output guard ──
       if (!isOutputSafe(result.explanation)) {
         console.log("[API_EXPLAIN] fallback_reason: unsafe_output");
-        return NextResponse.json({
-          explanation: getFallbackResponse(),
-          source: "fallback" as const,
-          generatedAt: undefined,
-          disclaimer,
-          fallbackReason: "unsafe_output",
-        });
+        return createFallbackResponse(interactionId, "unsafe_output");
       }
 
       if (!isExplanationComplete(result.explanation)) {
         console.log("[API_EXPLAIN] fallback_reason: incomplete_output");
-        return NextResponse.json({
-          explanation: getFallbackResponse(),
-          source: "fallback" as const,
-          generatedAt: undefined,
-          disclaimer,
-          fallbackReason: "incomplete_output",
-        });
+        return createFallbackResponse(interactionId, "incomplete_output");
       }
 
       // ── Path 2a: Gemini succeeded and output is safe ──
@@ -216,25 +215,15 @@ export async function POST(request: Request) {
         explanation: result.explanation,
         source: "gemini_live" as const,
         generatedAt,
-        disclaimer,
+        disclaimer: DISCLAIMER,
       });
     } catch (e: unknown) {
-      const errorMsg = e instanceof Error ? e.message : String(e);
       console.error(`[API_EXPLAIN] EXCEPTION in callGemini:`, e);
-      let fallbackReason = "api_error";
-      if (errorMsg.includes("429") || errorMsg.includes("quota")) fallbackReason = "rate_limited";
-      else if (errorMsg.includes("timeout") || errorMsg.includes("AbortError")) fallbackReason = "timeout";
-      
-      console.log(`[API_EXPLAIN] fallback_reason: ${fallbackReason} - ${errorMsg}`);
+      const fallbackReason = mapErrorToFallbackReason(e);
+      console.log(`[API_EXPLAIN] fallback_reason: ${fallbackReason}`);
       
       // ── Path 2b: Gemini failed → mock fallback ──
-      return NextResponse.json({
-        explanation: getFallbackResponse(),
-        source: "fallback" as const,
-        generatedAt: undefined,
-        disclaimer,
-        fallbackReason,
-      });
+      return createFallbackResponse(interactionId, fallbackReason);
     }
   } catch (e: unknown) {
     console.error(`[API_EXPLAIN] FATAL ERROR parsing request:`, e);

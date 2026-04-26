@@ -54,19 +54,27 @@ const UNSAFE_PATTERNS = [
 ];
 
 // ---------------------------------------------------------------------------
+// Indexed Data for O(1) Lookups
+// ---------------------------------------------------------------------------
+
+const INTERACTIONS_MAP = new Map(
+  (interactionsData as InteractionRecord[]).map((i) => [i.id, i])
+);
+const DRUGS_MAP = new Map(
+  (drugsData as DrugRecord[]).map((d) => [d.id, d])
+);
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
 /** Find the interaction record from curated data. */
 export function getInteractionContext(interactionId: string) {
-  const interactions = interactionsData as InteractionRecord[];
-  const drugs = drugsData as DrugRecord[];
-
-  const interaction = interactions.find((i) => i.id === interactionId);
+  const interaction = INTERACTIONS_MAP.get(interactionId);
   if (!interaction) return null;
 
-  const drug1 = drugs.find((d) => d.id === interaction.drug1);
-  const drug2 = drugs.find((d) => d.id === interaction.drug2);
+  const drug1 = DRUGS_MAP.get(interaction.drug1);
+  const drug2 = DRUGS_MAP.get(interaction.drug2);
 
   return {
     interaction,

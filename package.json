@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "prewarm:demo": "node scripts/prewarm-demo.mjs"
+    "prewarm:demo": "node scripts/prewarm-demo.mjs",
+    "test": "node --test --experimental-strip-types \"lib/**/*.test.ts\""
   },
   "dependencies": {
     "next": "16.2.2",

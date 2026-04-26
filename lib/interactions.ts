@@ -60,6 +60,26 @@ const SEVERITY_COLORS: Record<
   },
 };
 
+// ---------------------------------------------------------------------------
+// Indexed Data for O(1) Lookups
+// ---------------------------------------------------------------------------
+
+const DRUGS_MAP: Record<string, Drug> = Object.fromEntries(
+  (drugsData as Drug[]).map((d) => [d.id, d])
+);
+
+/**
+ * Interactions indexed by both possible ID pairings in a nested object.
+ * This allows O(1) lookups without string concatenation or Map overhead.
+ */
+const INTERACTIONS_BY_DRUGS: Record<string, Record<string, Interaction>> = {};
+(interactionsData as Interaction[]).forEach((int) => {
+  if (!INTERACTIONS_BY_DRUGS[int.drug1]) INTERACTIONS_BY_DRUGS[int.drug1] = {};
+  if (!INTERACTIONS_BY_DRUGS[int.drug2]) INTERACTIONS_BY_DRUGS[int.drug2] = {};
+  INTERACTIONS_BY_DRUGS[int.drug1][int.drug2] = int;
+  INTERACTIONS_BY_DRUGS[int.drug2][int.drug1] = int;
+});
+
 /**
  * Returns all drugs from the curated dataset.
  */
@@ -72,24 +92,20 @@ export function getAllDrugs(): Drug[] {
  * Decision comes from curated data — NOT from an LLM.
  */
 export function findInteractions(drugIds: string[]): CheckResult[] {
-  const drugs = drugsData as Drug[];
-  const interactions = interactionsData as Interaction[];
   const results: CheckResult[] = [];
 
   for (let i = 0; i < drugIds.length; i++) {
-    for (let j = i + 1; j < drugIds.length; j++) {
-      const a = drugIds[i];
-      const b = drugIds[j];
+    const a = drugIds[i];
+    const interactionsForA = INTERACTIONS_BY_DRUGS[a];
+    if (!interactionsForA) continue;
 
-      const match = interactions.find(
-        (int) =>
-          (int.drug1 === a && int.drug2 === b) ||
-          (int.drug1 === b && int.drug2 === a)
-      );
+    for (let j = i + 1; j < drugIds.length; j++) {
+      const b = drugIds[j];
+      const match = interactionsForA[b];
 
       if (match) {
-        const drug1 = drugs.find((d) => d.id === match.drug1);
-        const drug2 = drugs.find((d) => d.id === match.drug2);
+        const drug1 = DRUGS_MAP[match.drug1];
+        const drug2 = DRUGS_MAP[match.drug2];
         results.push({
           interaction: match,
           drug1Name: drug1?.name ?? match.drug1,

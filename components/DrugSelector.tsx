@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 
 interface Drug {
   id: string;
@@ -24,17 +24,32 @@ export default function DrugSelector({
   const [isOpen, setIsOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
-  const selectedSet = new Set(selected);
-  const lowerQuery = query.toLowerCase();
+  const selectedSet = useMemo(() => new Set(selected), [selected]);
 
-  const filtered = drugs.filter(
-    (d) =>
-      !selectedSet.has(d.id) &&
-      (d.name.toLowerCase().includes(lowerQuery) ||
-        d.activeIngredient.toLowerCase().includes(lowerQuery))
+  const searchableDrugs = useMemo(
+    () =>
+      drugs.map((d) => ({
+        ...d,
+        lowerName: d.name.toLowerCase(),
+        lowerIngredient: d.activeIngredient.toLowerCase(),
+      })),
+    [drugs]
   );
 
-  const selectedDrugs = drugs.filter((d) => selectedSet.has(d.id));
+  const filtered = useMemo(() => {
+    const lowerQuery = query.toLowerCase();
+    return searchableDrugs.filter(
+      (d) =>
+        !selectedSet.has(d.id) &&
+        (d.lowerName.includes(lowerQuery) ||
+          d.lowerIngredient.includes(lowerQuery))
+    );
+  }, [searchableDrugs, query, selectedSet]);
+
+  const selectedDrugs = useMemo(
+    () => drugs.filter((d) => selectedSet.has(d.id)),
+    [drugs, selectedSet]
+  );
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {

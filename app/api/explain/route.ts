@@ -122,17 +122,12 @@ function getCachedResponse(interactionId: string, refresh: boolean) {
   }
 
   if (!refresh && cached && isCacheEntryValid(cached)) {
-    console.log(`[API_EXPLAIN] gemini_cached: ${interactionId}`);
     return NextResponse.json({
       explanation: cached.explanation,
       source: "gemini_cached" as const,
       generatedAt: cached.generatedAt,
       disclaimer: DISCLAIMER,
     });
-  }
-
-  if (refresh && cached) {
-    console.log(`[API_EXPLAIN] refresh requested; bypassing cache for: ${interactionId}`);
   }
 
   return null;
@@ -154,9 +149,6 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { interactionId, refresh = false } = body || {};
 
-    console.log(`\n[API_EXPLAIN] ----------------------------------------`);
-    console.log(`[API_EXPLAIN] Incoming request for interactionId: ${interactionId}`);
-
     // Validate interactionId is a non-empty string
     if (!interactionId || typeof interactionId !== "string") {
       return NextResponse.json(
@@ -176,7 +168,6 @@ export async function POST(request: Request) {
     // ── Path 1: Demo mode or missing key → mock ──
     if (shouldUseFallback()) {
       const reason = !process.env.GOOGLE_API_KEY ? "missing_api_key" : "demo_mode";
-      console.log(`[API_EXPLAIN] fallback_reason: ${reason}`);
       return createFallbackResponse(interactionId, reason);
     }
 
@@ -188,7 +179,6 @@ export async function POST(request: Request) {
     const ctx = getInteractionContext(interactionId);
 
     if (!ctx) {
-      console.log("[API_EXPLAIN] fallback_reason: unknown_interaction");
       return createFallbackResponse(interactionId, "unknown_interaction");
     }
 
@@ -197,18 +187,14 @@ export async function POST(request: Request) {
 
       // ── Output guard ──
       if (!isOutputSafe(result.explanation)) {
-        console.log("[API_EXPLAIN] fallback_reason: unsafe_output");
         return createFallbackResponse(interactionId, "unsafe_output");
       }
 
       if (!isExplanationComplete(result.explanation)) {
-        console.log("[API_EXPLAIN] fallback_reason: incomplete_output");
         return createFallbackResponse(interactionId, "incomplete_output");
       }
 
       // ── Path 2a: Gemini succeeded and output is safe ──
-      console.log(`[API_EXPLAIN] gemini_success for: ${interactionId}`);
-      console.log(`[API_EXPLAIN] Output preview: ${result.explanation.substring(0, 50)}...`);
       
       // Save to persistent file cache
       saveCache(interactionId, {
@@ -226,7 +212,6 @@ export async function POST(request: Request) {
     } catch (e: unknown) {
       console.error(`[API_EXPLAIN] EXCEPTION in callGemini:`, e);
       const fallbackReason = mapErrorToFallbackReason(e);
-      console.log(`[API_EXPLAIN] fallback_reason: ${fallbackReason}`);
       
       // ── Path 2b: Gemini failed → mock fallback ──
       return createFallbackResponse(interactionId, fallbackReason);

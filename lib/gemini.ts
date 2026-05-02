@@ -1,5 +1,5 @@
-import interactionsData from "@/data/interactions.json";
-import drugsData from "@/data/drugs.json";
+import interactionsData from "../data/interactions.json" with { type: "json" };
+import drugsData from "../data/drugs.json" with { type: "json" };
 
 // ---------------------------------------------------------------------------
 // Types
@@ -69,12 +69,16 @@ const DRUGS_MAP = new Map(
 // ---------------------------------------------------------------------------
 
 /** Find the interaction record from curated data. */
-export function getInteractionContext(interactionId: string) {
-  const interaction = INTERACTIONS_MAP.get(interactionId);
+export function getInteractionContext(
+  interactionId: string,
+  interactionsMap = INTERACTIONS_MAP,
+  drugsMap = DRUGS_MAP
+) {
+  const interaction = interactionsMap.get(interactionId);
   if (!interaction) return null;
 
-  const drug1 = DRUGS_MAP.get(interaction.drug1);
-  const drug2 = DRUGS_MAP.get(interaction.drug2);
+  const drug1 = drugsMap.get(interaction.drug1);
+  const drug2 = drugsMap.get(interaction.drug2);
 
   return {
     interaction,
@@ -86,8 +90,11 @@ export function getInteractionContext(interactionId: string) {
 }
 
 /** Returns true when Gemini should be skipped entirely. */
-export function shouldUseFallback(): boolean {
-  return DEMO_MODE || !GEMINI_API_KEY;
+export function shouldUseFallback(
+  demoMode = DEMO_MODE,
+  apiKey = GEMINI_API_KEY
+): boolean {
+  return demoMode || !apiKey;
 }
 
 /** Simple output guard — returns true if the text is safe. */

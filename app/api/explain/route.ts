@@ -147,14 +147,20 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { interactionId, refresh = false } = body as {
-      interactionId: string;
-      refresh?: boolean;
-    };
+    const { interactionId, refresh = false } = body || {};
 
-    if (!interactionId) {
+    // Validate interactionId is a non-empty string
+    if (!interactionId || typeof interactionId !== "string") {
       return NextResponse.json(
-        { error: "interactionId gereklidir." },
+        { error: "Geçerli bir interactionId (string) gereklidir." },
+        { status: 400 }
+      );
+    }
+
+    // Validate refresh is a boolean if provided
+    if (typeof refresh !== "boolean") {
+      return NextResponse.json(
+        { error: "refresh parametresi boolean olmalıdır." },
         { status: 400 }
       );
     }

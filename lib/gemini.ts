@@ -53,6 +53,13 @@ const UNSAFE_PATTERNS = [
   "yerine şunu kullan",
 ];
 
+/** Quality gate constants for AI-generated explanations. */
+const MIN_EXPLANATION_CHAR_COUNT = 120;
+const MIN_EXPLANATION_WORD_COUNT = 18;
+const MIN_LENGTH_FOR_GREETING_RESPONSE = 180;
+const END_PUNCTUATION_PATTERN = /[.!?…]["')\]]*\s*$/u;
+const GREETING_START_PATTERN = /^(merhaba|selam|tabii|elbette|tabi)\b/iu;
+
 // ---------------------------------------------------------------------------
 // Indexed Data for O(1) Lookups
 // ---------------------------------------------------------------------------
@@ -107,13 +114,15 @@ export function isOutputSafe(text: string): boolean {
 export function isExplanationComplete(text: string): boolean {
   const normalized = text.replace(/\s+/g, " ").trim();
 
-  if (normalized.length < 120) return false;
-  if (normalized.split(" ").filter(Boolean).length < 18) return false;
-  if (!/[.!?…]["')\]]*\s*$/u.test(normalized)) return false;
+  if (normalized.length < MIN_EXPLANATION_CHAR_COUNT) return false;
+  if (normalized.split(" ").filter(Boolean).length < MIN_EXPLANATION_WORD_COUNT) {
+    return false;
+  }
+  if (!END_PUNCTUATION_PATTERN.test(normalized)) return false;
 
   if (
-    /^(merhaba|selam|tabii|elbette|tabi)\b/iu.test(normalized) &&
-    normalized.length < 180
+    GREETING_START_PATTERN.test(normalized) &&
+    normalized.length < MIN_LENGTH_FOR_GREETING_RESPONSE
   ) {
     return false;
   }

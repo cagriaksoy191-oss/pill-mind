@@ -92,11 +92,13 @@ function saveCache(interactionId: string, entry: CacheEntry) {
 
 const DISCLAIMER = "Bu açıklama bilgilendirme amaçlıdır ve tıbbi tavsiye niteliği taşımaz.";
 
+// Pre-index fallback responses into a Map for O(1) safe lookups
+const FALLBACK_RESPONSES_MAP = new Map(Object.entries(fallbackResponses));
+
 function getFallbackResponse(interactionId: string): string {
-  const responses = fallbackResponses as Record<string, string>;
   return (
-    responses[interactionId] ??
-    responses["_default"] ??
+    (FALLBACK_RESPONSES_MAP.get(interactionId) as string) ??
+    (FALLBACK_RESPONSES_MAP.get("_default") as string) ??
     "Yedek açıklama geçici olarak yüklenemedi."
   );
 }

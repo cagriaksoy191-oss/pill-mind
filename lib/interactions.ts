@@ -64,20 +64,20 @@ const SEVERITY_COLORS: Record<
 // Indexed Data for O(1) Lookups
 // ---------------------------------------------------------------------------
 
-const DRUGS_MAP: Record<string, Drug> = Object.fromEntries(
+const DRUGS_MAP = new Map(
   (drugsData as Drug[]).map((d) => [d.id, d])
 );
 
 /**
- * Interactions indexed by both possible ID pairings in a nested object.
- * This allows O(1) lookups without string concatenation or Map overhead.
+ * Interactions indexed by both possible ID pairings in a nested Map.
+ * This ensures lookups are immune to prototype pollution while maintaining performance.
  */
-const INTERACTIONS_BY_DRUGS: Record<string, Record<string, Interaction>> = {};
+const INTERACTIONS_BY_DRUGS = new Map<string, Map<string, Interaction>>();
 (interactionsData as Interaction[]).forEach((int) => {
-  if (!INTERACTIONS_BY_DRUGS[int.drug1]) INTERACTIONS_BY_DRUGS[int.drug1] = {};
-  if (!INTERACTIONS_BY_DRUGS[int.drug2]) INTERACTIONS_BY_DRUGS[int.drug2] = {};
-  INTERACTIONS_BY_DRUGS[int.drug1][int.drug2] = int;
-  INTERACTIONS_BY_DRUGS[int.drug2][int.drug1] = int;
+  if (!INTERACTIONS_BY_DRUGS.has(int.drug1)) INTERACTIONS_BY_DRUGS.set(int.drug1, new Map());
+  if (!INTERACTIONS_BY_DRUGS.has(int.drug2)) INTERACTIONS_BY_DRUGS.set(int.drug2, new Map());
+  INTERACTIONS_BY_DRUGS.get(int.drug1)!.set(int.drug2, int);
+  INTERACTIONS_BY_DRUGS.get(int.drug2)!.set(int.drug1, int);
 });
 
 /**
@@ -96,16 +96,16 @@ export function findInteractions(drugIds: string[]): CheckResult[] {
 
   for (let i = 0; i < drugIds.length; i++) {
     const a = drugIds[i];
-    const interactionsForA = INTERACTIONS_BY_DRUGS[a];
+    const interactionsForA = INTERACTIONS_BY_DRUGS.get(a);
     if (!interactionsForA) continue;
 
     for (let j = i + 1; j < drugIds.length; j++) {
       const b = drugIds[j];
-      const match = interactionsForA[b];
+      const match = interactionsForA.get(b);
 
       if (match) {
-        const drug1 = DRUGS_MAP[match.drug1];
-        const drug2 = DRUGS_MAP[match.drug2];
+        const drug1 = DRUGS_MAP.get(match.drug1);
+        const drug2 = DRUGS_MAP.get(match.drug2);
         results.push({
           interaction: match,
           drug1Name: drug1?.name ?? match.drug1,
@@ -122,7 +122,11 @@ export function findInteractions(drugIds: string[]): CheckResult[] {
  * Severity label mapping for UI display (safe language)
  */
 export function getSeverityLabel(severity: string): string {
-  return SEVERITY_LABELS[severity] || "Bilgi mevcut değil";
+  return (
+    (Object.prototype.hasOwnProperty.call(SEVERITY_LABELS, severity)
+      ? SEVERITY_LABELS[severity]
+      : undefined) || "Bilgi mevcut değil"
+  );
 }
 
 export function getSeverityColor(severity: string): {
@@ -132,7 +136,9 @@ export function getSeverityColor(severity: string): {
   text: string;
 } {
   return (
-    SEVERITY_COLORS[severity] || {
+    (Object.prototype.hasOwnProperty.call(SEVERITY_COLORS, severity)
+      ? SEVERITY_COLORS[severity]
+      : undefined) || {
       bg: "bg-gray-50",
       border: "border-gray-300",
       badge: "bg-gray-500 text-white",

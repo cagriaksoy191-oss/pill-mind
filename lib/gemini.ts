@@ -1,25 +1,10 @@
 import interactionsData from "../data/interactions.json" with { type: "json" };
 import drugsData from "../data/drugs.json" with { type: "json" };
+import type { Interaction, Drug } from "./interactions";
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
-
-interface InteractionRecord {
-  id: string;
-  drug1: string;
-  drug2: string;
-  severity: string;
-  summary: string;
-  source: string;
-}
-
-interface DrugRecord {
-  id: string;
-  name: string;
-  activeIngredient: string;
-  category: string;
-}
 
 interface GeminiResult {
   explanation: string;
@@ -65,10 +50,10 @@ const GREETING_START_PATTERN = /^(merhaba|selam|tabii|elbette|tabi)\b/iu;
 // ---------------------------------------------------------------------------
 
 const INTERACTIONS_MAP = new Map(
-  (interactionsData as InteractionRecord[]).map((i) => [i.id, i])
+  (interactionsData as Interaction[]).map((i) => [i.id, i])
 );
 const DRUGS_MAP = new Map(
-  (drugsData as DrugRecord[]).map((d) => [d.id, d])
+  (drugsData as Drug[]).map((d) => [d.id, d])
 );
 
 // ---------------------------------------------------------------------------

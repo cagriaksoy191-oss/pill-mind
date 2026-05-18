@@ -1,5 +1,11 @@
-import drugsData from "@/data/drugs.json";
-import interactionsData from "@/data/interactions.json";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+
+// Load data files using absolute paths to avoid issues with test runner working directory
+const drugsPath = path.resolve(process.cwd(), 'data/drugs.json');
+const interactionsPath = path.resolve(process.cwd(), 'data/interactions.json');
+const drugsData = JSON.parse(readFileSync(drugsPath, 'utf8'));
+const interactionsData = JSON.parse(readFileSync(interactionsPath, 'utf8'));
 
 export interface Drug {
   id: string;

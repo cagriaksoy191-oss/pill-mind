@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { findInteractions } from "@/lib/interactions";
+import { validateDrugIds } from "@/lib/validation";
 
 /**
  * POST /api/check
@@ -11,10 +12,11 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { drugIds } = body as { drugIds: string[] };
 
-    if (!drugIds || !Array.isArray(drugIds) || drugIds.length < 2) {
+    const validation = validateDrugIds(drugIds);
+    if (!validation.valid) {
       return NextResponse.json(
-        { error: "En az 2 ilaç ID'si gereklidir." },
-        { status: 400 }
+        { error: validation.error },
+        { status: validation.status }
       );
     }
 

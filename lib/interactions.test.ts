@@ -9,30 +9,38 @@ const interactionsPath = path.resolve(process.cwd(), 'data/interactions.json');
 const drugsData = JSON.parse(readFileSync(drugsPath, 'utf8'));
 const interactionsData = JSON.parse(readFileSync(interactionsPath, 'utf8'));
 
+const DRUGS_MAP = new Map(
+  (drugsData as any[]).map((d) => [d.id, d])
+);
+
+const INTERACTIONS_BY_DRUGS = new Map<string, Map<string, any>>();
+(interactionsData as any[]).forEach((int) => {
+  if (!INTERACTIONS_BY_DRUGS.has(int.drug1)) INTERACTIONS_BY_DRUGS.set(int.drug1, new Map());
+  if (!INTERACTIONS_BY_DRUGS.has(int.drug2)) INTERACTIONS_BY_DRUGS.set(int.drug2, new Map());
+  INTERACTIONS_BY_DRUGS.get(int.drug1)!.set(int.drug2, int);
+  INTERACTIONS_BY_DRUGS.get(int.drug2)!.set(int.drug1, int);
+});
+
 /**
  * findInteractions logic duplicated here for testing purposes.
  * This ensures we can test the algorithm independently of the Next.js environment
  * (e.g., path aliases like @/, build-time JSON imports) in a lightweight way.
  */
 function findInteractions(drugIds: string[]): any[] {
-  const drugs = drugsData;
-  const interactions = interactionsData;
   const results: any[] = [];
 
   for (let i = 0; i < drugIds.length; i++) {
-    for (let j = i + 1; j < drugIds.length; j++) {
-      const a = drugIds[i];
-      const b = drugIds[j];
+    const a = drugIds[i];
+    const interactionsForA = INTERACTIONS_BY_DRUGS.get(a);
+    if (!interactionsForA) continue;
 
-      const match = interactions.find(
-        (int: any) =>
-          (int.drug1 === a && int.drug2 === b) ||
-          (int.drug1 === b && int.drug2 === a)
-      );
+    for (let j = i + 1; j < drugIds.length; j++) {
+      const b = drugIds[j];
+      const match = interactionsForA.get(b);
 
       if (match) {
-        const drug1 = drugs.find((d: any) => d.id === match.drug1);
-        const drug2 = drugs.find((d: any) => d.id === match.drug2);
+        const drug1 = DRUGS_MAP.get(match.drug1);
+        const drug2 = DRUGS_MAP.get(match.drug2);
         results.push({
           interaction: match,
           drug1Name: drug1?.name ?? match.drug1,
@@ -106,19 +114,27 @@ describe('findInteractions Edge Cases', () => {
     const customDrugs = [{ id: 'exists', name: 'Existing Drug' }];
 
     function findInteractionsInternal(drugIds: string[], drugs: any[], interactions: any[]): any[] {
+      const drugsMap = new Map(drugs.map((d) => [d.id, d]));
+      const interactionsByDrugs = new Map<string, Map<string, any>>();
+      interactions.forEach((int) => {
+        if (!interactionsByDrugs.has(int.drug1)) interactionsByDrugs.set(int.drug1, new Map());
+        if (!interactionsByDrugs.has(int.drug2)) interactionsByDrugs.set(int.drug2, new Map());
+        interactionsByDrugs.get(int.drug1)!.set(int.drug2, int);
+        interactionsByDrugs.get(int.drug2)!.set(int.drug1, int);
+      });
+
       const results: any[] = [];
       for (let i = 0; i < drugIds.length; i++) {
+        const a = drugIds[i];
+        const interactionsForA = interactionsByDrugs.get(a);
+        if (!interactionsForA) continue;
+
         for (let j = i + 1; j < drugIds.length; j++) {
-          const a = drugIds[i];
           const b = drugIds[j];
-          const match = interactions.find(
-            (int: any) =>
-              (int.drug1 === a && int.drug2 === b) ||
-              (int.drug1 === b && int.drug2 === a)
-          );
+          const match = interactionsForA.get(b);
           if (match) {
-            const d1 = drugs.find((d: any) => d.id === match.drug1);
-            const d2 = drugs.find((d: any) => d.id === match.drug2);
+            const d1 = drugsMap.get(match.drug1);
+            const d2 = drugsMap.get(match.drug2);
             results.push({
               interaction: match,
               drug1Name: d1?.name ?? match.drug1,

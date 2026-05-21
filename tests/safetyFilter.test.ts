@@ -1,5 +1,5 @@
 // tests/safetyFilter.test.ts
-import { isOutputSafe, UNSAFE_PATTERNS } from "../lib/gemini";
+import { isOutputSafe } from "../lib/gemini";
 
 describe("Çift Ajanlı AI Filtresi & Güvenlik Testleri (Safety Shield Unit Tests)", () => {
   

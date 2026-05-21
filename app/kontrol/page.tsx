@@ -1,302 +1,547 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { getAllDrugs, Drug, CheckResult } from "@/lib/interactions";
 import DrugSelector from "@/components/DrugSelector";
+import VirtualPillbox from "@/components/VirtualPillbox";
 import ResultCard from "@/components/ResultCard";
 import Disclaimer from "@/components/Disclaimer";
-import { getAllDrugs } from "@/lib/interactions";
-
-interface InteractionResult {
-  interaction: {
-    id: string;
-    drug1: string;
-    drug2: string;
-    severity: string;
-    summary: string;
-    sourceLabel?: string;
-    verificationStatus?: string;
-    source?: string;
-  };
-  drug1Name: string;
-  drug2Name: string;
-}
-
-interface ExplainResponse {
-  explanation: string;
-  source?: string;
-  generatedAt?: string;
-  disclaimer?: string;
-  fallbackReason?: string;
-}
 
 export default function KontrolPage() {
-  const drugs = getAllDrugs();
-  const [selectedDrugs, setSelectedDrugs] = useState<string[]>([]);
-  const [results, setResults] = useState<InteractionResult[] | null>(null);
-  const [explanations, setExplanations] = useState<Record<string, ExplainResponse>>({});
+  const [drugs, setDrugs] = useState<Drug[]>([]);
+  const [selectedDrugIds, setSelectedDrugIds] = useState<string[]>([]);
+  const [interactions, setInteractions] = useState<CheckResult[]>([]);
+  const [isChecking, setIsChecking] = useState(false);
+  const [checkingError, setCheckingError] = useState<string | null>(null);
+
+  // Individual interaction explanation states
+  const [explanations, setExplanations] = useState<Record<string, any>>({});
   const [loadingExplanations, setLoadingExplanations] = useState<Record<string, boolean>>({});
-  const [loading, setLoading] = useState(false);
-  const [noInteraction, setNoInteraction] = useState(false);
-  const [hasError, setHasError] = useState(false);
 
-  async function handleCheck() {
-    if (selectedDrugs.length < 2) return;
+  // Global combination analysis states (Coverage)
+  const [coverageExplanation, setCoverageExplanation] = useState<{
+    explanation?: string;
+    source?: string;
+    generatedAt?: string;
+    error?: string;
+    reason?: string;
+  } | null>(null);
+  const [isCoverageLoading, setIsCoverageLoading] = useState(false);
+  const [showCoveragePanel, setShowCoveragePanel] = useState(false);
 
-    setLoading(true);
-    setResults(null);
-    setExplanations({});
-    setNoInteraction(false);
-    setHasError(false);
+  // Load drugs list on mount
+  useEffect(() => {
+    setDrugs(getAllDrugs());
+  }, []);
 
-    try {
-      // Step 1: Check interactions from curated data
-      const checkRes = await fetch("/api/check", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ drugIds: selectedDrugs }),
-      });
-      
-      if (!checkRes.ok) throw new Error("Check failed");
-      
-      const checkData = await checkRes.json();
-      const interactions: InteractionResult[] = checkData.interactions ?? [];
-
-      if (interactions.length === 0) {
-        setNoInteraction(true);
-        setResults([]);
-        setLoading(false);
+  // Automatically check interactions when selected drugs change
+  useEffect(() => {
+    const checkInteractions = async () => {
+      if (selectedDrugIds.length < 2) {
+        setInteractions([]);
+        setCoverageExplanation(null);
+        setShowCoveragePanel(false);
+        setCheckingError(null);
         return;
       }
 
-      setResults(interactions);
-    } catch {
-      setHasError(true);
-      setResults(null);
-    } finally {
-      setLoading(false);
-    }
-  }
+      setIsChecking(true);
+      setCheckingError(null);
+      try {
+        const res = await fetch("/api/check", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ drugIds: selectedDrugIds }),
+        });
 
-  async function fetchExplanation(interactionId: string, force = false) {
-    // Force istenmiyorsa ve daha önce alınmış geçerli bir açıklama varsa yeniden atma
-    if (!force && explanations[interactionId]) {
-      return; 
-    }
+        if (!res.ok) {
+          throw new Error("Etkileşim taraması yapılırken sunucu hatası oluştu.");
+        }
+
+        const data = await res.json();
+        setInteractions(data.interactions || []);
+      } catch (err: any) {
+        console.error("[PillMind Check Engine] Error:", err);
+        setCheckingError(err.message || "Bağlantı hatası: Klinik kontrol gerçekleştirilemedi.");
+      } finally {
+        setIsChecking(false);
+      }
+    };
+
+    checkInteractions();
+  }, [selectedDrugIds]);
+
+  // Request detailed explanation for a single interaction card
+  const handleExplainRequested = useCallback(async (interactionId: string, force: boolean) => {
+    // Avoid double fetching
+    if (loadingExplanations[interactionId]) return;
 
     setLoadingExplanations((prev) => ({ ...prev, [interactionId]: true }));
     try {
       const res = await fetch("/api/explain", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({ interactionId }),
       });
-      const data: ExplainResponse = await res.json();
+
+      const data = await res.json();
       setExplanations((prev) => ({ ...prev, [interactionId]: data }));
-    } catch {
-      setExplanations((prev) => ({ ...prev, [interactionId]: { explanation: "Bir hata oluştu.", source: "fallback", fallbackReason: "timeout" } }));
+    } catch (err: any) {
+      console.error("[PillMind Explain Engine] Error:", err);
+      setExplanations((prev) => ({
+        ...prev,
+        [interactionId]: {
+          source: "error",
+          error: "Canlı AI açıklaması şu anda alınamadı. Lütfen tekrar deneyin.",
+          reason: "api_error",
+        },
+      }));
     } finally {
       setLoadingExplanations((prev) => ({ ...prev, [interactionId]: false }));
     }
-  }
+  }, [loadingExplanations]);
 
-  function handleReset() {
-    setSelectedDrugs([]);
-    setResults(null);
-    setExplanations({});
-    setNoInteraction(false);
-    setHasError(false);
-  }
+  // Request comprehensive combination analysis (Coverage)
+  const handleRequestCoverageExplanation = async () => {
+    if (selectedDrugIds.length < 2 || isCoverageLoading) return;
 
-  const selectedDrugNames = drugs
-    .filter((d) => selectedDrugs.includes(d.id))
-    .map((d) => d.name);
+    setIsCoverageLoading(true);
+    setShowCoveragePanel(true);
+    setCoverageExplanation(null);
+
+    try {
+      const res = await fetch("/api/explain", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ drugIds: selectedDrugIds }),
+      });
+
+      const data = await res.json();
+      setCoverageExplanation(data);
+    } catch (err: any) {
+      console.error("[PillMind Coverage Engine] Error:", err);
+      setCoverageExplanation({
+        source: "error",
+        error: "Canlı AI kombinasyon analizi şu anda oluşturulamadı. Lütfen daha sonra tekrar deneyin.",
+        reason: "api_error",
+      });
+    } finally {
+      setIsCoverageLoading(false);
+    }
+  };
+
+  // Convert selected drug IDs to complete Drug object array
+  const selectedDrugs = drugs.filter((d) => selectedDrugIds.includes(d.id));
+
+  // Determine system status label based on current selections and findings
+  const getSystemStatusLabel = () => {
+    if (selectedDrugIds.length === 0) return "İlaç Bekleniyor";
+    if (selectedDrugIds.length === 1) return "İkinci İlaç Bekleniyor";
+    if (isChecking) return "Taranıyor...";
+    if (interactions.length > 0) {
+      const highAlert = interactions.some((i) => i.interaction.severity === "high");
+      return highAlert ? "Potansiyel Ciddi Etkileşim!" : "Klinik Etkileşim Tespit Edildi";
+    }
+    return "Temiz Rapor (Etkileşim Saptanmadı)";
+  };
+
+  const getSystemStatusBadgeClass = () => {
+    if (selectedDrugIds.length < 2) return "bg-slate-500/10 text-slate-400 border-slate-500/20";
+    if (isChecking) return "bg-indigo-500/10 text-indigo-400 border-indigo-500/20 animate-pulse";
+    if (interactions.length > 0) {
+      const highAlert = interactions.some((i) => i.interaction.severity === "high");
+      return highAlert 
+        ? "bg-red-500/10 text-red-400 border-red-500/20 animate-pulse"
+        : "bg-amber-500/10 text-amber-400 border-amber-500/20";
+    }
+    return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
+  };
 
   return (
-    <div className="flex flex-col min-h-screen">
-      {/* Header */}
-      <header className="border-b border-slate-200 bg-white/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
-          <Link
-            href="/"
-            className="text-lg font-bold text-slate-800 hover:text-indigo-600 transition-colors"
-          >
-            💊 Pill<span className="text-indigo-600">Mind</span>
+    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-indigo-500/30 selection:text-indigo-200 relative overflow-hidden flex flex-col justify-between">
+      {/* Background Ambient Glows */}
+      <div className="absolute top-[10%] left-[10%] w-[30rem] h-[30rem] rounded-full bg-indigo-500/10 blur-[120px] pointer-events-none animate-pulse-slow"></div>
+      <div className="absolute bottom-[20%] right-[10%] w-[35rem] h-[35rem] rounded-full bg-purple-500/10 blur-[130px] pointer-events-none animate-pulse-slow"></div>
+      <div className="absolute top-[40%] right-[20%] w-[25rem] h-[25rem] rounded-full bg-emerald-500/5 blur-[100px] pointer-events-none"></div>
+
+      {/* Premium Stick-on Navigation Header */}
+      <header className="w-full py-4 px-6 border-b border-white/5 bg-slate-950/40 backdrop-blur-md sticky top-0 z-50">
+        <div className="max-w-6xl mx-auto flex justify-between items-center">
+          <Link href="/" className="flex items-center gap-2 group focus:outline-none">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-white font-bold text-lg shadow-md group-hover:scale-105 transition-transform duration-200">
+              P
+            </div>
+            <h1 className="text-xl font-bold tracking-tight text-white group-hover:text-indigo-300 transition-colors">
+              PillMind <span className="text-xs font-semibold text-slate-400 ml-1">Portal</span>
+            </h1>
           </Link>
-          {results !== null && (
-            <button
-              onClick={handleReset}
-              className="text-sm text-indigo-600 hover:text-indigo-800 font-medium cursor-pointer"
+
+          <div className="flex items-center gap-4">
+            {/* Live Engine Status indicator */}
+            <div className={`text-[11px] font-bold px-3 py-1 rounded-full border flex items-center gap-1.5 transition-all duration-300 ${getSystemStatusBadgeClass()}`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${
+                selectedDrugIds.length < 2 
+                  ? "bg-slate-400" 
+                  : interactions.length > 0 
+                    ? interactions.some((i) => i.interaction.severity === "high") ? "bg-red-400" : "bg-amber-400"
+                    : "bg-emerald-400"
+              } ${isChecking || (selectedDrugIds.length >= 2 && interactions.length > 0) ? "animate-pulse" : ""}`}></span>
+              {getSystemStatusLabel()}
+            </div>
+            
+            <Link 
+              href="/"
+              className="text-xs font-semibold text-slate-400 hover:text-white px-3 py-1.5 rounded-lg hover:bg-white/5 border border-transparent hover:border-white/5 transition-all duration-200"
             >
-              ← Yeni Kontrol
-            </button>
-          )}
+              Ana Sayfa
+            </Link>
+          </div>
         </div>
       </header>
 
-      <main className="flex-1 max-w-3xl mx-auto w-full px-4 py-8">
-        {/* Drug Selection Section */}
-        {results === null && (
-          <section>
-            <h1 className="text-2xl font-bold text-slate-800 mb-2">
-              İlaç Etkileşim Kontrolü
-            </h1>
-            <p className="text-slate-500 mb-6 relative">
-              Kontrol etmek istediğiniz ilaçları seçin. En az 2 ilaç
-              gereklidir.
-              <span className="block mt-3 text-xs bg-slate-50 text-slate-500 p-2.5 rounded-lg border border-slate-200">
-                 <strong>Bilgi:</strong> Bu demo sürümü 10 temel ilacı ve aralarındaki doğrulanmış seçili etkileşimleri kapsar.
-              </span>
-            </p>
-
-            <DrugSelector
-              drugs={drugs}
-              selected={selectedDrugs}
-              onSelect={setSelectedDrugs}
-            />
-
-            <button
-              onClick={handleCheck}
-              disabled={selectedDrugs.length < 2 || loading}
-              className={`mt-6 w-full py-3.5 rounded-xl font-semibold text-base transition-all duration-200 cursor-pointer ${
-                selectedDrugs.length >= 2
-                  ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-md hover:shadow-lg"
-                  : "bg-slate-200 text-slate-400 cursor-not-allowed"
-              }`}
-            >
-              {loading ? (
-                <span className="inline-flex items-center gap-2">
-                  <svg
-                    className="animate-spin h-5 w-5"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                    />
-                  </svg>
-                  Kontrol ediliyor...
+      {/* Main Workspace */}
+      <main className="flex-1 max-w-6xl mx-auto w-full px-6 pt-10 pb-16 relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8">
+        
+        {/* Left Side: Interaksiyon Arama ve Kutu Yönetimi */}
+        <section className="lg:col-span-7 flex flex-col gap-6" aria-label="İlaç Seçim ve Ekleme Paneli">
+          <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-32 bg-gradient-to-bl from-indigo-500/10 to-transparent rounded-full -mr-20 -mt-20 pointer-events-none" />
+            
+            <div className="relative z-10">
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight leading-tight">
+                İlaç Etkileşim <br />
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400">
+                  Canlı Tarama Paneli
                 </span>
-              ) : (
-                `Kontrol Et (${selectedDrugs.length} ilaç seçildi)`
-              )}
-            </button>
-
-            {selectedDrugs.length > 0 && selectedDrugs.length < 2 && (
-              <p className="text-sm text-amber-600 mt-2 text-center">
-                Kontrol için en az 2 ilaç seçmelisiniz.
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-400 mt-2 leading-relaxed max-w-lg">
+                Fuzzy Search teknolojisi ile Türkçe karakter veya yazım hatası fark etmeksizin ilaçlarınızı arayın, sanal kutunuza ekleyerek etkileşimleri anında denetleyin.
               </p>
-            )}
-          </section>
-        )}
-
-        {/* Error State */}
-        {hasError && (
-          <section className="mt-8 text-center bg-red-50 border border-red-200 rounded-xl p-6">
-            <span className="text-3xl block mb-2">⚠️</span>
-            <h3 className="font-semibold text-red-800 mb-2">
-              Sistem Yanıt Veremedi
-            </h3>
-            <p className="text-sm text-red-700 leading-relaxed mb-6">
-              Şu anda açıklama oluşturulamadı. Lütfen tekrar deneyin veya sağlık profesyonelinize danışın.
-            </p>
-            <button
-              onClick={handleReset}
-              className="px-6 py-2 bg-white text-red-700 border border-red-300 rounded-lg hover:bg-red-50 transition-colors cursor-pointer text-sm font-medium"
-            >
-              Yeniden Seç
-            </button>
-          </section>
-        )}
-
-        {/* Results Section */}
-        {results !== null && !hasError && (
-          <section>
-            <div className="mb-6">
-              <h1 className="text-2xl font-bold text-slate-800 mb-2">
-                Kontrol Sonuçları
-              </h1>
-              <p className="text-sm text-slate-500">
-                Kontrol edilen ilaçlar:{" "}
-                <span className="font-medium text-slate-700">
-                  {selectedDrugNames.join(", ")}
-                </span>
-              </p>
-            </div>
-
-            {/* No interactions found (in our dataset) */}
-            {noInteraction && (
-              <div className="bg-slate-50 border-2 border-slate-200 rounded-xl p-6 text-center">
-                <span className="text-3xl block mb-3">📋</span>
-                <h3 className="font-semibold text-slate-800 mb-2">
-                  Bilinen Etkileşim Kaydı Bulunmadı
-                </h3>
-                <p className="text-sm text-slate-600 leading-relaxed max-w-lg mx-auto">
-                  Sistemimizde mevcut olan ilaç etkileşim veri setinde, seçtiğiniz ilaçlar arasında kritik bir eşleşme bulunmadı.
-                  <strong className="block mt-3 font-medium bg-amber-50 rounded-lg px-3 py-2.5 border border-amber-200 text-amber-800 mb-3 text-left shadow-sm">
-                    <span className="block text-amber-900 font-bold mb-0.5 text-xs uppercase tracking-wide">Demo Kapsam Sınırı</span>
-                    Bu demo sürümü sadece 10 ilaç ve doğrulanmış seçili etkileşim kayıtlarını kapsamaktadır. Etkileşim kaydı bulunmaması, gerçekte bir risk olmadığı anlamına gelmez.
-                  </strong>
-                  Herhangi bir ilacı kullanmadan veya tedavi planınıza eklemeden önce daima sağlık profesyonelinize danışın.
-                </p>
+              
+              <div className="mt-8">
+                <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2.5">
+                  🔍 İlaç Arama ve Giriş Alanı
+                </label>
+                <DrugSelector 
+                  drugs={drugs}
+                  selected={selectedDrugIds}
+                  onSelect={setSelectedDrugIds}
+                />
               </div>
-            )}
+            </div>
+          </div>
 
-            {/* Interaction cards */}
-            {results.length > 0 && (
-              <div className="space-y-4">
-                {results.map((item) => (
-                  <ResultCard
-                    key={item.interaction.id}
-                    interactionId={item.interaction.id}
-                    drug1Name={item.drug1Name}
-                    drug2Name={item.drug2Name}
-                    severity={item.interaction.severity}
-                    summary={item.interaction.summary}
-                    sourceLabel={item.interaction.sourceLabel}
-                    verificationStatus={item.interaction.verificationStatus}
-                    source={item.interaction.source}
-                    explanationData={explanations[item.interaction.id]}
-                    isExplanationLoading={!!loadingExplanations[item.interaction.id]}
-                    onExplainRequested={fetchExplanation}
-                  />
+          {/* 3D Virtual Pillbox Container */}
+          <div className="w-full">
+            <VirtualPillbox 
+              selectedDrugs={selectedDrugs}
+              onRemove={(id) => setSelectedDrugIds((prev) => prev.filter((x) => x !== id))}
+            />
+          </div>
+        </section>
+
+        {/* Right Side: Raporlar ve Klinik Analiz Sonuçları */}
+        <section className="lg:col-span-5 flex flex-col gap-6" aria-label="Klinik Tarama Raporları">
+          
+          {/* Header for Results */}
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
+              📊 Tarama Raporları
+              {selectedDrugIds.length >= 2 && !isChecking && (
+                <span className="text-xs px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-slate-400">
+                  {interactions.length} Etkileşim
+                </span>
+              )}
+            </h3>
+
+            {/* Clear All Button */}
+            {selectedDrugIds.length > 0 && (
+              <button
+                onClick={() => {
+                  setSelectedDrugIds([]);
+                  setInteractions([]);
+                  setCoverageExplanation(null);
+                  setShowCoveragePanel(false);
+                }}
+                className="text-xs font-bold text-red-400 hover:text-red-300 hover:bg-red-500/10 px-3 py-1.5 rounded-lg border border-transparent hover:border-red-500/20 transition-all cursor-pointer"
+              >
+                Kutuyu Sıfırla
+              </button>
+            )}
+          </div>
+
+          {/* Results State Machine */}
+          <div className="flex-1 flex flex-col gap-4">
+            {selectedDrugIds.length < 2 ? (
+              // Welcome / Instruction State
+              <div className="backdrop-blur-md bg-white/5 border border-white/5 rounded-3xl p-8 text-center flex flex-col items-center justify-center py-20 shadow-lg min-h-[350px]">
+                <div className="w-16 h-16 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-3xl mb-4 animate-pulse-slow">
+                  🩺
+                </div>
+                <h4 className="font-bold text-white text-base">Tarama Başlatmak İçin İlaç Ekleyin</h4>
+                <p className="text-xs text-slate-400 max-w-sm mt-2 leading-relaxed">
+                  İlaç-ilaç etkileşim denetimini başlatmak için sol panelden en az iki ilaç aratıp Sanal İlaç Kutusu&apos;na eklemeniz gerekmektedir.
+                </p>
+                <div className="mt-6 flex flex-wrap gap-2 justify-center">
+                  <span className="text-[10px] font-bold text-slate-500 bg-white/5 border border-white/5 px-2.5 py-1 rounded-md">
+                    Levenshtein Fuzzy Match
+                  </span>
+                  <span className="text-[10px] font-bold text-slate-500 bg-white/5 border border-white/5 px-2.5 py-1 rounded-md">
+                    Deterministik DB Sorgusu
+                  </span>
+                  <span className="text-[10px] font-bold text-slate-500 bg-white/5 border border-white/5 px-2.5 py-1 rounded-md">
+                    Gemini Canlı AI
+                  </span>
+                </div>
+              </div>
+            ) : isChecking ? (
+              // Loading Shimmer State
+              <div className="flex flex-col gap-4">
+                {[1, 2].map((i) => (
+                  <div key={i} className="bg-white/5 border border-white/5 rounded-2xl p-5 animate-pulse flex flex-col gap-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 bg-slate-800 rounded-full"></div>
+                      <div className="w-24 h-4 bg-slate-800 rounded"></div>
+                    </div>
+                    <div className="w-3/4 h-6 bg-slate-800 rounded mt-1"></div>
+                    <div className="w-full h-4 bg-slate-800 rounded mt-2"></div>
+                    <div className="w-5/6 h-4 bg-slate-800 rounded"></div>
+                  </div>
                 ))}
               </div>
+            ) : checkingError ? (
+              // API Error State
+              <div className="backdrop-blur-md bg-red-500/5 border border-red-500/20 rounded-3xl p-6 text-center">
+                <span className="text-3xl mb-3 inline-block">⚠️</span>
+                <h4 className="font-bold text-red-200 text-sm">Klinik Servis Bağlantı Hatası</h4>
+                <p className="text-xs text-red-400/80 mt-1 max-w-sm mx-auto leading-relaxed">
+                  {checkingError}
+                </p>
+                <button
+                  onClick={() => setSelectedDrugIds([...selectedDrugIds])}
+                  className="mt-4 px-4 py-2 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 text-red-200 text-xs font-bold rounded-xl transition-all cursor-pointer"
+                >
+                  Yeniden Dene
+                </button>
+              </div>
+            ) : interactions.length === 0 ? (
+              // Reassuring Emerald Green Safe State (Clean check, no interactions)
+              <div className="flex flex-col gap-6">
+                <div 
+                  className="backdrop-blur-xl bg-emerald-500/5 border border-emerald-500/20 rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden"
+                  style={{ boxShadow: "inset 0 1px 0 0 rgba(255, 255, 255, 0.05)" }}
+                >
+                  <div className="absolute top-0 right-0 p-16 bg-gradient-to-bl from-emerald-500/10 to-transparent rounded-full pointer-events-none" />
+                  
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-2xl shrink-0">
+                      💚
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[10px] font-bold text-emerald-400 tracking-wider uppercase bg-emerald-500/10 border border-emerald-500/20 rounded px-2 py-0.5 inline-block mb-2.5">
+                        Klinik Temiz Rapor
+                      </div>
+                      <h4 className="font-bold text-white text-base sm:text-lg">Bilinen Etkileşim Saptanmadı</h4>
+                      <p className="text-xs text-emerald-300/80 mt-1.5 leading-relaxed font-medium">
+                        Kürate edilmiş demo veri tabanımızda, eklediğiniz ilaçlar (<span className="text-white">{selectedDrugs.map(d => d.name).join(", ")}</span>) arasında eşleşen riskli bir etkileşim kaydı bulunamadı.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* AI general coverage deep-dive assistant button */}
+                <div className="backdrop-blur-md bg-white/5 border border-white/10 rounded-3xl p-6 text-center">
+                  <span className="text-2xl mb-2 inline-block">🤖</span>
+                  <h4 className="font-bold text-white text-sm">Yapay Zeka ile Kombinasyon Analizi</h4>
+                  <p className="text-[11px] text-slate-400 mt-1.5 leading-relaxed max-w-xs mx-auto">
+                    Kayıtlı veri tabanında bulunmasa dahi bu kombinasyonun olası etkilerini Google Gemini Canlı AI katmanından sorgulayın.
+                  </p>
+                  <button
+                    onClick={handleRequestCoverageExplanation}
+                    disabled={isCoverageLoading}
+                    className="mt-4 w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-xs rounded-xl shadow-lg hover:shadow-indigo-500/20 transition-all duration-200 cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {isCoverageLoading ? (
+                      <>
+                        <svg className="animate-spin h-4 w-4 text-white" viewBox="0 0 24 24" fill="none">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                        Analiz Hazırlanıyor...
+                      </>
+                    ) : (
+                      "Canlı AI Kombinasyon Analizini Başlat"
+                    )}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              // Risky Interactions Listed State
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-4">
+                  {interactions.map((res) => (
+                    <ResultCard
+                      key={res.interaction.id}
+                      interactionId={res.interaction.id}
+                      drug1Name={res.drug1Name}
+                      drug2Name={res.drug2Name}
+                      severity={res.interaction.severity}
+                      summary={res.interaction.summary}
+                      source={res.interaction.source}
+                      sourceLabel={res.interaction.sourceLabel}
+                      verificationStatus={res.interaction.verificationStatus}
+                      explanationData={explanations[res.interaction.id]}
+                      isExplanationLoading={loadingExplanations[res.interaction.id]}
+                      onExplainRequested={handleExplainRequested}
+                    />
+                  ))}
+                </div>
+
+                {/* Additional option to run a collective full-combination coverage report */}
+                <div className="backdrop-blur-md bg-white/5 border border-white/10 rounded-3xl p-5 text-center mt-2">
+                  <h4 className="font-bold text-white text-xs flex items-center justify-center gap-1.5">
+                    <span>🧬</span> Tüm Kombinasyonun Canlı AI Analizi
+                  </h4>
+                  <p className="text-[10px] text-slate-400 mt-1 max-w-xs mx-auto leading-relaxed">
+                    Kutudaki tüm ilaçları bir bütün olarak değerlendiren kapsamlı bir tıbbi yapay zeka analizi alın.
+                  </p>
+                  <button
+                    onClick={handleRequestCoverageExplanation}
+                    disabled={isCoverageLoading}
+                    className="mt-3 px-4 py-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 font-bold text-xs rounded-xl border border-indigo-500/20 transition-all cursor-pointer flex items-center justify-center gap-1.5 mx-auto"
+                  >
+                    {isCoverageLoading ? (
+                      <>
+                        <svg className="animate-spin h-3.5 w-3.5 text-indigo-400" viewBox="0 0 24 24" fill="none">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                        Yükleniyor...
+                      </>
+                    ) : (
+                      "Kapsamlı Canlı AI Analizi Yap"
+                    )}
+                  </button>
+                </div>
+              </div>
             )}
 
-            {/* Doctor reminder */}
-            <div className="mt-8 bg-indigo-50 border border-indigo-200 rounded-xl p-5 text-center">
-              <p className="text-indigo-800 font-medium">
-                👨‍⚕️ Bu bilgileri doktorunuza veya eczacınıza gösterin
-              </p>
-              <p className="text-sm text-indigo-600 mt-1">
-                Sonuçlar hakkında mutlaka bir sağlık profesyoneline danışın.
-              </p>
-            </div>
+            {/* Global Coverage AI Explanation Display Panel */}
+            {showCoveragePanel && (
+              <div 
+                className="backdrop-blur-xl bg-slate-900/90 border border-indigo-500/20 rounded-3xl p-6 shadow-2xl mt-4 animate-fade-in relative overflow-hidden"
+                style={{ boxShadow: "0 20px 40px -15px rgba(99, 102, 241, 0.25)" }}
+              >
+                <div className="absolute top-0 right-0 p-12 bg-linear-to-bl from-indigo-500/5 to-transparent rounded-full pointer-events-none" />
+                
+                <div className="flex justify-between items-center mb-4 pb-3 border-b border-white/5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">🤖</span>
+                    <div>
+                      <h4 className="font-extrabold text-white text-sm tracking-tight">Kapsamlı AI İlaç Analizi</h4>
+                      <p className="text-[9px] text-slate-400 mt-0.5">Google Gemini Güvenlik Katmanı</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowCoveragePanel(false)}
+                    className="w-6 h-6 rounded-md bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 hover:text-white text-xs cursor-pointer transition-colors"
+                  >
+                    ✕
+                  </button>
+                </div>
 
-            {/* Reset button */}
-            <button
-              onClick={handleReset}
-              className="mt-6 w-full py-3 rounded-xl font-semibold bg-white border-2 border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
-            >
-              Yeni Kontrol Yap
-            </button>
-          </section>
-        )}
+                {isCoverageLoading ? (
+                  <div className="py-8 flex flex-col items-center justify-center gap-3">
+                    <svg className="animate-spin h-6 w-6 text-indigo-500" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    <p className="text-xs text-slate-400 font-semibold animate-pulse tracking-wide">
+                      Tüm Kombinasyon Canlı Yapay Zekayla Analiz Ediliyor...
+                    </p>
+                  </div>
+                ) : coverageExplanation?.source === "gemini_live" || coverageExplanation?.source === "cache" ? (
+                  <div className="flex flex-col gap-4">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {coverageExplanation.source === "cache" ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[9px] font-bold tracking-wide uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                          Önbellek Yanıtı
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[9px] font-bold tracking-wide uppercase bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                          <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse"></span>
+                          Canlı Analiz
+                        </span>
+                      )}
+                      {coverageExplanation.generatedAt && (
+                        <span className="text-[9px] text-slate-400 font-semibold bg-white/5 border border-white/5 px-2 py-0.5 rounded">
+                          {coverageExplanation.generatedAt}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="text-xs text-slate-300 leading-relaxed whitespace-pre-line font-medium pr-1">
+                      {coverageExplanation.explanation}
+                    </div>
+
+                    {/* Disclaimer specifically designed inside our clinical display panel */}
+                    <div className="mt-2 bg-white/5 p-3.5 rounded-xl border border-white/5">
+                      <p className="text-[10px] text-slate-400 italic leading-relaxed font-medium">
+                        <strong>Klinik Uyarı:</strong> Bu analiz tamamen bilgilendirme amaçlıdır. İlaç tedavilerinizi değiştirmeden, bırakmadan veya doz ayarlamadan önce her zaman hekiminize veya eczacınıza danışınız. Yapay zeka hiçbir koşulda profesyonel hekim kararının yerine geçemez.
+                      </p>
+                    </div>
+                  </div>
+                ) : coverageExplanation?.source === "error" ? (
+                  <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4 text-center">
+                    <h5 className="text-xs font-bold text-red-200">Analiz Tamamlanamadı</h5>
+                    <p className="text-[10px] text-red-400/80 mt-1.5 leading-relaxed font-medium">
+                      {coverageExplanation.error || "Canlı kombinasyon açıklaması şu anda sunulamıyor."}
+                    </p>
+                    <button
+                      onClick={handleRequestCoverageExplanation}
+                      className="mt-3 px-3 py-1.5 bg-white/5 border border-red-500/20 text-red-300 hover:bg-red-500/10 text-xs font-bold rounded-lg transition-colors cursor-pointer"
+                    >
+                      Yeniden Dene
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            )}
+
+          </div>
+        </section>
       </main>
 
-      {/* Disclaimer */}
-      <Disclaimer />
+      {/* Core Clinical Disclaimer Footer */}
+      <footer className="relative z-10 w-full">
+        <Disclaimer />
+      </footer>
+
+      {/* Global CSS Inject for Animations & Smooth Custom Transitions */}
+      <style jsx global>{`
+        @keyframes pulse-slow {
+          0%, 100% { opacity: 0.8; transform: scale(1); }
+          50% { opacity: 1; transform: scale(1.03); }
+        }
+        .animate-pulse-slow {
+          animation: pulse-slow 8s infinite ease-in-out;
+        }
+        @keyframes slide-down {
+          from { opacity: 0; transform: translateY(-8px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-slide-down {
+          animation: slide-down 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+      `}</style>
     </div>
   );
 }

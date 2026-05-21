@@ -1,3 +1,4 @@
+// lib/interactions.ts
 import drugsData from "@/data/drugs.json";
 import interactionsData from "@/data/interactions.json";
 
@@ -26,15 +27,14 @@ export interface CheckResult {
 }
 
 /**
- * Returns all drugs from the curated dataset.
+ * Returns all drugs from the curated dataset (Synchronous - for UI rendering and search).
  */
 export function getAllDrugs(): Drug[] {
   return drugsData as Drug[];
 }
 
 /**
- * Given a list of drug IDs, finds all known interactions between them.
- * Decision comes from curated data — NOT from an LLM.
+ * Deterministic N-Drug interaction check using local JSON files (Fallback layer).
  */
 export function findInteractions(drugIds: string[]): CheckResult[] {
   const drugs = drugsData as Drug[];
@@ -68,7 +68,76 @@ export function findInteractions(drugIds: string[]): CheckResult[] {
 }
 
 /**
- * Severity label mapping for UI display (safe language)
+ * Production-ready asynchronous N-Drug check using PostgreSQL database via Prisma.
+ * Falls back to local JSON if the database URL is not configured or fails.
+ */
+export async function findInteractionsDB(drugIds: string[]): Promise<CheckResult[]> {
+  // Eğer veritabanı bağlantısı yoksa doğrudan lokal kontrole yönlendir
+  if (!process.env.DATABASE_URL || process.env.DATABASE_URL.includes("[SIFRE]")) {
+    console.info("[PillMind CMIO Engine] DATABASE_URL tanımlı değil veya şablon halinde. Lokal JSON kontrolü yapılıyor.");
+    return findInteractions(drugIds);
+  }
+
+  try {
+    const { prisma } = await import("@/lib/prisma");
+
+    // 1. İlaçları ve Marka adlarını çöz
+    const resolvedDrugs = await prisma.drug.findMany({
+      where: {
+        OR: [
+          { id: { in: drugIds } },
+          { name: { in: drugIds } },
+          { brandNames: { some: { name: { in: drugIds } } } }
+        ]
+      }
+    });
+
+    const resolvedDrugIds = resolvedDrugs.map((d) => d.id);
+
+    // 2. Tek bir veritabanı sorgusuyla seçilen ilaçlar arasındaki tüm olası etkileşimleri çek
+    const dbInteractions = await prisma.drugInteraction.findMany({
+      where: {
+        drug1Id: { in: resolvedDrugIds },
+        drug2Id: { in: resolvedDrugIds }
+      }
+    });
+
+    const results: CheckResult[] = [];
+
+    // 3. Eşleşen etkileşimlerin detaylarını hastaya sunulmak üzere haritalandır
+    for (const match of dbInteractions) {
+      const drugA = resolvedDrugs.find((d) => d.id === match.drug1Id);
+      const drugB = resolvedDrugs.find((d) => d.id === match.drug2Id);
+
+      if (drugA && drugB) {
+        results.push({
+          interaction: {
+            id: match.id,
+            drug1: match.drug1Id,
+            drug2: match.drug2Id,
+            severity: match.severity.toLowerCase() as "high" | "medium" | "low",
+            summary: match.summary,
+            source: match.source,
+            sourceLabel: match.sourceLabel,
+            verificationStatus: match.verificationStatus.toLowerCase()
+          },
+          drug1Name: drugA.name,
+          drug2Name: drugB.name
+        });
+      }
+    }
+
+    console.info(`[PillMind CMIO Engine] Veritabanı sorgusu başarılı (1 roundtrip). ${results.length} etkileşim bulundu.`);
+    return results;
+  } catch (error) {
+    console.error("[PillMind CMIO Engine] Veritabanı sorgusu başarısız oldu! Lokal yedek kontrol devreye alınıyor:", error);
+    // Güvenlik fallback katmanı: Hata durumunda sistem çökmez, lokal mock veriye döner
+    return findInteractions(drugIds);
+  }
+}
+
+/**
+ * Severity label mapping for UI display (safe language in Turkish)
  */
 export function getSeverityLabel(severity: string): string {
   switch (severity) {

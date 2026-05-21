@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { findInteractions } from "@/lib/interactions";
+import { findInteractionsDB } from "@/lib/interactions";
 
 /**
  * POST /api/check
  * Accepts a list of drug IDs, returns found interactions from curated data.
- * Decision logic is deterministic (JSON lookup) — NOT LLM-based.
+ * Decision logic is deterministic (JSON or SQL lookup) — NOT LLM-based.
  */
 export async function POST(request: Request) {
   try {
@@ -18,7 +18,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const results = findInteractions(drugIds);
+    const results = await findInteractionsDB(drugIds);
 
     return NextResponse.json({
       interactions: results,

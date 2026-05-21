@@ -7,12 +7,16 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "prewarm:demo": "node scripts/prewarm-demo.mjs"
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "next": "16.2.2",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "@prisma/client": "^5.11.0",
+    "@upstash/redis": "^1.28.4"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -22,6 +26,14 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.2",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "prisma": "^5.11.0",
+    "tsx": "^4.7.1",
+    "jest": "^29.7.0",
+    "@types/jest": "^29.5.14",
+    "@playwright/test": "^1.50.0"
+  },
+  "prisma": {
+    "seed": "npx tsx prisma/seed.ts"
   }
 }

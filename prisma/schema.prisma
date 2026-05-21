@@ -1,0 +1,92 @@
+// prisma/schema.prisma
+// PillMind Üretim Sürümü - Prisma Veritabanı Şeması
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL") // Supabase için doğrudan bağlantı (opsiyonel)
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Severity {
+  HIGH     // Yüksek / Potansiyel Önemli Etkileşim
+  MEDIUM   // Orta / Dikkat Edilmesi Gereken Etkileşim
+  LOW      // Düşük / Olası Hafif Etkileşim
+}
+
+enum Status {
+  PENDING
+  VERIFIED
+  DEPRECATED
+}
+
+model Drug {
+  id               String            @id @default(uuid())
+  rxcui            String?           @unique // RxNorm Benzersiz Kodu (Opsiyonel)
+  name             String            @unique // İlaç Ticari Marka Adı (Örn: Coumadin)
+  activeIngredient String            // Aktif Etken Madde (Örn: Warfarin Sodyum)
+  category         String            // İlaç Sınıfı (Örn: Antikoagülan)
+  description      String?           @db.Text
+  status           Status            @default(VERIFIED)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  
+  // İlişkiler
+  brandNames       BrandName[]
+  interactions1    DrugInteraction[] @relation("Drug1Relation")
+  interactions2    DrugInteraction[] @relation("Drug2Relation")
+  foodInteractions FoodInteraction[]
+  contraindications Contraindication[]
+
+  @@index([activeIngredient])
+}
+
+model BrandName {
+  id        String   @id @default(uuid())
+  name      String   @unique // Alternatif Ticari Marka Adı (Örn: Coraspin, Aspirin)
+  drugId    String
+  drug      Drug     @relation(fields: [drugId], references: [id], onDelete: Cascade)
+  
+  @@index([name])
+}
+
+model DrugInteraction {
+  id                 String   @id @default(uuid())
+  drug1Id            String
+  drug2Id            String
+  severity           Severity
+  summary            String   @db.Text // Sade Türkçe tıbbi özet
+  clinicalDetail     String?  @db.Text // Hekimler ve eczacılar için klinik detay (Türkçe)
+  source             String   // Bilimsel kaynak referansı (Örn: FDA Label, PubMed)
+  sourceLabel        String   // Kullanıcıya gösterilecek kaynak etiketi (Örn: FDA Prospektüsü)
+  verificationStatus Status   @default(VERIFIED)
+  createdAt          DateTime @default(now())
+  
+  drug1              Drug     @relation("Drug1Relation", fields: [drug1Id], references: [id], onDelete: Cascade)
+  drug2              Drug     @relation("Drug2Relation", fields: [drug2Id], references: [id], onDelete: Cascade)
+
+  @@unique([drug1Id, drug2Id])
+  @@index([drug1Id])
+  @@index([drug2Id])
+}
+
+model FoodInteraction {
+  id          String   @id @default(uuid())
+  drugId      String
+  substance   String   // Örn: Greyfurt Suyu, Alkol, Kafein
+  effect      String   @db.Text // Türkçe klinik etki açıklaması
+  severity    Severity
+  drug        Drug     @relation(fields: [drugId], references: [id], onDelete: Cascade)
+}
+
+model Contraindication {
+  id          String   @id @default(uuid())
+  drugId      String
+  diseaseIcd  String   // ICD-10 Kodu (Örn: K25 - Peptik Ülser)
+  diseaseName String   // Hastalık Adı (Türkçe)
+  severity    Severity
+  drug        Drug     @relation(fields: [drugId], references: [id], onDelete: Cascade)
+}

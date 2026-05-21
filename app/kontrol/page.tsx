@@ -211,8 +211,10 @@ export default function KontrolPage() {
         
         {/* Left Side: Interaksiyon Arama ve Kutu Yönetimi */}
         <section className="lg:col-span-7 flex flex-col gap-6" aria-label="İlaç Seçim ve Ekleme Paneli">
-          <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-32 bg-gradient-to-bl from-indigo-500/10 to-transparent rounded-full -mr-20 -mt-20 pointer-events-none" />
+          <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl relative z-20 group">
+            <div className="absolute inset-0 rounded-3xl overflow-hidden pointer-events-none">
+              <div className="absolute top-0 right-0 p-32 bg-gradient-to-bl from-indigo-500/10 to-transparent rounded-full -mr-20 -mt-20" />
+            </div>
             
             <div className="relative z-10">
               <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight leading-tight">
@@ -239,7 +241,7 @@ export default function KontrolPage() {
           </div>
 
           {/* 3D Virtual Pillbox Container */}
-          <div className="w-full">
+          <div className="w-full relative z-10">
             <VirtualPillbox 
               selectedDrugs={selectedDrugs}
               onRemove={(id) => setSelectedDrugIds((prev) => prev.filter((x) => x !== id))}

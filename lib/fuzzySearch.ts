@@ -1,5 +1,3 @@
-// lib/fuzzySearch.ts
-
 export function normalizeTurkish(text: string): string {
   if (!text) return "";
   return text
@@ -73,6 +71,8 @@ export interface FuzzyResult<T> {
   score: number;
 }
 
+const normalizedCache = new WeakMap<object, { name: string; activeIngredient: string; category: string }>();
+
 export function fuzzySearchDrugs<T extends { name: string; activeIngredient: string; category?: string }>(
   query: string,
   items: T[]
@@ -85,9 +85,19 @@ export function fuzzySearchDrugs<T extends { name: string; activeIngredient: str
   const results: FuzzyResult<T>[] = [];
 
   for (const item of items) {
-    const nameScore = calculateScore(q, normalizeTurkish(item.name)) * 1.5; // brand name has priority
-    const ingredientScore = calculateScore(q, normalizeTurkish(item.activeIngredient));
-    const categoryScore = item.category ? calculateScore(q, normalizeTurkish(item.category)) * 0.5 : 0;
+    let normalized = normalizedCache.get(item);
+    if (!normalized) {
+      normalized = {
+        name: normalizeTurkish(item.name),
+        activeIngredient: normalizeTurkish(item.activeIngredient),
+        category: item.category ? normalizeTurkish(item.category) : ""
+      };
+      normalizedCache.set(item, normalized);
+    }
+
+    const nameScore = calculateScore(q, normalized.name) * 1.5; // brand name has priority
+    const ingredientScore = calculateScore(q, normalized.activeIngredient);
+    const categoryScore = normalized.category ? calculateScore(q, normalized.category) * 0.5 : 0;
 
     const bestScore = Math.max(nameScore, ingredientScore, categoryScore);
 

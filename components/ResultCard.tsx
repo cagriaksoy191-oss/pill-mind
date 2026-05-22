@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { getSeverityColor, getSeverityLabel } from "@/lib/interactions";
+import { getSeverityLabel } from "@/lib/interactions";
 
 interface ResultCardProps {
   drug1Name: string;

@@ -105,8 +105,36 @@ const EXPLANATION_SCHEMA = {
   required: ["girisCumlesi", "klinikEtkiAciklamasi", "hastalaraOneriler", "hekimYonlendirmesi"]
 };
 
-export function getInteractionContext(interactionId: string): InteractionContext | null {
-  const interaction = interactionsMap.get(interactionId);
+export async function getInteractionContext(interactionId: string): Promise<InteractionContext | null> {
+  let interaction: InteractionRecord | null = null;
+
+  const staticInt = interactionsMap.get(interactionId);
+  if (staticInt) {
+    interaction = staticInt;
+  } else {
+    // If not in static JSON, look up the database UUID
+    if (process.env.DATABASE_URL && !process.env.DATABASE_URL.includes("[SIFRE]")) {
+      try {
+        const { prisma } = await import("@/lib/prisma");
+        const dbMatch = await prisma.drugInteraction.findUnique({
+          where: { id: interactionId }
+        });
+        if (dbMatch) {
+          interaction = {
+            id: dbMatch.id,
+            drug1: dbMatch.drug1Id,
+            drug2: dbMatch.drug2Id,
+            severity: dbMatch.severity.toLowerCase(),
+            summary: dbMatch.summary,
+            source: dbMatch.source
+          };
+        }
+      } catch (err) {
+        console.warn("[getInteractionContext] Database lookup failed:", err);
+      }
+    }
+  }
+
   if (!interaction) return null;
 
   const drug1 = drugsMap.get(interaction.drug1);

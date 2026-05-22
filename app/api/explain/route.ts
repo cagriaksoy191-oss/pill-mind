@@ -108,7 +108,7 @@ export async function POST(request: Request) {
         return jsonNoStore({ error: "Geçersiz veya aşırı uzun interactionId." }, 400);
       }
 
-      const ctx = getInteractionContext(interactionId);
+      const ctx = await getInteractionContext(interactionId);
       if (!ctx) {
         return jsonNoStore(
           {

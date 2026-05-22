@@ -23,9 +23,6 @@ export default function HomePage() {
             </h1>
           </div>
           <div className="flex items-center gap-4">
-            <span className="text-[10px] font-bold text-indigo-400 bg-indigo-500/10 px-2.5 py-1 rounded-md border border-indigo-500/20 uppercase tracking-wider">
-              HACKATHON MVP
-            </span>
             <Link
               href="/kontrol"
               className="text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-500 px-4 py-2 rounded-xl transition-all duration-200 shadow-md hover:shadow-indigo-500/20"

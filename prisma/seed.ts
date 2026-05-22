@@ -40,6 +40,7 @@ async function main() {
   const drugsData: DrugMock[] = JSON.parse(fs.readFileSync(drugsFilePath, "utf-8"));
 
   const drugIdMap: Record<string, string> = {};
+  const drugNameMap: Record<string, string> = {};
 
   for (const item of drugsData) {
     const createdDrug = await prisma.drug.create({
@@ -54,6 +55,7 @@ async function main() {
     });
 
     drugIdMap[item.id] = createdDrug.id;
+    drugNameMap[item.id] = item.name;
 
     // Her ilacın kendi adını bir marka adı olarak da ekle (Kolay arama için)
     await prisma.brandName.create({
@@ -103,8 +105,8 @@ async function main() {
     if (item.severity === "high") severityEnum = Severity.HIGH;
     else if (item.severity === "medium") severityEnum = Severity.MEDIUM;
 
-    const drug1Name = drugsData.find((d) => d.id === item.drug1)?.name ?? item.drug1;
-    const drug2Name = drugsData.find((d) => d.id === item.drug2)?.name ?? item.drug2;
+    const drug1Name = drugNameMap[item.drug1] ?? item.drug1;
+    const drug2Name = drugNameMap[item.drug2] ?? item.drug2;
 
     await prisma.drugInteraction.create({
       data: {

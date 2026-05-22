@@ -69,6 +69,17 @@ export const UNSAFE_PATTERNS = UNSAFE_PATTERNS_RAW.map((pattern) => {
   );
 });
 
+// Pre-compute O(1) lookups at module initialization
+const drugsMap = new Map<string, DrugRecord>();
+for (const d of drugsData as DrugRecord[]) {
+  drugsMap.set(d.id, d);
+}
+
+const interactionsMap = new Map<string, InteractionRecord>();
+for (const int of interactionsData as InteractionRecord[]) {
+  interactionsMap.set(int.id, int);
+}
+
 // Gemini Structured Outputs JSON Şeması
 const EXPLANATION_SCHEMA = {
   type: "OBJECT",
@@ -95,14 +106,11 @@ const EXPLANATION_SCHEMA = {
 };
 
 export function getInteractionContext(interactionId: string): InteractionContext | null {
-  const interactions = interactionsData as InteractionRecord[];
-  const drugs = drugsData as DrugRecord[];
-
-  const interaction = interactions.find((item) => item.id === interactionId);
+  const interaction = interactionsMap.get(interactionId);
   if (!interaction) return null;
 
-  const drug1 = drugs.find((drug) => drug.id === interaction.drug1);
-  const drug2 = drugs.find((drug) => drug.id === interaction.drug2);
+  const drug1 = drugsMap.get(interaction.drug1);
+  const drug2 = drugsMap.get(interaction.drug2);
 
   return {
     interaction,

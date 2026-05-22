@@ -33,12 +33,25 @@ export function getAllDrugs(): Drug[] {
   return drugsData as Drug[];
 }
 
+// Pre-compute O(1) lookups at module initialization
+const drugsMap = new Map<string, Drug>();
+for (const d of drugsData as Drug[]) {
+  drugsMap.set(d.id, d);
+}
+
+const interactionsMap = new Map<string, Map<string, Interaction>>();
+for (const int of interactionsData as Interaction[]) {
+  if (!interactionsMap.has(int.drug1)) interactionsMap.set(int.drug1, new Map<string, Interaction>());
+  interactionsMap.get(int.drug1)!.set(int.drug2, int);
+
+  if (!interactionsMap.has(int.drug2)) interactionsMap.set(int.drug2, new Map<string, Interaction>());
+  interactionsMap.get(int.drug2)!.set(int.drug1, int);
+}
+
 /**
  * Deterministic N-Drug interaction check using local JSON files (Fallback layer).
  */
 export function findInteractions(drugIds: string[]): CheckResult[] {
-  const drugs = drugsData as Drug[];
-  const interactions = interactionsData as Interaction[];
   const results: CheckResult[] = [];
 
   for (let i = 0; i < drugIds.length; i++) {
@@ -46,15 +59,11 @@ export function findInteractions(drugIds: string[]): CheckResult[] {
       const a = drugIds[i];
       const b = drugIds[j];
 
-      const match = interactions.find(
-        (int) =>
-          (int.drug1 === a && int.drug2 === b) ||
-          (int.drug1 === b && int.drug2 === a)
-      );
+      const match = interactionsMap.get(a)?.get(b);
 
       if (match) {
-        const drug1 = drugs.find((d) => d.id === match.drug1);
-        const drug2 = drugs.find((d) => d.id === match.drug2);
+        const drug1 = drugsMap.get(match.drug1);
+        const drug2 = drugsMap.get(match.drug2);
         results.push({
           interaction: match,
           drug1Name: drug1?.name ?? match.drug1,

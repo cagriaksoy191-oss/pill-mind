@@ -113,10 +113,16 @@ export async function findInteractionsDB(drugIds: string[]): Promise<CheckResult
 
     const results: CheckResult[] = [];
 
+    // Create a Map for O(1) lookups
+    const resolvedDrugsMap = new Map();
+    for (const drug of resolvedDrugs) {
+      resolvedDrugsMap.set(drug.id, drug);
+    }
+
     // 3. Eşleşen etkileşimlerin detaylarını hastaya sunulmak üzere haritalandır
     for (const match of dbInteractions) {
-      const drugA = resolvedDrugs.find((d) => d.id === match.drug1Id);
-      const drugB = resolvedDrugs.find((d) => d.id === match.drug2Id);
+      const drugA = resolvedDrugsMap.get(match.drug1Id);
+      const drugB = resolvedDrugsMap.get(match.drug2Id);
 
       if (drugA && drugB) {
         results.push({

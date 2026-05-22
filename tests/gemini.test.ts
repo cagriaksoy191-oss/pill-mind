@@ -27,3 +27,44 @@ describe("getCoverageContext", () => {
     expect(result?.drugIngredients).toEqual(["Asetilsalisilik Asit", "Warfarin Sodyum", "Metformin HCl"]);
   });
 });
+
+describe("shouldUseFallback", () => {
+  const originalEnv = process.env;
+
+  beforeEach(() => {
+    jest.resetModules();
+    process.env = { ...originalEnv };
+  });
+
+  afterAll(() => {
+    process.env = originalEnv;
+  });
+
+  it("should return true when NEXT_PUBLIC_DEMO_MODE is 'true' and GOOGLE_API_KEY is valid", async () => {
+    process.env.NEXT_PUBLIC_DEMO_MODE = "true";
+    process.env.GOOGLE_API_KEY = "valid_key";
+    const { shouldUseFallback } = await import("../lib/gemini");
+    expect(shouldUseFallback()).toBe(true);
+  });
+
+  it("should return true when NEXT_PUBLIC_DEMO_MODE is 'false' and GOOGLE_API_KEY is empty", async () => {
+    process.env.NEXT_PUBLIC_DEMO_MODE = "false";
+    process.env.GOOGLE_API_KEY = "";
+    const { shouldUseFallback } = await import("../lib/gemini");
+    expect(shouldUseFallback()).toBe(true);
+  });
+
+  it("should return true when NEXT_PUBLIC_DEMO_MODE is 'false' and GOOGLE_API_KEY is undefined", async () => {
+    process.env.NEXT_PUBLIC_DEMO_MODE = "false";
+    delete process.env.GOOGLE_API_KEY;
+    const { shouldUseFallback } = await import("../lib/gemini");
+    expect(shouldUseFallback()).toBe(true);
+  });
+
+  it("should return false when NEXT_PUBLIC_DEMO_MODE is 'false' and GOOGLE_API_KEY is valid", async () => {
+    process.env.NEXT_PUBLIC_DEMO_MODE = "false";
+    process.env.GOOGLE_API_KEY = "valid_key";
+    const { shouldUseFallback } = await import("../lib/gemini");
+    expect(shouldUseFallback()).toBe(false);
+  });
+});

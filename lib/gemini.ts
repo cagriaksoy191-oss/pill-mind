@@ -261,8 +261,9 @@ Etken maddeler: ${ctx.drugIngredients.join(", ")}
 Şimdi, tanımlanan JSON şemasındaki alanları yukarıdaki kurallara tam olarak uyarak doldur.`;
 }
 
-async function callGeminiWithPrompt(prompt: string): Promise<GeminiResult> {
-  const payload = JSON.stringify({
+
+function buildGeminiPayload(prompt: string): string {
+  return JSON.stringify({
     contents: [{ parts: [{ text: prompt }] }],
     generationConfig: {
       temperature: 0.75,
@@ -282,79 +283,80 @@ async function callGeminiWithPrompt(prompt: string): Promise<GeminiResult> {
       },
     ],
   });
+}
 
-  let lastError: Error | null = null;
+async function executeGeminiRequest(model: string, payload: string): Promise<string> {
+  const url =
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent` +
+    `?key=${GEMINI_API_KEY}`;
 
-  for (const model of MODEL_CHAIN) {
-    try {
-      const url =
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent` +
-        `?key=${GEMINI_API_KEY}`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: payload,
+    signal: AbortSignal.timeout(15_000),
+  });
 
-      const response = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: payload,
-        signal: AbortSignal.timeout(15_000),
-      });
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => "unknown");
+    throw new Error(`API Error ${response.status}: ${errorBody}`);
+  }
 
-      if (!response.ok) {
-        const errorBody = await response.text().catch(() => "unknown");
-        throw new Error(`API Error ${response.status}: ${errorBody}`);
-      }
+  const data = await response.json();
+  const candidate = data?.candidates?.[0];
+  const finishReason: string | undefined = candidate?.finishReason;
 
-      const data = await response.json();
-      const candidate = data?.candidates?.[0];
-      const finishReason: string | undefined = candidate?.finishReason;
+  const rawText = (candidate?.content?.parts ?? [])
+    .map((part: { text?: string }) => typeof part?.text === "string" ? part.text : "")
+    .filter(Boolean)
+    .join("");
 
-      const rawText = (candidate?.content?.parts ?? [])
-        .map((part: { text?: string }) => typeof part?.text === "string" ? part.text : "")
-        .filter(Boolean)
-        .join("");
+  if (!rawText) {
+    throw new Error("Modelden boş yanıt alındı.");
+  }
 
-      if (!rawText) {
-        throw new Error("Modelden boş yanıt alındı.");
-      }
+  if (finishReason && finishReason !== "STOP") {
+    throw new Error(`Model yanıtı tamamlanamadı (${finishReason})`);
+  }
 
-      if (finishReason && finishReason !== "STOP") {
-        throw new Error(`Model yanıtı tamamlanamadı (${finishReason})`);
-      }
+  return rawText;
+}
 
-      // JSON Çıktıyı Çözümle ve Kontrol Et
-      let parsedJSON;
-      let cleanText = rawText.trim();
-      
-      // Strip markdown json blocks if returned by the model under any edge conditions
-      if (cleanText.startsWith("```")) {
-        cleanText = cleanText.replace(/^```json\s*/i, "").replace(/```$/, "").trim();
-      }
+function parseGeminiResponse(rawText: string): any {
+  let cleanText = rawText.trim();
 
-      try {
-        parsedJSON = JSON.parse(cleanText);
-      } catch {
-        throw new Error("Model çıktısı geçerli bir JSON formatında değil.");
-      }
+  // Strip markdown json blocks if returned by the model under any edge conditions
+  if (cleanText.startsWith("```")) {
+    cleanText = cleanText.replace(/^```json\s*/i, "").replace(/```$/, "").trim();
+  }
 
-      const giris = normalizeExplanation(parsedJSON.girisCumlesi || "");
-      const klinik = normalizeExplanation(parsedJSON.klinikEtkiAciklamasi || "");
-      
-      // Resilient parsing for patient advice list to avoid type crashes if model outputs non-array values
-      let rawOneriler = parsedJSON.hastalaraOneriler;
-      if (!Array.isArray(rawOneriler)) {
-        if (typeof rawOneriler === "string") {
-          rawOneriler = [rawOneriler];
-        } else {
-          rawOneriler = [];
-        }
-      }
-      const oneriler: string[] = rawOneriler
-        .map((o: any) => normalizeExplanation(String(o || "")))
-        .filter(Boolean);
+  try {
+    return JSON.parse(cleanText);
+  } catch {
+    throw new Error("Model çıktısı geçerli bir JSON formatında değil.");
+  }
+}
 
-      const hekim = normalizeExplanation(parsedJSON.hekimYonlendirmesi || "");
+function formatExplanation(parsedJSON: any): string {
+  const giris = normalizeExplanation(parsedJSON.girisCumlesi || "");
+  const klinik = normalizeExplanation(parsedJSON.klinikEtkiAciklamasi || "");
 
-      // 1. Düz Metin Haline Getirip Birleştirme
-      const compiledExplanation = `
+  // Resilient parsing for patient advice list to avoid type crashes if model outputs non-array values
+  let rawOneriler = parsedJSON.hastalaraOneriler;
+  if (!Array.isArray(rawOneriler)) {
+    if (typeof rawOneriler === "string") {
+      rawOneriler = [rawOneriler];
+    } else {
+      rawOneriler = [];
+    }
+  }
+  const oneriler: string[] = rawOneriler
+    .map((o: any) => normalizeExplanation(String(o || "")))
+    .filter(Boolean);
+
+  const hekim = normalizeExplanation(parsedJSON.hekimYonlendirmesi || "");
+
+  return `
 ${giris}
 
 ${klinik}
@@ -364,6 +366,17 @@ ${oneriler.map((o) => `• ${o}`).join("\n")}
 
 ${hekim}
 `.trim();
+}
+
+async function callGeminiWithPrompt(prompt: string): Promise<GeminiResult> {
+  const payload = buildGeminiPayload(prompt);
+  let lastError: Error | null = null;
+
+  for (const model of MODEL_CHAIN) {
+    try {
+      const rawText = await executeGeminiRequest(model, payload);
+      const parsedJSON = parseGeminiResponse(rawText);
+      const compiledExplanation = formatExplanation(parsedJSON);
 
       // 2. Güvenlik Denetimi: Deterministik Regex Filtresi
       if (!isOutputSafe(compiledExplanation)) {

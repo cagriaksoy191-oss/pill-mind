@@ -1,6 +1,39 @@
-import { getSeverityColor, getAllDrugs } from "../lib/interactions";
+import { getSeverityLabel, getSeverityColor, getAllDrugs } from "../lib/interactions";
 
 describe("interactions UI helpers", () => {
+
+  describe("getSeverityLabel", () => {
+    test("returns correct label for 'high' severity", () => {
+      const result = getSeverityLabel("high");
+      expect(result).toBe("Potansiyel Önemli Etkileşim");
+    });
+
+    test("returns correct label for 'medium' severity", () => {
+      const result = getSeverityLabel("medium");
+      expect(result).toBe("Dikkat Edilmesi Gereken Etkileşim");
+    });
+
+    test("returns correct label for 'low' severity", () => {
+      const result = getSeverityLabel("low");
+      expect(result).toBe("Olası Hafif Etkileşim / İzlem Önerisi");
+    });
+
+    test("returns default label for unknown severity", () => {
+      const result = getSeverityLabel("unknown");
+      expect(result).toBe("Bilgi mevcut değil");
+    });
+
+    test("returns default label for empty string", () => {
+      const result = getSeverityLabel("");
+      expect(result).toBe("Bilgi mevcut değil");
+    });
+
+    test("is case sensitive and returns default for uppercase inputs", () => {
+      const result = getSeverityLabel("HIGH");
+      expect(result).toBe("Bilgi mevcut değil");
+    });
+  });
+
   describe("getSeverityColor", () => {
     test("returns correct colors for 'high' severity", () => {
       const result = getSeverityColor("high");

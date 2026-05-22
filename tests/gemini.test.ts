@@ -29,12 +29,12 @@ describe("getCoverageContext", () => {
 });
 
 describe("getInteractionContext", () => {
-  it("should return null for an unknown interaction ID", () => {
-    expect(getInteractionContext("invalid_interaction_id")).toBeNull();
+  it("should return null for an unknown interaction ID", async () => {
+    expect(await getInteractionContext("invalid_interaction_id")).toBeNull();
   });
 
-  it("should return correct InteractionContext for a valid interaction ID", () => {
-    const result = getInteractionContext("aspirin-warfarin");
+  it("should return correct InteractionContext for a valid interaction ID", async () => {
+    const result = await getInteractionContext("aspirin-warfarin");
     expect(result).not.toBeNull();
 
     expect(result?.drug1Name).toBe("Aspirin");

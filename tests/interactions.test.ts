@@ -1,4 +1,4 @@
-import { getSeverityColor } from "../lib/interactions";
+import { getSeverityColor, getAllDrugs } from "../lib/interactions";
 
 describe("interactions UI helpers", () => {
   describe("getSeverityColor", () => {
@@ -60,6 +60,20 @@ describe("interactions UI helpers", () => {
         badge: "bg-gray-500 text-white",
         text: "text-gray-700",
       });
+    });
+  });
+
+  describe("getAllDrugs", () => {
+    test("returns an array of drugs", () => {
+      const drugs = getAllDrugs();
+      expect(Array.isArray(drugs)).toBe(true);
+      expect(drugs.length).toBeGreaterThan(0);
+
+      const firstDrug = drugs[0];
+      expect(firstDrug).toHaveProperty("id");
+      expect(firstDrug).toHaveProperty("name");
+      expect(firstDrug).toHaveProperty("activeIngredient");
+      expect(firstDrug).toHaveProperty("category");
     });
   });
 });

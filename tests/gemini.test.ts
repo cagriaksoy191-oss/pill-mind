@@ -1,4 +1,4 @@
-import { getCoverageContext } from "../lib/gemini";
+import { getCoverageContext, getInteractionContext } from "../lib/gemini";
 
 describe("getCoverageContext", () => {
   it("should return null when an empty array is provided", () => {
@@ -25,6 +25,26 @@ describe("getCoverageContext", () => {
     expect(result).not.toBeNull();
     expect(result?.drugNames).toEqual(["Aspirin", "Coumadin (Warfarin)", "Metformin"]);
     expect(result?.drugIngredients).toEqual(["Asetilsalisilik Asit", "Warfarin Sodyum", "Metformin HCl"]);
+  });
+});
+
+describe("getInteractionContext", () => {
+  it("should return null for an unknown interaction ID", () => {
+    expect(getInteractionContext("invalid_interaction_id")).toBeNull();
+  });
+
+  it("should return correct InteractionContext for a valid interaction ID", () => {
+    const result = getInteractionContext("aspirin-warfarin");
+    expect(result).not.toBeNull();
+
+    expect(result?.drug1Name).toBe("Aspirin");
+    expect(result?.drug2Name).toBe("Coumadin (Warfarin)");
+
+    expect(result?.drug1Ingredient).toBe("Asetilsalisilik Asit");
+    expect(result?.drug2Ingredient).toBe("Warfarin Sodyum");
+
+    expect(result?.interaction.id).toBe("aspirin-warfarin");
+    expect(result?.interaction.severity).toBe("high");
   });
 });
 

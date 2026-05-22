@@ -35,8 +35,8 @@ describe("POST /api/explain", () => {
     consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
 
     // Default rate limit bypass
-    (redis.incr as jest.Mock).mockResolvedValue(1);
-    (redis.expire as jest.Mock).mockResolvedValue(true);
+    (redis!.incr as jest.Mock).mockResolvedValue(1);
+    (redis!.expire as jest.Mock).mockResolvedValue(true);
 
     // Default gemini mocks
     (shouldUseFallback as jest.Mock).mockReturnValue(false);
@@ -50,8 +50,8 @@ describe("POST /api/explain", () => {
 
   it("should gracefully fallback to live AI when Redis cache read fails", async () => {
     const fakeError = new Error("Redis read timeout");
-    (redis.get as jest.Mock).mockRejectedValueOnce(fakeError);
-    (redis.set as jest.Mock).mockResolvedValueOnce("OK");
+    (redis!.get as jest.Mock).mockRejectedValueOnce(fakeError);
+    (redis!.set as jest.Mock).mockResolvedValueOnce("OK");
 
     (getInteractionContext as jest.Mock).mockReturnValue({
       interaction: { id: "test", severity: "high" },
@@ -92,7 +92,7 @@ describe("POST /api/explain", () => {
     );
 
     // Verify it attempted to write the result back to cache
-    expect(redis.set).toHaveBeenCalledWith(
+    expect(redis!.set).toHaveBeenCalledWith(
       "explanation:v1:interaction:test-interaction",
       {
         explanation: "Live AI explanation generated after cache fail.",

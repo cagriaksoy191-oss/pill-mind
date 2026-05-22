@@ -1,8 +1,16 @@
 import { POST } from "../app/api/check/route";
 import { findInteractionsDB } from "@/lib/interactions";
+import { redis } from "@/lib/redis";
 
 jest.mock("@/lib/interactions", () => ({
   findInteractionsDB: jest.fn(),
+}));
+
+jest.mock("@/lib/redis", () => ({
+  redis: {
+    incr: jest.fn(),
+    expire: jest.fn(),
+  },
 }));
 
 describe("POST /api/check", () => {
@@ -52,6 +60,35 @@ describe("POST /api/check", () => {
     expect(data).toEqual({ error: "En az 2 ilaç ID'si gereklidir." });
   });
 
+  it("should return 400 if drugIds has more than 50 items", async () => {
+    const hugeArray = Array.from({ length: 51 }, (_, i) => `drug-${i}`);
+    const req = new Request("http://localhost/api/check", {
+      method: "POST",
+      body: JSON.stringify({ drugIds: hugeArray }),
+      headers: { "Content-Type": "application/json" },
+    });
+
+    const res = await POST(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(data).toEqual({ error: "Tek seferde en fazla 50 ilaç kontrol edilebilir." });
+  });
+
+  it("should return 400 if drugIds contains invalid types", async () => {
+    const req = new Request("http://localhost/api/check", {
+      method: "POST",
+      body: JSON.stringify({ drugIds: ["drug-1", 123] }),
+      headers: { "Content-Type": "application/json" },
+    });
+
+    const res = await POST(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(data).toEqual({ error: "Geçersiz ilaç ID formatı." });
+  });
+
   it("should return 500 if JSON parsing fails", async () => {
     const req = new Request("http://localhost/api/check", {
       method: "POST",
@@ -82,7 +119,25 @@ describe("POST /api/check", () => {
     expect(data).toEqual({ error: "Kontrol sırasında bir hata oluştu." });
   });
 
+  it("should return 429 if rate limit is exceeded", async () => {
+    (redis!.incr as jest.Mock).mockResolvedValue(31);
+
+    const req = new Request("http://localhost/api/check", {
+      method: "POST",
+      body: JSON.stringify({ drugIds: ["drug-1", "drug-2"] }),
+      headers: { "Content-Type": "application/json" },
+    });
+
+    const res = await POST(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(429);
+    expect(data).toEqual({ error: "Çok fazla istek gönderildi. Lütfen bir dakika bekleyin." });
+  });
+
   it("should return 200 and interactions if request is valid", async () => {
+    (redis!.incr as jest.Mock).mockResolvedValue(1);
+
     const mockResults = [
       {
         interaction: { id: "test", severity: "high", summary: "Test summary" },

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { findInteractionsDB } from "@/lib/interactions";
 import { redis } from "@/lib/redis";
+import { getClientIp } from "@/lib/ip";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -50,11 +51,7 @@ export async function POST(request: Request) {
     // 2. IP-based Fail-safe Rate Limiter via Upstash Redis
     if (redis) {
       try {
-        const ip = request.headers.get("x-forwarded-for") ||
-                   request.headers.get("x-real-ip") ||
-                   "127.0.0.1";
-        // Clean IP to avoid key injections
-        const cleanIp = ip.split(",")[0].trim();
+        const cleanIp = getClientIp(request);
         const rateLimitKey = `ratelimit:check:${cleanIp}`;
 
         const currentRequests = await redis.incr(rateLimitKey);

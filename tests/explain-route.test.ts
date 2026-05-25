@@ -48,6 +48,35 @@ describe("POST /api/explain", () => {
     consoleErrorSpy.mockRestore();
   });
 
+
+  it("should return 400 when body is missing/invalid JSON", async () => {
+    const req = new Request("http://localhost/api/explain", {
+      method: "POST",
+      body: "invalid-json", // Invalid JSON string
+      headers: { "Content-Type": "application/json" }
+    });
+
+    const res = await POST(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(data).toEqual({ error: "Geçersiz JSON gövdesi." });
+  });
+
+  it("should return 400 when body is not an object", async () => {
+    const req = new Request("http://localhost/api/explain", {
+      method: "POST",
+      body: JSON.stringify("a string instead of object"),
+      headers: { "Content-Type": "application/json" }
+    });
+
+    const res = await POST(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(data).toEqual({ error: "Geçersiz istek yapısı." });
+  });
+
   it("should gracefully fallback to live AI when Redis cache read fails", async () => {
     const fakeError = new Error("Redis read timeout");
     (redis!.get as jest.Mock).mockRejectedValueOnce(fakeError);

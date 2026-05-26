@@ -88,3 +88,63 @@ describe("shouldUseFallback", () => {
     expect(shouldUseFallback()).toBe(false);
   });
 });
+
+
+describe("Gemini Safety Shield Bypass", () => {
+  const originalFetch = global.fetch;
+  const originalEnv = process.env;
+
+  beforeEach(() => {
+    jest.resetModules();
+    process.env = { ...originalEnv, GOOGLE_API_KEY: "test_key", NEXT_PUBLIC_DEMO_MODE: "false" };
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    process.env = originalEnv;
+    jest.restoreAllMocks();
+  });
+
+  it("should throw an error when the generated AI output violates the deterministic regex filter", async () => {
+    // We mock fetch to simulate a response that parses to JSON and contains an unsafe word like "kullanmayın"
+    global.fetch = jest.fn().mockImplementation(() => {
+      const mockGeminiResponse = {
+        candidates: [
+          {
+            content: {
+              parts: [
+                {
+                  text: JSON.stringify({
+                    girisCumlesi: "Merhaba",
+                    klinikEtkiAciklamasi: "Bu ilacı kesinlikle kullanmayın. Çok tehlikelidir.",
+                    hastalaraOneriler: ["Sadece doktorunuzu dinleyin."],
+                    hekimYonlendirmesi: "Doktorunuza danışın.",
+                  }),
+                },
+              ],
+            },
+            finishReason: "STOP",
+          },
+        ],
+      };
+
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(mockGeminiResponse),
+      } as Response);
+    });
+
+    const { callGeminiForCoverage } = await import("../lib/gemini");
+
+    // Dummy coverage context
+    const mockCtx = {
+      drugNames: ["Aspirin", "Warfarin"],
+      drugIngredients: ["Asetilsalisilik Asit", "Warfarin Sodyum"]
+    };
+
+    // Because callGeminiWithPrompt retries over MODEL_CHAIN, it will fail on all models and throw the lastError.
+    await expect(callGeminiForCoverage(mockCtx)).rejects.toThrow(
+      "AI çıktısı klinik güvenlik kurallarını (regex) ihlal ediyor."
+    );
+  });
+});

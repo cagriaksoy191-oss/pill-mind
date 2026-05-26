@@ -396,48 +396,103 @@ ${hekim}
 `.trim();
 }
 
+// Helper to create a promise that rejects after a timeout, with cleanup
+function createTimeoutReject(ms: number, message: string): { promise: Promise<never>, cancel: () => void } {
+  let timeoutId: NodeJS.Timeout;
+  const promise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(message)), ms);
+  });
+  return { promise, cancel: () => clearTimeout(timeoutId) };
+}
+
+async function executeGeminiChainTask(model: string, payload: string): Promise<GeminiResult> {
+  const rawText = await executeGeminiRequest(model, payload);
+  const parsedJSON = parseGeminiResponse(rawText);
+  const compiledExplanation = formatExplanation(parsedJSON);
+
+  if (!isOutputSafe(compiledExplanation)) {
+    throw new Error("AI çıktısı klinik güvenlik kurallarını (regex) ihlal ediyor.");
+  }
+
+  const safetyCheckResult = await runReviewerAgent(compiledExplanation, model);
+  if (!safetyCheckResult) {
+    throw new Error("AI çıktısı klinik güvenlik kurallarını (Reviewer Agent) ihlal ediyor.");
+  }
+
+  if (!isExplanationComplete(compiledExplanation)) {
+    throw new Error("Üretilen klinik açıklama yetersiz uzunlukta.");
+  }
+
+  return {
+    explanation: compiledExplanation,
+    generatedAt: new Intl.DateTimeFormat("tr-TR", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    }).format(new Date()),
+  };
+}
+
 async function callGeminiWithPrompt(prompt: string): Promise<GeminiResult> {
   const payload = buildGeminiPayload(prompt);
-  let lastError: Error | null = null;
+  const SPECULATIVE_TIMEOUT_MS = 2500; // Launch next model if current takes longer than this
 
-  for (const model of MODEL_CHAIN) {
+  const runningTasks: Promise<GeminiResult>[] = [];
+
+  for (let i = 0; i < MODEL_CHAIN.length; i++) {
+    const model = MODEL_CHAIN[i];
+
+    // Start the current task
+    const taskPromise = executeGeminiChainTask(model, payload).catch((error) => {
+      const err = error instanceof Error ? error : new Error(String(error));
+      console.warn(`[GEMINI] Model ${model} başarısız oldu: ${err.message}`);
+      throw err;
+    });
+
+    runningTasks.push(taskPromise);
+
+    // If this is the last model, just wait for the fastest successful one we have running
+    if (i === MODEL_CHAIN.length - 1) {
+      break;
+    }
+
+    // Wait for either ANY running task to succeed/fail OR the speculative timeout to trigger
+    const timeout = createTimeoutReject(SPECULATIVE_TIMEOUT_MS, "SPECULATIVE_TIMEOUT");
     try {
-      const rawText = await executeGeminiRequest(model, payload);
-      const parsedJSON = parseGeminiResponse(rawText);
-      const compiledExplanation = formatExplanation(parsedJSON);
-
-      // 2. Güvenlik Denetimi: Deterministik Regex Filtresi
-      if (!isOutputSafe(compiledExplanation)) {
-        throw new Error("AI çıktısı klinik güvenlik kurallarını (regex) ihlal ediyor.");
-      }
-
-      // 3. Güvenlik Denetimi: Çift Ajanlı LLM Reviewer Kontrolü (Pass the successful model dynamically)
-      const safetyCheckResult = await runReviewerAgent(compiledExplanation, model);
-      if (!safetyCheckResult) {
-        throw new Error("AI çıktısı klinik güvenlik kurallarını (Reviewer Agent) ihlal ediyor.");
-      }
-
-      if (!isExplanationComplete(compiledExplanation)) {
-        throw new Error("Üretilen klinik açıklama yetersiz uzunlukta.");
-      }
-
-      return {
-        explanation: compiledExplanation,
-        generatedAt: new Intl.DateTimeFormat("tr-TR", {
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
-        }).format(new Date()),
-      };
+      // Race the timeout against the first running task to resolve (successfully or otherwise)
+      const result = await Promise.race([
+        Promise.any(runningTasks),
+        timeout.promise
+      ]);
+      timeout.cancel();
+      // If ANY task succeeds before timeout, return immediately!
+      return result;
     } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
-      console.warn(`[GEMINI] Model ${model} başarısız oldu: ${lastError.message}`);
+      timeout.cancel();
+      if (error instanceof Error && error.message === "SPECULATIVE_TIMEOUT") {
+        // Models are taking too long. Continue to the next iteration to start the fallback model speculatively.
+        console.info(`[GEMINI] Model ${model} is taking longer than ${SPECULATIVE_TIMEOUT_MS}ms. Launching fallback speculatively.`);
+      } else {
+        // All currently running models failed quickly.
+        // Record error and continue to start the next model.
+        // The error is already handled by the Promise.any aggregate error catch
+      }
     }
   }
 
-  throw lastError ?? new Error("Tüm Gemini modelleri başarısız oldu.");
+  // At this point, we've started all models (or the ones we needed to).
+  // Now we wait for the first one to succeed using Promise.any.
+  // Note: if a previous model failed, its rejected promise is still in runningTasks.
+  // Promise.any ignores rejections unless ALL of them reject.
+  try {
+    return await Promise.any(runningTasks);
+  } catch (aggregateError) {
+    if (aggregateError instanceof AggregateError && aggregateError.errors.length > 0) {
+      throw aggregateError.errors[0]; // Throw the first error for test compatibility
+    }
+    throw new Error("Tüm Gemini modelleri başarısız oldu.");
+  }
 }
-
 export async function callGeminiForInteraction(
   ctx: InteractionContext
 ): Promise<GeminiResult> {

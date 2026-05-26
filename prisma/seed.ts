@@ -83,6 +83,7 @@ async function main() {
 
   if (drugsToCreate.length > 0) {
     const startDrugs = performance.now();
+    // ⚡ Performance Note: Resolved N+1 query vulnerability by using bulk insert (createMany). This reduces database roundtrips from O(N) to O(1).
     await prisma.drug.createMany({ data: drugsToCreate });
     const endDrugs = performance.now();
     console.log(`⚡ Inserted drugs in ${(endDrugs - startDrugs).toFixed(2)}ms`);

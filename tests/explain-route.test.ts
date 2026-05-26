@@ -162,4 +162,29 @@ describe("POST /api/explain", () => {
       disclaimer: "Bu açıklama bilgilendirme amaçlıdır ve tıbbi tavsiye niteliği taşımaz.",
     });
   });
+
+  it("should return 429 when rate limit is exceeded", async () => {
+    (redis!.incr as jest.Mock).mockResolvedValueOnce(16);
+
+    const req = new Request("http://localhost/api/explain", {
+      method: "POST",
+      body: JSON.stringify({ interactionId: "test-interaction" }),
+      headers: {
+        "Content-Type": "application/json",
+        "x-vercel-forwarded-for": "192.168.1.1"
+      }
+    });
+
+    const res = await POST(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(429);
+    expect(data).toEqual({
+      error: "Çok fazla istek gönderildi. Lütfen bir dakika bekleyin.",
+      source: "error",
+      reason: "rate_limited"
+    });
+
+    expect(consoleWarnSpy).toHaveBeenCalledWith("[Security Alert] Rate limit exceeded for IP: 192.168.1.1");
+  });
 });

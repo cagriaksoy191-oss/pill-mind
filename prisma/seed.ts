@@ -37,66 +37,82 @@ async function main() {
 
   // 2. İlaçları Oku ve Ekle
   const drugsFilePath = path.join(process.cwd(), "data", "drugs.json");
-  const drugsData: DrugMock[] = JSON.parse(fs.readFileSync(drugsFilePath, "utf-8"));
+  const drugsData: DrugMock[] = JSON.parse(
+    fs.readFileSync(drugsFilePath, "utf-8"),
+  );
 
   const drugIdMap: Record<string, string> = {};
   const drugNameMap: Record<string, string> = {};
 
+  const drugsToCreate = [];
+  const brandNamesToCreate = [];
+
   for (const item of drugsData) {
-    const createdDrug = await prisma.drug.create({
-      data: {
-        id: item.id, // ID'leri sabit tutarak eşleştirmeleri kolaylaştırıyoruz
-        name: item.name,
-        activeIngredient: item.activeIngredient,
-        category: item.category,
-        description: item.notes || "",
-        status: Status.VERIFIED,
-      },
+    drugsToCreate.push({
+      id: item.id,
+      name: item.name,
+      activeIngredient: item.activeIngredient,
+      category: item.category,
+      description: item.notes || "",
+      status: Status.VERIFIED,
     });
 
-    drugIdMap[item.id] = createdDrug.id;
+    drugIdMap[item.id] = item.id;
     drugNameMap[item.id] = item.name;
 
-    // Her ilacın kendi adını bir marka adı olarak da ekle (Kolay arama için)
-    await prisma.brandName.create({
-      data: {
-        name: item.name,
-        drugId: createdDrug.id,
-      },
+    brandNamesToCreate.push({
+      name: item.name,
+      drugId: item.id,
     });
 
-    // Alternatif marka isimleri ekleyelim (Örnek zenginleştirme)
     if (item.id === "aspirin") {
-      await prisma.brandName.create({ data: { name: "Coraspin", drugId: createdDrug.id } });
-      await prisma.brandName.create({ data: { name: "Ecopirin", drugId: createdDrug.id } });
+      brandNamesToCreate.push({ name: "Coraspin", drugId: item.id });
+      brandNamesToCreate.push({ name: "Ecopirin", drugId: item.id });
     } else if (item.id === "parasetamol") {
-      await prisma.brandName.create({ data: { name: "Parol", drugId: createdDrug.id } });
-      await prisma.brandName.create({ data: { name: "Calpol", drugId: createdDrug.id } });
-      await prisma.brandName.create({ data: { name: "Tylol", drugId: createdDrug.id } });
+      brandNamesToCreate.push({ name: "Parol", drugId: item.id });
+      brandNamesToCreate.push({ name: "Calpol", drugId: item.id });
+      brandNamesToCreate.push({ name: "Tylol", drugId: item.id });
     } else if (item.id === "ibuprofen") {
-      await prisma.brandName.create({ data: { name: "Nurofen", drugId: createdDrug.id } });
-      await prisma.brandName.create({ data: { name: "Dolorex", drugId: createdDrug.id } });
-      await prisma.brandName.create({ data: { name: "Advil", drugId: createdDrug.id } });
+      brandNamesToCreate.push({ name: "Nurofen", drugId: item.id });
+      brandNamesToCreate.push({ name: "Dolorex", drugId: item.id });
+      brandNamesToCreate.push({ name: "Advil", drugId: item.id });
     } else if (item.id === "warfarin") {
-      await prisma.brandName.create({ data: { name: "Coumadin", drugId: createdDrug.id } });
+      brandNamesToCreate.push({ name: "Coumadin", drugId: item.id });
     }
   }
 
-  console.log(`📦 ${Object.keys(drugIdMap).length} adet temel ilaç ve alternatif marka isimleri yüklendi.`);
+  if (drugsToCreate.length > 0) {
+    await prisma.drug.createMany({ data: drugsToCreate });
+  }
+
+  if (brandNamesToCreate.length > 0) {
+    await prisma.brandName.createMany({ data: brandNamesToCreate });
+  }
+
+  console.log(
+    `📦 ${Object.keys(drugIdMap).length} adet temel ilaç ve alternatif marka isimleri yüklendi.`,
+  );
 
   // 3. Etkileşimleri Oku ve Ekle
-  const interactionsFilePath = path.join(process.cwd(), "data", "interactions.json");
+  const interactionsFilePath = path.join(
+    process.cwd(),
+    "data",
+    "interactions.json",
+  );
   const interactionsData: InteractionMock[] = JSON.parse(
-    fs.readFileSync(interactionsFilePath, "utf-8")
+    fs.readFileSync(interactionsFilePath, "utf-8"),
   );
 
   let interactionCount = 0;
+  const interactionsToCreate = [];
   for (const item of interactionsData) {
     const drug1Id = drugIdMap[item.drug1];
     const drug2Id = drugIdMap[item.drug2];
 
     if (!drug1Id || !drug2Id) {
-      console.warn(`⚠️ İlaç bulunamadığı için etkileşim atlandı: ${item.drug1} - ${item.drug2}`);
+      console.warn(
+        `⚠️ İlaç bulunamadığı için etkileşim atlandı: ${item.drug1} - ${item.drug2}`,
+      );
       continue;
     }
 
@@ -108,22 +124,28 @@ async function main() {
     const drug1Name = drugNameMap[item.drug1] ?? item.drug1;
     const drug2Name = drugNameMap[item.drug2] ?? item.drug2;
 
-    await prisma.drugInteraction.create({
-      data: {
-        drug1Id,
-        drug2Id,
-        severity: severityEnum,
-        summary: item.summary,
-        clinicalDetail: `${drug1Name} ve ${drug2Name} kombinasyonu ${item.severity === "high" ? "yüksek riskli" : "orta riskli"} yan etkilere yol açabilir. Kaynak: ${item.source}`,
-        source: item.source,
-        sourceLabel: item.sourceLabel,
-        verificationStatus: Status.VERIFIED,
-      },
+    interactionsToCreate.push({
+      drug1Id,
+      drug2Id,
+      severity: severityEnum,
+      summary: item.summary,
+      clinicalDetail: `${drug1Name} ve ${drug2Name} kombinasyonu ${item.severity === "high" ? "yüksek riskli" : "orta riskli"} yan etkilere yol açabilir. Kaynak: ${item.source}`,
+      source: item.source,
+      sourceLabel: item.sourceLabel,
+      verificationStatus: Status.VERIFIED,
     });
-    interactionCount++;
   }
 
-  console.log(`🔗 ${interactionCount} adet doğrulanmış ilaç-ilaç etkileşim kaydı yüklendi.`);
+  if (interactionsToCreate.length > 0) {
+    const result = await prisma.drugInteraction.createMany({
+      data: interactionsToCreate,
+    });
+    interactionCount = result.count;
+  }
+
+  console.log(
+    `🔗 ${interactionCount} adet doğrulanmış ilaç-ilaç etkileşim kaydı yüklendi.`,
+  );
 
   // 4. Örnek Besin Etkileşimleri (Food Interactions) Ekle
   const warfarinId = drugIdMap["warfarin"];
@@ -133,13 +155,15 @@ async function main() {
         {
           drugId: warfarinId,
           substance: "Greyfurt Suyu",
-          effect: "Warfarin metabolizmasını etkileyerek kanama riskini artırabilir.",
+          effect:
+            "Warfarin metabolizmasını etkileyerek kanama riskini artırabilir.",
           severity: Severity.HIGH,
         },
         {
           drugId: warfarinId,
           substance: "K Vitamini Zengin Gıdalar (Ispanak, Brokoli)",
-          effect: "İlacın kan sulandırıcı etkisini azaltarak pıhtılaşma riskini artırabilir.",
+          effect:
+            "İlacın kan sulandırıcı etkisini azaltarak pıhtılaşma riskini artırabilir.",
           severity: Severity.MEDIUM,
         },
       ],

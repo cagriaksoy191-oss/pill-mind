@@ -130,4 +130,36 @@ describe("POST /api/explain", () => {
       { ex: 604800 }
     );
   });
+
+  it("should return 503 and handle Gemini AI failure gracefully", async () => {
+    (getInteractionContext as jest.Mock).mockResolvedValueOnce({
+      interaction: { id: "test", severity: "high" },
+      drug1Name: "DrugA",
+      drug2Name: "DrugB",
+      drug1Ingredient: "IngA",
+      drug2Ingredient: "IngB"
+    });
+
+    const fakeError = new Error("timeout processing request");
+    (callGeminiForInteraction as jest.Mock).mockRejectedValueOnce(fakeError);
+
+    const req = new Request("http://localhost/api/explain", {
+      method: "POST",
+      body: JSON.stringify({ interactionId: "test-interaction" }),
+      headers: {
+        "Content-Type": "application/json",
+      }
+    });
+
+    const res = await POST(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(503);
+    expect(data).toEqual({
+      error: "Canlı AI açıklaması şu anda üretilemedi.",
+      source: "error",
+      reason: "timeout",
+      disclaimer: "Bu açıklama bilgilendirme amaçlıdır ve tıbbi tavsiye niteliği taşımaz.",
+    });
+  });
 });

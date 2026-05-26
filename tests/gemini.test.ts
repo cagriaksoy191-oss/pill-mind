@@ -148,3 +148,129 @@ describe("Gemini Safety Shield Bypass", () => {
     );
   });
 });
+
+
+describe("callGeminiForInteraction", () => {
+  const originalFetch = global.fetch;
+  const originalEnv = process.env;
+
+  beforeEach(() => {
+    jest.resetModules();
+    process.env = { ...originalEnv, GOOGLE_API_KEY: "test_key", NEXT_PUBLIC_DEMO_MODE: "false" };
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    process.env = originalEnv;
+    jest.restoreAllMocks();
+  });
+
+  it("should return parsed GeminiResult when both generation and Reviewer Agent succeed", async () => {
+    global.fetch = jest.fn().mockImplementation((url, options) => {
+      const body = JSON.parse(options.body);
+      const text = body.contents[0].parts[0].text;
+
+      if (text.includes("Sen Sağlık Bilgi Sistemleri Yöneticisi")) {
+        // Reviewer agent request
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            candidates: [{ content: { parts: [{ text: "EVET" }] }, finishReason: "STOP" }],
+          }),
+        });
+      } else {
+        // Main generation request
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            candidates: [{
+              content: {
+                parts: [{
+                  text: JSON.stringify({
+                    girisCumlesi: "Bu iki ilacın birlikte kullanılması sonucunda bazı yan etkiler görülebilir ve bu durum hastanın genel sağlık durumunu etkileyebilir.",
+                    klinikEtkiAciklamasi: "İlaçların etki mekanizmaları birbirini etkileyerek istenmeyen bazı klinik sonuçlara yol açabilme potansiyeline sahiptir.",
+                    hastalaraOneriler: ["Lütfen ilaçlarınızı düzenli olarak alın.", "Herhangi bir yan etki hissederseniz derhal bildirin."],
+                    hekimYonlendirmesi: "Bu bilgileri mutlaka kendi hekiminizle paylaşınız ve hekiminizin yönlendirmesi olmadan tedavi planınızı kesinlikle değiştirmeyiniz."
+                  })
+                }]
+              },
+              finishReason: "STOP"
+            }],
+          }),
+        });
+      }
+    });
+
+    const { callGeminiForInteraction } = await import("../lib/gemini");
+    const mockCtx = {
+      interaction: {
+        id: "test", drug1: "test1", drug2: "test2", severity: "high", summary: "sum", source: "src"
+      },
+      drug1Name: "Drug1",
+      drug2Name: "Drug2",
+      drug1Ingredient: "Ing1",
+      drug2Ingredient: "Ing2"
+    };
+
+    const result = await callGeminiForInteraction(mockCtx);
+
+    expect(result).toHaveProperty("explanation");
+    expect(result.explanation).toContain("Bu iki ilacın birlikte kullanılması sonucunda bazı yan etkiler görülebilir ve bu durum hastanın genel sağlık durumunu etkileyebilir.");
+    expect(result.explanation).toContain("İlaçların etki mekanizmaları birbirini etkileyerek istenmeyen bazı klinik sonuçlara yol açabilme potansiyeline sahiptir.");
+    expect(result.explanation).toContain("Lütfen ilaçlarınızı düzenli olarak alın.");
+    expect(result.explanation).toContain("Bu bilgileri mutlaka kendi hekiminizle paylaşınız ve hekiminizin yönlendirmesi olmadan tedavi planınızı kesinlikle değiştirmeyiniz.");
+    expect(result).toHaveProperty("generatedAt");
+  });
+
+  it("should throw an error when Reviewer Agent returns HAYIR", async () => {
+    global.fetch = jest.fn().mockImplementation((url, options) => {
+      const body = JSON.parse(options.body);
+      const text = body.contents[0].parts[0].text;
+
+      if (text.includes("Sen Sağlık Bilgi Sistemleri Yöneticisi")) {
+        // Reviewer agent request -> FAILS the safety check
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            candidates: [{ content: { parts: [{ text: "HAYIR" }] }, finishReason: "STOP" }],
+          }),
+        });
+      } else {
+        // Main generation request
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            candidates: [{
+              content: {
+                parts: [{
+                  text: JSON.stringify({
+                    girisCumlesi: "Giriş.",
+                    klinikEtkiAciklamasi: "Etki.",
+                    hastalaraOneriler: ["Öneri 1."],
+                    hekimYonlendirmesi: "Hekime danışın."
+                  })
+                }]
+              },
+              finishReason: "STOP"
+            }],
+          }),
+        });
+      }
+    });
+
+    const { callGeminiForInteraction } = await import("../lib/gemini");
+    const mockCtx = {
+      interaction: {
+        id: "test", drug1: "test1", drug2: "test2", severity: "high", summary: "sum", source: "src"
+      },
+      drug1Name: "Drug1",
+      drug2Name: "Drug2",
+      drug1Ingredient: "Ing1",
+      drug2Ingredient: "Ing2"
+    };
+
+    await expect(callGeminiForInteraction(mockCtx)).rejects.toThrow(
+      "AI çıktısı klinik güvenlik kurallarını (Reviewer Agent) ihlal ediyor."
+    );
+  });
+});

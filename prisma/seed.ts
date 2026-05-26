@@ -82,11 +82,17 @@ async function main() {
   }
 
   if (drugsToCreate.length > 0) {
+    const startDrugs = performance.now();
     await prisma.drug.createMany({ data: drugsToCreate });
+    const endDrugs = performance.now();
+    console.log(`⚡ Inserted drugs in ${(endDrugs - startDrugs).toFixed(2)}ms`);
   }
 
   if (brandNamesToCreate.length > 0) {
+    const startBrandNames = performance.now();
     await prisma.brandName.createMany({ data: brandNamesToCreate });
+    const endBrandNames = performance.now();
+    console.log(`⚡ Inserted brand names in ${(endBrandNames - startBrandNames).toFixed(2)}ms`);
   }
 
   console.log(
@@ -137,9 +143,12 @@ async function main() {
   }
 
   if (interactionsToCreate.length > 0) {
+    const startInteractions = performance.now();
     const result = await prisma.drugInteraction.createMany({
       data: interactionsToCreate,
     });
+    const endInteractions = performance.now();
+    console.log(`⚡ Inserted drug interactions in ${(endInteractions - startInteractions).toFixed(2)}ms`);
     interactionCount = result.count;
   }
 
@@ -150,6 +159,7 @@ async function main() {
   // 4. Örnek Besin Etkileşimleri (Food Interactions) Ekle
   const warfarinId = drugIdMap["warfarin"];
   if (warfarinId) {
+    const startFoodInteractions = performance.now();
     await prisma.foodInteraction.createMany({
       data: [
         {
@@ -168,6 +178,8 @@ async function main() {
         },
       ],
     });
+    const endFoodInteractions = performance.now();
+    console.log(`⚡ Inserted food interactions in ${(endFoodInteractions - startFoodInteractions).toFixed(2)}ms`);
     console.log("🥗 Warfarin için besin etkileşimleri eklendi.");
   }
 

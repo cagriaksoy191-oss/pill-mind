@@ -7,6 +7,7 @@ import {
   shouldUseFallback,
 } from "@/lib/gemini";
 import { redis } from "@/lib/redis";
+import { getClientIp } from "@/lib/ip";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -60,13 +61,7 @@ export async function POST(request: Request) {
     if (redis) {
       try {
         // Secure IP resolution, avoiding untrusted headers like x-forwarded-for or x-real-ip
-        const ip = "ip" in request && typeof request.ip === "string" && request.ip
-          ? request.ip
-          : request.headers.get("x-vercel-forwarded-for")
-            ? request.headers.get("x-vercel-forwarded-for")!.split(",")[0].trim()
-            : request.headers.get("x-nf-client-connection-ip")
-              ? request.headers.get("x-nf-client-connection-ip")!.split(",")[0].trim()
-              : "127.0.0.1";
+        const ip = getClientIp(request);
 
         const cleanIp = ip;
         const rateLimitKey = `ratelimit:explain:${cleanIp}`;

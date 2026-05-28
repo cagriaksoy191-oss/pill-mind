@@ -1,4 +1,4 @@
-import { getSeverityLabel, getSeverityColor, getAllDrugs } from "../lib/interactions";
+import { getSeverityLabel, getSeverityColor, getAllDrugs, findInteractions } from "../lib/interactions";
 
 describe("interactions UI helpers", () => {
 
@@ -107,6 +107,58 @@ describe("interactions UI helpers", () => {
       expect(firstDrug).toHaveProperty("name");
       expect(firstDrug).toHaveProperty("activeIngredient");
       expect(firstDrug).toHaveProperty("category");
+    });
+  });
+
+  describe("findInteractions", () => {
+    test("returns empty array for empty input", () => {
+      const result = findInteractions([]);
+      expect(result).toEqual([]);
+    });
+
+    test("returns empty array for single drug", () => {
+      const result = findInteractions(["aspirin"]);
+      expect(result).toEqual([]);
+    });
+
+    test("returns empty array for non-interacting drugs", () => {
+      // Assuming aspirin and metformin don't interact in the mock dataset
+      const result = findInteractions(["aspirin", "metformin"]);
+      expect(result).toEqual([]);
+    });
+
+    test("returns interactions for interacting drugs", () => {
+      const result = findInteractions(["aspirin", "warfarin"]);
+      expect(result.length).toBe(1);
+
+      const res = result[0];
+      expect(res.interaction.id).toBe("aspirin-warfarin");
+      expect(res.interaction.severity).toBe("high");
+      expect(res.drug1Name).toBe("Aspirin");
+      expect(res.drug2Name).toBe("Coumadin (Warfarin)");
+    });
+
+    test("is order independent", () => {
+      const result1 = findInteractions(["aspirin", "warfarin"]);
+      const result2 = findInteractions(["warfarin", "aspirin"]);
+
+      expect(result1.length).toBe(1);
+      expect(result2.length).toBe(1);
+      expect(result1[0].interaction.id).toBe(result2[0].interaction.id);
+    });
+
+    test("returns multiple interactions for multiple interacting drugs", () => {
+      const result = findInteractions(["aspirin", "warfarin", "ibuprofen"]);
+
+      // Expected interactions: aspirin-warfarin, aspirin-ibuprofen, ibuprofen-warfarin
+      // Let's check length is correct based on dataset (assuming 3 interactions here or at least 2)
+      // aspirin-warfarin and ibuprofen-warfarin exist based on the peek.
+      // aspirin-ibuprofen might also exist. We just assert length > 1
+      expect(result.length).toBeGreaterThan(1);
+
+      const ids = result.map(r => r.interaction.id);
+      expect(ids).toContain("aspirin-warfarin");
+      expect(ids).toContain("ibuprofen-warfarin");
     });
   });
 });

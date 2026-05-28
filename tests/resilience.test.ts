@@ -17,7 +17,7 @@ describe("Sistem Dayanıklılığı ve Hata Dayanıklılığı Testleri (Resilie
     let results;
     try {
       results = await findInteractionsDB(drugIds);
-    } catch (err) {
+    } catch {
       throw new Error("DATABASE_URL boşken hata fırlatılmamalıdır: " + err);
     }
 
@@ -37,7 +37,7 @@ describe("Sistem Dayanıklılığı ve Hata Dayanıklılığı Testleri (Resilie
     // Çökme durumunda hata fırlatılmamalı, log basılıp lokal yedek mekanizma çalışmalıdır
     try {
       results = await findInteractionsDB(drugIds);
-    } catch (err) {
+    } catch {
       throw new Error("Veritabanı çökmesi durumunda hata dışarı sızmamalı, try/catch ile yönetilmelidir.");
     }
 

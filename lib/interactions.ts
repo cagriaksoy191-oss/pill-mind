@@ -52,6 +52,9 @@ for (const int of interactionsData as Interaction[]) {
  * Deterministic N-Drug interaction check using local JSON files (Fallback layer).
  */
 export function findInteractions(drugIds: string[]): CheckResult[] {
+  if (!Array.isArray(drugIds) || drugIds.length < 2) {
+    return [];
+  }
   const results: CheckResult[] = [];
 
   for (let i = 0; i < drugIds.length; i++) {

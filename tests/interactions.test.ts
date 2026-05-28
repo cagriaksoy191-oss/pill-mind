@@ -116,6 +116,34 @@ describe("interactions UI helpers", () => {
       expect(result).toEqual([]);
     });
 
+    test("returns empty array for null input", () => {
+      // @ts-expect-error testing invalid input
+      const result = findInteractions(null);
+      expect(result).toEqual([]);
+    });
+
+    test("returns empty array for undefined input", () => {
+      // @ts-expect-error testing invalid input
+      const result = findInteractions(undefined);
+      expect(result).toEqual([]);
+    });
+
+    test("returns empty array for non-array input", () => {
+      // @ts-expect-error testing invalid input
+      const result = findInteractions("aspirin");
+      expect(result).toEqual([]);
+    });
+
+    test("returns empty array for array of empty strings", () => {
+      const result = findInteractions(["", ""]);
+      expect(result).toEqual([]);
+    });
+
+    test("returns empty array for array with identical drugs", () => {
+      const result = findInteractions(["aspirin", "aspirin"]);
+      expect(result).toEqual([]);
+    });
+
     test("returns empty array for single drug", () => {
       const result = findInteractions(["aspirin"]);
       expect(result).toEqual([]);

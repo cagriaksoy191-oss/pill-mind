@@ -1,4 +1,4 @@
-import { getCoverageContext, getInteractionContext } from "../lib/gemini";
+import { getCoverageContext, getInteractionContext, formatExplanation } from "../lib/gemini";
 
 describe("getCoverageContext", () => {
   it("should return null when an empty array is provided", () => {
@@ -272,5 +272,73 @@ describe("callGeminiForInteraction", () => {
     await expect(callGeminiForInteraction(mockCtx)).rejects.toThrow(
       "AI çıktısı klinik güvenlik kurallarını (Reviewer Agent) ihlal ediyor."
     );
+  });
+});
+
+
+describe("formatExplanation", () => {
+  it("should format a well-formed JSON object correctly", () => {
+    const input = {
+      girisCumlesi: "Bu bir giriş cümlesidir.",
+      klinikEtkiAciklamasi: "Bu bir klinik etki açıklamasıdır.",
+      hastalaraOneriler: ["Öneri 1", "Öneri 2"],
+      hekimYonlendirmesi: "Bu bir hekim yönlendirmesidir."
+    };
+
+    const expected = `Bu bir giriş cümlesidir.
+
+Bu bir klinik etki açıklamasıdır.
+
+**Önemli Belirtiler ve Öneriler:**
+• Öneri 1
+• Öneri 2
+
+Bu bir hekim yönlendirmesidir.`;
+
+    expect(formatExplanation(input)).toBe(expected);
+  });
+
+  it("should handle missing string fields gracefully", () => {
+    const input = {
+      hastalaraOneriler: ["Öneri 1"]
+    };
+
+    const expected = `**Önemli Belirtiler ve Öneriler:**
+• Öneri 1`;
+
+    expect(formatExplanation(input)).toBe(expected);
+  });
+
+  it("should handle hastalaraOneriler as a string instead of an array", () => {
+    const input = {
+      hastalaraOneriler: "Tek bir öneri string olarak"
+    };
+
+    const expected = `**Önemli Belirtiler ve Öneriler:**
+• Tek bir öneri string olarak`;
+
+    expect(formatExplanation(input)).toBe(expected);
+  });
+
+  it("should handle hastalaraOneriler as null or undefined", () => {
+    const input1 = { hastalaraOneriler: null };
+    const input2 = { hastalaraOneriler: undefined };
+    const input3 = {};
+
+    const expected = `**Önemli Belirtiler ve Öneriler:**`;
+
+    expect(formatExplanation(input1)).toBe(expected);
+    expect(formatExplanation(input2)).toBe(expected);
+    expect(formatExplanation(input3)).toBe(expected);
+  });
+
+  it("should handle hastalaraOneriler as an object (invalid type)", () => {
+    const input = {
+      hastalaraOneriler: { someKey: "someValue" }
+    };
+
+    const expected = `**Önemli Belirtiler ve Öneriler:**`;
+
+    expect(formatExplanation(input)).toBe(expected);
   });
 });

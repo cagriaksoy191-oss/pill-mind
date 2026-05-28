@@ -62,9 +62,7 @@ export async function POST(request: Request) {
       try {
         // Secure IP resolution, avoiding untrusted headers like x-forwarded-for or x-real-ip
         const ip = getClientIp(request);
-
-        const cleanIp = ip;
-        const rateLimitKey = `ratelimit:explain:${cleanIp}`;
+        const rateLimitKey = `ratelimit:explain:${ip}`;
 
         const currentRequests = await redis.incr(rateLimitKey);
         if (currentRequests === 1) {
@@ -72,7 +70,7 @@ export async function POST(request: Request) {
         }
 
         if (currentRequests > 15) { // Limit to 15 requests per minute
-          console.warn(`[Security Alert] Rate limit exceeded for IP: ${cleanIp}`);
+          console.warn(`[Security Alert] Rate limit exceeded for IP: ${ip}`);
           return jsonNoStore(
             {
               error: "Çok fazla istek gönderildi. Lütfen bir dakika bekleyin.",

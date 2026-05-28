@@ -1,0 +1,4 @@
+{
+  "title": "🧹 [Code Health] Remove redundant cleanIp variable assignment in API routes",
+  "body": "## 🧹 Code Health Improvement Task\n\n### 🎯 What\nRemoved redundant `const cleanIp = ip;` assignments in `app/api/explain/route.ts` and `app/api/check/route.ts`, updating references to use `ip` directly.\n\n### 💡 Why\nThis improves readability and removes unnecessary intermediate variables. It's a follow-up cleanup to the previous IP extraction refactor.\n\n### ✅ Verification\nVerified by ensuring `npm run test` passes successfully, completing pre-commit steps and avoiding behavioral changes.\n\n### ✨ Result\nCleaner, more readable API routes."
+}

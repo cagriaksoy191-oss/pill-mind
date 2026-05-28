@@ -286,6 +286,22 @@ describe("callGeminiForInteraction", () => {
 
 
 describe("formatExplanation", () => {
+
+  it("should handle completely missing hastalaraOneriler property gracefully", () => {
+    const input = {
+      girisCumlesi: "Giriş",
+      klinikEtkiAciklamasi: "Klinik"
+    };
+
+    const expected = `Giriş
+
+Klinik
+
+**Önemli Belirtiler ve Öneriler:**`;
+
+    expect(formatExplanation(input)).toBe(expected);
+  });
+
   it("should format a well-formed JSON object correctly", () => {
     const input = {
       girisCumlesi: "Bu bir giriş cümlesidir.",
@@ -350,4 +366,28 @@ Bu bir hekim yönlendirmesidir.`;
 
     expect(formatExplanation(input)).toBe(expected);
   });
+
+  it("should handle hastalaraOneriler as a number or boolean", () => {
+    const input1 = { hastalaraOneriler: 123 };
+    const input2 = { hastalaraOneriler: true };
+
+    const expected = `**Önemli Belirtiler ve Öneriler:**`;
+
+    expect(formatExplanation(input1)).toBe(expected);
+    expect(formatExplanation(input2)).toBe(expected);
+  });
+
+  it("should handle hastalaraOneriler as an array with invalid elements gracefully", () => {
+    const input = {
+      hastalaraOneriler: ["Valid", null, undefined, 456, false, "Another valid"]
+    };
+
+    const expected = `**Önemli Belirtiler ve Öneriler:**
+• Valid
+• 456
+• Another valid`;
+
+    expect(formatExplanation(input)).toBe(expected);
+  });
+
 });

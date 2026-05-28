@@ -29,6 +29,15 @@ describe("getCoverageContext", () => {
 });
 
 describe("getInteractionContext", () => {
+  it("should return null for invalid interaction IDs (empty, non-string, too long)", async () => {
+    expect(await getInteractionContext("")).toBeNull();
+    // @ts-expect-error - testing invalid type
+    expect(await getInteractionContext(null)).toBeNull();
+    // @ts-expect-error - testing invalid type
+    expect(await getInteractionContext(123)).toBeNull();
+    expect(await getInteractionContext("a".repeat(101))).toBeNull();
+  });
+
   it("should return null for an unknown interaction ID", async () => {
     expect(await getInteractionContext("invalid_interaction_id")).toBeNull();
   });

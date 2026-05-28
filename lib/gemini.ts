@@ -106,6 +106,11 @@ const EXPLANATION_SCHEMA = {
 };
 
 export async function getInteractionContext(interactionId: string): Promise<InteractionContext | null> {
+  // 1. Validasyon
+  if (!interactionId || typeof interactionId !== "string" || interactionId.length > 100) {
+    return null;
+  }
+
   let interaction: InteractionRecord | null = null;
 
   const staticInt = interactionsMap.get(interactionId);

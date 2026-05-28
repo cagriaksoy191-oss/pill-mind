@@ -365,7 +365,7 @@ function parseGeminiResponse(rawText: string): any {
   }
 }
 
-function formatExplanation(parsedJSON: any): string {
+export function formatExplanation(parsedJSON: any): string {
   const giris = normalizeExplanation(parsedJSON.girisCumlesi || "");
   const klinik = normalizeExplanation(parsedJSON.klinikEtkiAciklamasi || "");
 

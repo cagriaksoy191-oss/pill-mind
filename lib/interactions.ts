@@ -58,11 +58,15 @@ export function findInteractions(drugIds: string[]): CheckResult[] {
   const results: CheckResult[] = [];
 
   for (let i = 0; i < drugIds.length; i++) {
+    const a = drugIds[i];
+    const mapA = interactionsMap.get(a);
+
+    if (!mapA) continue;
+
     for (let j = i + 1; j < drugIds.length; j++) {
-      const a = drugIds[i];
       const b = drugIds[j];
 
-      const match = interactionsMap.get(a)?.get(b);
+      const match = mapA.get(b);
 
       if (match) {
         const drug1 = drugsMap.get(match.drug1);

@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import Link from "next/link";
 import { getAllDrugs, Drug, CheckResult } from "@/lib/interactions";
 import DrugSelector from "@/components/DrugSelector";
 import VirtualPillbox from "@/components/VirtualPillbox";
-import ResultCard from "@/components/ResultCard";
 import Disclaimer from "@/components/Disclaimer";
+import StatusHeader from "@/components/StatusHeader";
+import InteractionList from "@/components/InteractionList";
+import CoveragePanel from "@/components/CoveragePanel";
+
 
 export default function KontrolPage() {
   const [drugs, setDrugs] = useState<Drug[]>([]);
@@ -140,29 +142,9 @@ export default function KontrolPage() {
   // Convert selected drug IDs to complete Drug object array
   const selectedDrugs = drugs.filter((d) => selectedDrugIds.includes(d.id));
 
-  // Determine system status label based on current selections and findings
-  const getSystemStatusLabel = () => {
-    if (selectedDrugIds.length === 0) return "İlaç Bekleniyor";
-    if (selectedDrugIds.length === 1) return "İkinci İlaç Bekleniyor";
-    if (isChecking) return "Taranıyor...";
-    if (interactions.length > 0) {
-      const highAlert = interactions.some((i) => i.interaction.severity === "high");
-      return highAlert ? "Potansiyel Ciddi Etkileşim!" : "Klinik Etkileşim Tespit Edildi";
-    }
-    return "Temiz Rapor (Etkileşim Saptanmadı)";
-  };
 
-  const getSystemStatusBadgeClass = () => {
-    if (selectedDrugIds.length < 2) return "bg-slate-500/10 text-slate-400 border-slate-500/20";
-    if (isChecking) return "bg-indigo-500/10 text-indigo-400 border-indigo-500/20 animate-pulse";
-    if (interactions.length > 0) {
-      const highAlert = interactions.some((i) => i.interaction.severity === "high");
-      return highAlert 
-        ? "bg-red-500/10 text-red-400 border-red-500/20 animate-pulse"
-        : "bg-amber-500/10 text-amber-400 border-amber-500/20";
-    }
-    return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
-  };
+
+
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-indigo-500/30 selection:text-indigo-200 relative overflow-hidden flex flex-col justify-between">
@@ -171,40 +153,11 @@ export default function KontrolPage() {
       <div className="absolute bottom-[20%] right-[10%] w-[35rem] h-[35rem] rounded-full bg-purple-500/10 blur-[130px] pointer-events-none animate-pulse-slow"></div>
       <div className="absolute top-[40%] right-[20%] w-[25rem] h-[25rem] rounded-full bg-emerald-500/5 blur-[100px] pointer-events-none"></div>
 
-      {/* Premium Stick-on Navigation Header */}
-      <header className="w-full py-4 px-6 border-b border-white/5 bg-slate-950/40 backdrop-blur-md sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto flex justify-between items-center">
-          <Link href="/" className="flex items-center gap-2 group focus:outline-none">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-white font-bold text-lg shadow-md group-hover:scale-105 transition-transform duration-200">
-              P
-            </div>
-            <h1 className="text-xl font-bold tracking-tight text-white group-hover:text-indigo-300 transition-colors">
-              PillMind <span className="text-xs font-semibold text-slate-400 ml-1">Portal</span>
-            </h1>
-          </Link>
-
-          <div className="flex items-center gap-4">
-            {/* Live Engine Status indicator */}
-            <div className={`text-[11px] font-bold px-3 py-1 rounded-full border flex items-center gap-1.5 transition-all duration-300 ${getSystemStatusBadgeClass()}`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${
-                selectedDrugIds.length < 2 
-                  ? "bg-slate-400" 
-                  : interactions.length > 0 
-                    ? interactions.some((i) => i.interaction.severity === "high") ? "bg-red-400" : "bg-amber-400"
-                    : "bg-emerald-400"
-              } ${isChecking || (selectedDrugIds.length >= 2 && interactions.length > 0) ? "animate-pulse" : ""}`}></span>
-              {getSystemStatusLabel()}
-            </div>
-            
-            <Link 
-              href="/"
-              className="text-xs font-semibold text-slate-400 hover:text-white px-3 py-1.5 rounded-lg hover:bg-white/5 border border-transparent hover:border-white/5 transition-all duration-200"
-            >
-              Ana Sayfa
-            </Link>
-          </div>
-        </div>
-      </header>
+      <StatusHeader
+        selectedDrugIds={selectedDrugIds}
+        isChecking={isChecking}
+        interactions={interactions}
+      />
 
       {/* Main Workspace */}
       <main className="flex-1 max-w-6xl mx-auto w-full px-6 pt-10 pb-16 relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -386,137 +339,24 @@ export default function KontrolPage() {
               </div>
             ) : (
               // Risky Interactions Listed State
-              <div className="flex flex-col gap-4">
-                <div className="flex flex-col gap-4">
-                  {interactions.map((res) => (
-                    <ResultCard
-                      key={res.interaction.id}
-                      interactionId={res.interaction.id}
-                      drug1Name={res.drug1Name}
-                      drug2Name={res.drug2Name}
-                      severity={res.interaction.severity}
-                      summary={res.interaction.summary}
-                      source={res.interaction.source}
-                      sourceLabel={res.interaction.sourceLabel}
-                      verificationStatus={res.interaction.verificationStatus}
-                      explanationData={explanations[res.interaction.id]}
-                      isExplanationLoading={loadingExplanations[res.interaction.id]}
-                      onExplainRequested={handleExplainRequested}
-                    />
-                  ))}
-                </div>
-
-                {/* Additional option to run a collective full-combination coverage report */}
-                <div className="backdrop-blur-md bg-white/5 border border-white/10 rounded-3xl p-5 text-center mt-2">
-                  <h4 className="font-bold text-white text-xs flex items-center justify-center gap-1.5">
-                    <span>🧬</span> Tüm Kombinasyonun Canlı AI Analizi
-                  </h4>
-                  <p className="text-[10px] text-slate-400 mt-1 max-w-xs mx-auto leading-relaxed">
-                    Kutudaki tüm ilaçları bir bütün olarak değerlendiren kapsamlı bir tıbbi yapay zeka analizi alın.
-                  </p>
-                  <button
-                    onClick={handleRequestCoverageExplanation}
-                    disabled={isCoverageLoading}
-                    className="mt-3 px-4 py-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 font-bold text-xs rounded-xl border border-indigo-500/20 transition-all cursor-pointer flex items-center justify-center gap-1.5 mx-auto"
-                  >
-                    {isCoverageLoading ? (
-                      <>
-                        <svg className="animate-spin h-3.5 w-3.5 text-indigo-400" viewBox="0 0 24 24" fill="none">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                        </svg>
-                        Yükleniyor...
-                      </>
-                    ) : (
-                      "Kapsamlı Canlı AI Analizi Yap"
-                    )}
-                  </button>
-                </div>
-              </div>
+              <InteractionList
+                interactions={interactions}
+                explanations={explanations}
+                loadingExplanations={loadingExplanations}
+                onExplainRequested={handleExplainRequested}
+                handleRequestCoverageExplanation={handleRequestCoverageExplanation}
+                isCoverageLoading={isCoverageLoading}
+              />
             )}
 
             {/* Global Coverage AI Explanation Display Panel */}
-            {showCoveragePanel && (
-              <div 
-                className="backdrop-blur-xl bg-slate-900/90 border border-indigo-500/20 rounded-3xl p-6 shadow-2xl mt-4 animate-fade-in relative overflow-hidden"
-                style={{ boxShadow: "0 20px 40px -15px rgba(99, 102, 241, 0.25)" }}
-              >
-                <div className="absolute top-0 right-0 p-12 bg-linear-to-bl from-indigo-500/5 to-transparent rounded-full pointer-events-none" />
-                
-                <div className="flex justify-between items-center mb-4 pb-3 border-b border-white/5">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xl">🤖</span>
-                    <div>
-                      <h4 className="font-extrabold text-white text-sm tracking-tight">Kapsamlı AI İlaç Analizi</h4>
-                      <p className="text-[9px] text-slate-400 mt-0.5">Google Gemini Güvenlik Katmanı</p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setShowCoveragePanel(false)}
-                    className="w-6 h-6 rounded-md bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 hover:text-white text-xs cursor-pointer transition-colors"
-                  >
-                    ✕
-                  </button>
-                </div>
-
-                {isCoverageLoading ? (
-                  <div className="py-8 flex flex-col items-center justify-center gap-3">
-                    <svg className="animate-spin h-6 w-6 text-indigo-500" viewBox="0 0 24 24" fill="none">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                    <p className="text-xs text-slate-400 font-semibold animate-pulse tracking-wide">
-                      Tüm Kombinasyon Canlı Yapay Zekayla Analiz Ediliyor...
-                    </p>
-                  </div>
-                ) : coverageExplanation?.source === "gemini_live" || coverageExplanation?.source === "cache" ? (
-                  <div className="flex flex-col gap-4">
-                    <div className="flex flex-wrap items-center gap-2">
-                      {coverageExplanation.source === "cache" ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[9px] font-bold tracking-wide uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                          Önbellek Yanıtı
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[9px] font-bold tracking-wide uppercase bg-purple-500/10 text-purple-400 border border-purple-500/20">
-                          <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse"></span>
-                          Canlı Analiz
-                        </span>
-                      )}
-                      {coverageExplanation.generatedAt && (
-                        <span className="text-[9px] text-slate-400 font-semibold bg-white/5 border border-white/5 px-2 py-0.5 rounded">
-                          {coverageExplanation.generatedAt}
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="text-xs text-slate-300 leading-relaxed whitespace-pre-line font-medium pr-1">
-                      {coverageExplanation.explanation}
-                    </div>
-
-                    {/* Disclaimer specifically designed inside our clinical display panel */}
-                    <div className="mt-2 bg-white/5 p-3.5 rounded-xl border border-white/5">
-                      <p className="text-[10px] text-slate-400 italic leading-relaxed font-medium">
-                        <strong>Klinik Uyarı:</strong> Bu analiz tamamen bilgilendirme amaçlıdır. İlaç tedavilerinizi değiştirmeden, bırakmadan veya doz ayarlamadan önce her zaman hekiminize veya eczacınıza danışınız. Yapay zeka hiçbir koşulda profesyonel hekim kararının yerine geçemez.
-                      </p>
-                    </div>
-                  </div>
-                ) : coverageExplanation?.source === "error" ? (
-                  <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4 text-center">
-                    <h5 className="text-xs font-bold text-red-200">Analiz Tamamlanamadı</h5>
-                    <p className="text-[10px] text-red-400/80 mt-1.5 leading-relaxed font-medium">
-                      {coverageExplanation.error || "Canlı kombinasyon açıklaması şu anda sunulamıyor."}
-                    </p>
-                    <button
-                      onClick={handleRequestCoverageExplanation}
-                      className="mt-3 px-3 py-1.5 bg-white/5 border border-red-500/20 text-red-300 hover:bg-red-500/10 text-xs font-bold rounded-lg transition-colors cursor-pointer"
-                    >
-                      Yeniden Dene
-                    </button>
-                  </div>
-                ) : null}
-              </div>
-            )}
+            <CoveragePanel
+              showCoveragePanel={showCoveragePanel}
+              setShowCoveragePanel={setShowCoveragePanel}
+              isCoverageLoading={isCoverageLoading}
+              coverageExplanation={coverageExplanation}
+              handleRequestCoverageExplanation={handleRequestCoverageExplanation}
+            />
 
           </div>
         </section>

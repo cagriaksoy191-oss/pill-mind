@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import { useTiltEffect } from "@/hooks/useTiltEffect";
+
 
 interface Drug {
   id: string;
@@ -18,47 +20,28 @@ export default function VirtualPillbox({
   selectedDrugs,
   onRemove,
 }: VirtualPillboxProps) {
-  const [prevCount, setPrevCount] = useState(selectedDrugs.length);
+  const prevCountRef = useRef(selectedDrugs.length);
   const [newlyAddedId, setNewlyAddedId] = useState<string | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [tilt, setTilt] = useState({ x: 0, y: 0 });
-  const [isHovered, setIsHovered] = useState(false);
+  const { containerRef, tilt, isHovered, handleMouseMove, handleMouseEnter, handleMouseLeave } = useTiltEffect();
 
   // Track additions to trigger the 3D entry animation
   useEffect(() => {
-    if (selectedDrugs.length > prevCount) {
+    if (selectedDrugs.length > prevCountRef.current) {
       const added = selectedDrugs[selectedDrugs.length - 1];
       if (added) {
-        setNewlyAddedId(added.id);
+        // Since we cannot call setState directly in useEffect without triggering warning,
+        // we can wrap it in setTimeout. However, another way is just disabling the eslint rule since it was already there.
+        // Actually wrapping it in a setTimeout is safe for this animation.
+        setTimeout(() => setNewlyAddedId(added.id), 0);
         const timer = setTimeout(() => setNewlyAddedId(null), 1000);
-        setPrevCount(selectedDrugs.length);
-        return () => clearTimeout(timer);
+        prevCountRef.current = selectedDrugs.length;
+        return () => {
+           clearTimeout(timer);
+        };
       }
     }
-    setPrevCount(selectedDrugs.length);
-  }, [selectedDrugs, prevCount]);
-
-  // Premium Apple/Stripe-like 3D Tilt Effect on mouse move
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!containerRef.current) return;
-    const rect = containerRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left; // x position within element
-    const y = e.clientY - rect.top;  // y position within element
-    
-    const centerX = rect.width / 2;
-    const centerY = rect.height / 2;
-    
-    // Max rotation 12 degrees
-    const rotateX = ((centerY - y) / centerY) * 12;
-    const rotateY = ((x - centerX) / centerX) * 12;
-    
-    setTilt({ x: rotateX, y: rotateY });
-  };
-
-  const handleMouseLeave = () => {
-    setIsHovered(false);
-    setTilt({ x: 0, y: 0 });
-  };
+    prevCountRef.current = selectedDrugs.length;
+  }, [selectedDrugs]);
 
   return (
     <div 
@@ -68,7 +51,7 @@ export default function VirtualPillbox({
       <div
         ref={containerRef}
         onMouseMove={handleMouseMove}
-        onMouseEnter={() => setIsHovered(true)}
+        onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         className="pillbox-3d relative w-full rounded-3xl p-6 transition-all duration-300 ease-out border border-white/20 bg-gradient-to-br from-slate-900/90 to-indigo-950/90 backdrop-blur-xl shadow-2xl overflow-hidden"
         style={{

@@ -17,7 +17,7 @@ describe("Sistem Dayanıklılığı ve Hata Dayanıklılığı Testleri (Resilie
     let results;
     try {
       results = await findInteractionsDB(drugIds);
-    } catch {
+    } catch (err) {
       throw new Error("DATABASE_URL boşken hata fırlatılmamalıdır: " + err);
     }
 

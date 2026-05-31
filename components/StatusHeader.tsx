@@ -1,16 +1,21 @@
 import Link from "next/link";
 import { CheckResult } from "@/lib/interactions";
+import UserPanel from "./UserPanel";
 
 interface StatusHeaderProps {
   selectedDrugIds: string[];
   isChecking: boolean;
   interactions: CheckResult[];
+  onLoadPillbox: (drugIds: string[]) => void;
+  isOffline?: boolean;
 }
 
 export default function StatusHeader({
   selectedDrugIds,
   isChecking,
   interactions,
+  onLoadPillbox,
+  isOffline,
 }: StatusHeaderProps) {
   // Determine system status label based on current selections and findings
   const getSystemStatusLabel = () => {
@@ -49,6 +54,14 @@ export default function StatusHeader({
         </Link>
 
         <div className="flex items-center gap-4">
+          {/* Çevrimdışı Durum Göstergesi */}
+          {isOffline && (
+            <div className="text-[11px] font-bold px-3 py-1 rounded-full border border-amber-500/20 bg-amber-500/10 text-amber-400 flex items-center gap-1.5 animate-pulse shadow-sm">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+              Çevrimdışı Mod (Yerel Koruma)
+            </div>
+          )}
+
           {/* Live Engine Status indicator */}
           <div className={`text-[11px] font-bold px-3 py-1 rounded-full border flex items-center gap-1.5 transition-all duration-300 ${getSystemStatusBadgeClass()}`}>
             <span className={`w-1.5 h-1.5 rounded-full ${
@@ -60,6 +73,12 @@ export default function StatusHeader({
             } ${isChecking || (selectedDrugIds.length >= 2 && interactions.length > 0) ? "animate-pulse" : ""}`}></span>
             {getSystemStatusLabel()}
           </div>
+
+          {/* Bulut Kaydet ve Oturum Yönetim Paneli */}
+          <UserPanel
+            selectedDrugIds={selectedDrugIds}
+            onLoadPillbox={onLoadPillbox}
+          />
 
           <Link
             href="/"

@@ -12,8 +12,9 @@ PillMind tanı koymaz, tedavi önermez, doz ayarlaması yapmaz ve kesinlikle pro
 | :--- | :---: | :--- | :---: |
 | **Faz 1: Veritabanı ve Klinik Altyapı** | ✅ **%100 Tamamlandı** | PostgreSQL şeması, Prisma ORM singleton yapısı, $O(1)$ performanslı çapraz etkileşim taraması ve Seed verileri. | **Resilience testleri ile doğrulandı** |
 | **Faz 2: Gelişmiş AI Güvenliği & Caching** | ✅ **%100 Tamamlandı** | Gemini Structured JSON şeması, Çift Ajanlı Doğrulama (Reviewer), Türkçe lookaround regex filtresi, Upstash Redis caching. | **Safety Filter testleri ile doğrulandı** |
+| **Faz 3: Kurumsal Mimari & Gözlemlenebilirlik** | ✅ **%100 Tamamlandı** | Next.js Sentry entegrasyonu, Edge & Server telemetry, premium global hata sınırları (`error.tsx`), Supabase Auth & Bulut Kutu veri haritası. | **Explain-route integration ile doğrulandı** |
 | **Faz 4: Premium UI/UX & Erişilebilirlik** | ✅ **%100 Tamamlandı** | Premium Glassmorphism UI, Türkçe Fuzzy Search motoru, 3D Sanal Kutu animasyonları, WCAG 2.2 AA klavye ve odak halkası standartları. | **E2E Playwright testleri ile doğrulandı** |
-| **Faz 5: Kapsamlı Testler & Dayanıklılık** | ✅ **%100 Tamamlandı** | Jest birim/entegrasyon testleri, Playwright E2E testleri, PostgreSQL ve Redis kesinti simülasyonları, Türkçe Unicode normalizasyon yamaları. | **14/14 Başarılı (ALL PASS)** |
+| **Faz 5: Mobil, Çevrimdışı PWA & Testler** | ✅ **%100 Tamamlandı** | PWA Service Worker çevrimdışı önbellek (`sw.js`), yerel client-side tarama bypass (`findInteractions`), Jest unit/component & Playwright E2E. | **15/15 Başarılı (ALL PASS)** |
 
 ---
 
@@ -62,19 +63,25 @@ graph TD
 *   **LLM Clinical Reviewer Agent**: Üretilen Türkçe tıbbi açıklama hastaya sunulmadan önce arka planda `runReviewerAgent` denetiminden geçirilir. Hekim yetkisini aşan en ufak bir klinik yönlendirme tespit edilirse metin derhal bloke edilir ve güvenli hata kartına düşülür.
 *   **Upstash Redis Caching**: Güvenlik filtresini başarıyla geçen AI açıklamaları Redis'e 7 gün TTL ile yazılır. Aynı kombinasyon arandığında <50ms yanıt süresiyle cache'ten getirilerek yapay zeka API maliyetleri sıfırlanır.
 
-### 3. Türkçe Fuzzy Search Arama Motoru
+### 3. Kurumsal Gözlemlenebilirlik (Sentry Integration)
+*   **Hata İzleme (Sentry SDK)**: Next.js Client (`sentry.client.config.ts`), Server (`sentry.server.config.ts`) ve Edge (`sentry.edge.config.ts`) katmanlarında gerçek zamanlı hata izleme kurulmuştur.
+*   **Build-time Webpack Entegrasyonu**: `next.config.ts` dosyası Sentry derleme yapılandırmasıyla (`withSentryConfig`) sarmalanmış; sourcemap gizleme ve ad-blocker engelleyici tünelleme `/monitoring` ayarlanmıştır.
+*   **Global Hata Sınırları**: `app/error.tsx` ve `app/global-error.tsx` premium cam tasarımlı hata kartlarıyla, Next.js çökmelerini şefkatli bir Türkçe arayüzle yönetirken hatayı `Sentry.captureException` ile otomatik loglar.
+
+### 4. Şifresiz Kimlik Doğrulama ve Bulut Kutu Kaydı (Supabase Auth & Saved State)
+*   **Veri Katmanı İlişkisi**: `prisma/schema.prisma` içerisinde `User` ve `SavedPillbox` modelleri bire çok bağlantıyla eklenmiştir.
+*   **Sıfır Bağımlılıklı AES-256-CBC Şifreleme**: `lib/auth.ts` içinde Node'un yerleşik `crypto` modülüyle şifrelenen, serverless Edge ortamlarıyla uyumlu kurcalanamaz `HttpOnly` session çerezleri yazılmıştır.
+*   **Magic Sign-in Rotaları**: E-posta doğrulama tabanlı kayıt ve giriş API rotaları (`/api/auth/register`, `/api/auth/login`, `/api/auth/logout`, `/api/auth/me`) ve kutu kaydetme/listeleme/silme API servisleri (`/api/pillbox/save`, `/api/pillbox/list`, `/api/pillbox/delete`) kodlanmıştır.
+*   **Kullanıcı Yönetim Arayüzü**: `components/UserPanel.tsx` ile üyelik formunu, kayıtlı ilaç kombinasyonlarının buluttan listelenip tek tıkla sanal kutuya yüklenmesini (`onLoadPillbox`) ve oturum kapatılmasını yöneten premium glassmorphic bileşen entegre edilmiştir.
+
+### 5. PWA Altyapısı ve Kesintisiz Çevrimdışı Çalışma (PWA & Service Worker)
+*   **Service Worker (`public/sw.js`)**: Next.js statik dosyaları önbelleğe alınmış, API zaman aşımı durumunda otomatik 503 fırlatan fetch interceptor'ı kodlanmıştır.
+*   **Ağ Durumu Canlı Takibi**: `app/kontrol/page.tsx` içerisinde tarayıcı ağ durumu dinleyicileriyle `isOffline` durumu takip edilmekte ve ağ kaybında sağ üstte glowing kehribar rengiyle premium bir **"Çevrimdışı Mod (Yerel Koruma)"** rozeti gösterilmektedir.
+*   **100% Çevrimdışı Tıbbi Korunma**: Sunucu veya internet bağlantısı koptuğunda, `/api/check` API rotası hata verir vermez sistem istemci tarafında asenkron `findInteractions` lokal arama motorunu devreye sokarak N-ilaç etkileşim denetimini tamamen internet bağlantısız (offline) olarak gerçekleştirebilmektedir.
+
+### 6. Türkçe Fuzzy Search Arama Motoru
 *   **Unicode Birleşik Nokta (`\u0307`) Yaması**: Bazı Windows ve Node.js ortamlarında büyük Türkçe `"İ"` harfinin küçük harfe çevrilirken karakter uzunluğunu 2'ye çıkaran diakritik uyuşmazlığı giderilmiştir. `normalizeTurkish` filtresiyle diakritikler tamamen elenerek arama eşleşmeleri kusursuzlaştırılmıştır.
 *   **Gelişmiş Puanlama**: Levenshtein hece hataları toleransı, ardışık harf eşleşme (subsequence) bonusları ve etken maddeye kıyasla marka adı önceliklendirmesi içeren yüksek performanslı arama algoritması.
-
-### 4. 3D Sanal İlaç Kutusu (Virtual Pillbox)
-*   **3D Kapsül Animasyonları**: Kullanıcı ilaç ekledikçe CSS 3D Transforms ve yerçekimi etkisiyle sanal ilaç kutusuna düşen ve etkileşim durumuna göre renk değiştiren premium cam morfolojisi (glassmorphic) arayüz.
-*   **Yerçekimi Kanca Düzeltmesi**: İlaç silme eylemlerinde animasyon zamanlayıcılarının erken tetiklenmesini önleyen `prevCount` durum kilitleriyle stabilite korunmuştur.
-*   **Katmanlama ve Z-Index Kusursuzluğu**: Arama kutusu dropdown menüsünün, 3D transform kullanan Virtual Pillbox'ın arkasında kalmasını veya üst kartın `overflow-hidden` özelliği nedeniyle kesilmesini önleyen özel `z-20` / `z-10` katman hiyerarşisi ve kırpıcı ışıma katmanı entegre edilmiştir. Bu sayede açılır liste her zaman pürüzsüzce en ön planda görüntülenir.
-
-### 5. WCAG 2.2 AA Erişilebilirlik Standartları
-*   **Klavye Haritası**: Görme veya motor kısıtlı hastaların tüm portalı klavyeyle dolaşabilmesi için `Tab` (sırayla gezinme), `ArrowDown` / `ArrowUp` (fuzzy search listesinde gezinme), `Enter` (ilaç ekleme/çıkarma) ve `Escape` (dropdown kapatma) tuş haritalamaları uygulanmıştır.
-*   **ARIA Desteği**: `aria-live="polite"` ekran okuyucu seslendirmeleri, `aria-expanded` ile dinamik AI çekmecesi durum bildirimleri, `role="listbox"` ve `role="option"` semantik standartları.
-*   **Yüksek Kontrast**: Yalnızca renk odaklı değil, ikonik göstergelerle desteklenmiş, odaklanıldığında netleşen yüksek görünürlüklü indigo odak halkaları (`focus:ring-indigo-500`).
 
 ---
 
@@ -93,20 +100,29 @@ graph TD
 pill-mind/
 ├── app/
 │   ├── api/
+│   │   ├── auth/           # Oturum yönetimi API rotaları (register, login, logout, me)
 │   │   ├── check/          # Deterministik N-ilaç etkileşim kontrol API'si
-│   │   └── explain/        # Canlı AI açıklama ve Redis cache API'si
+│   │   ├── explain/        # Canlı AI açıklama ve Redis cache API'si
+│   │   └── pillbox/        # İlaç kutusu kaydetme, listeleme ve silme API servisleri
 │   ├── kontrol/            # Etkileşimli ana tarama portal sayfası
+│   ├── error.tsx           # Global hata sınırı (Error Boundary) bileşeni
+│   ├── global-error.tsx    # Kök layout hata sınırı bileşeni
 │   ├── layout.tsx          # Evrensel layout
 │   └── page.tsx            # Giriş / Tanıtım sayfası
 ├── components/
+│   ├── CoveragePanel.tsx   # Kapsamlı AI analiz paneli bileşeni
 │   ├── Disclaimer.tsx      # Klinik yasal uyarı evrensel bileşeni
 │   ├── DrugSelector.tsx    # Türkçe Fuzzy Search autocomplete bileşeni
-│   ├── ResultCard.tsx      # Etkileşim detay kartı ve AI drawer bileşeni
+│   ├── ExplanationDrawer.tsx # Detaylı AI açıklaması yan çekmece bileşeni
+│   ├── InteractionList.tsx # Riskli etkileşim listesi sarmalayıcısı
+│   ├── StatusHeader.tsx    # Kök logo ve canlı ağ/klinik durum barı
+│   ├── UserPanel.tsx       # Bulut kayıt ve oturum yönetim modal/menü bileşeni
 │   └── VirtualPillbox.tsx  # 3D kapsül düşme animasyonlu sanal kutu
 ├── data/
 │   ├── drugs.json          # Yerel yedek çevrimdışı ilaç listesi
 │   └── interactions.json   # Yerel yedek çevrimdışı etkileşim matrisi
 ├── lib/
+│   ├── auth.ts             # Sıfır bağımlılıklı AES-256 çerez oturum yöneticisi
 │   ├── fuzzySearch.ts      # Türkçe normalizasyon ve fuzzy search algoritması
 │   ├── gemini.ts           # Gemini entegrasyonu, regex kalkanı ve reviewer ajan
 │   ├── interactions.ts     # Veritabanı ve JSON fallback motoru
@@ -146,6 +162,10 @@ GOOGLE_API_KEY="AIzaSy..."
 UPSTASH_REDIS_REST_URL="https://...upstash.io"
 UPSTASH_REDIS_REST_TOKEN="..."
 
+# Oturum ve Hata Takibi Yapılandırması
+JWT_SECRET="pillmind-ultimate-32-chars-fallback-secret!"
+SENTRY_DSN="https://...sentry.io/..."
+
 # Çalışma Zamanı Modları
 NEXT_PUBLIC_DEMO_MODE="false"
 GEMINI_MODEL="gemini-2.5-flash-lite"
@@ -171,11 +191,11 @@ Uygulama yerelde [http://localhost:3000](http://localhost:3000) adresinde çalı
 PillMind, kalite güvence standartları gereğince hem birim testlerine (Jest) hem de uçtan uca arayüz testlerine (Playwright) sahiptir.
 
 ### A. Jest Birim ve Entegrasyon Testleri (Birim, Güvenlik ve Fallback)
-Next.js'in native SWC derleyicisini kullanan birim testlerini çalıştırmak için:
+Next.js'in native SWC derleyicisini kullanan 14 adet birim ve entegrasyon test dosyasını çalıştırmak için:
 ```bash
 npm run test
 ```
-*Bu komut; Türkçe normalizasyon, güvenlik regex engellemeleri, bypass girişimleri ve PostgreSQL/Redis bağlantı çökmesi durumunda lokal kaskat yedeklerin sorunsuz çalıştığını doğrular.*
+*Bu komut; Türkçe normalizasyon, DOM klavye navigasyonları, güvenlik regex engellemeleri, bypass girişimleri ve PostgreSQL/Redis bağlantı çökmesi durumunda lokal kaskat yedeklerin sorunsuz çalıştığını doğrular.*
 
 ### B. Playwright Uçtan Uca (E2E) ve WCAG Erişilebilirlik Testleri
 Playwright testlerini çalıştırmadan önce yerel tarayıcı binary dosyalarını yüklemeniz gerekebilir:

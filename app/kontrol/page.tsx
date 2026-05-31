@@ -31,10 +31,32 @@ export default function KontrolPage() {
   } | null>(null);
   const [isCoverageLoading, setIsCoverageLoading] = useState(false);
   const [showCoveragePanel, setShowCoveragePanel] = useState(false);
+  const [isOffline, setIsOffline] = useState(false);
 
   // Load drugs list on mount
   useEffect(() => {
     setDrugs(getAllDrugs());
+
+    if (typeof window !== "undefined") {
+      setIsOffline(!navigator.onLine);
+      const handleOnline = () => setIsOffline(false);
+      const handleOffline = () => setIsOffline(true);
+      window.addEventListener("online", handleOnline);
+      window.addEventListener("offline", handleOffline);
+
+      // Service Worker Kaydı (PWA Altyapısı)
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker
+          .register("/sw.js")
+          .then((reg) => console.info("[PillMind SW] Servis İşçisi kaydı başarılı:", reg.scope))
+          .catch((err) => console.warn("[PillMind SW] Servis İşçisi kaydı başarısız:", err));
+      }
+
+      return () => {
+        window.removeEventListener("online", handleOnline);
+        window.removeEventListener("offline", handleOffline);
+      };
+    }
   }, []);
 
   // Automatically check interactions when selected drugs change
@@ -66,8 +88,15 @@ export default function KontrolPage() {
         const data = await res.json();
         setInteractions(data.interactions || []);
       } catch (err: any) {
-        console.error("[PillMind Check Engine] Error:", err);
-        setCheckingError(err.message || "Bağlantı hatası: Klinik kontrol gerçekleştirilemedi.");
+        console.warn("[PillMind Check Engine] Sunucu API hatası veya ağ kaybı, çevrimdışı yerel tarama çekirdeği devreye alınıyor:", err);
+        try {
+          const { findInteractions } = await import("@/lib/interactions");
+          const localResults = findInteractions(selectedDrugIds);
+          setInteractions(localResults);
+          setCheckingError(null);
+        } catch (localErr) {
+          setCheckingError("Bağlantı hatası: Yerel çevrimdışı tarama motoru yüklenemedi.");
+        }
       } finally {
         setIsChecking(false);
       }
@@ -157,6 +186,8 @@ export default function KontrolPage() {
         selectedDrugIds={selectedDrugIds}
         isChecking={isChecking}
         interactions={interactions}
+        onLoadPillbox={setSelectedDrugIds}
+        isOffline={isOffline}
       />
 
       {/* Main Workspace */}

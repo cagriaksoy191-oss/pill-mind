@@ -41,6 +41,161 @@ function jsonNoStore(body: unknown, status = 200) {
   });
 }
 
+
+async function handleInteraction(interactionId: unknown) {
+  if (typeof interactionId !== "string" || interactionId.trim() === "" || interactionId.length > 100) {
+    return jsonNoStore({ error: "Geçersiz veya aşırı uzun interactionId." }, 400);
+  }
+
+  const ctx = await getInteractionContext(interactionId);
+  if (!ctx) {
+    return jsonNoStore(
+      {
+        error: "Bu etkileşim için canlı açıklama üretilemedi.",
+        source: "error" as const,
+        reason: "unknown_interaction",
+        disclaimer: DISCLAIMER,
+      },
+      404
+    );
+  }
+
+  const cacheKey = `explanation:v1:interaction:${interactionId}`;
+
+  // Redis Cache Check (with fail-safe wrapper)
+  if (redis) {
+    try {
+      const cached = await redis.get<{ explanation: string; generatedAt: string }>(cacheKey);
+      if (cached) {
+        console.info(`[Redis] Cache HIT for interaction: ${interactionId}`);
+        return jsonNoStore({
+          explanation: cached.explanation,
+          source: "cache" as const,
+          generatedAt: cached.generatedAt,
+          disclaimer: DISCLAIMER,
+        });
+      }
+    } catch (err) {
+      console.warn("[Redis] Cache read error, continuing to live AI:", err);
+    }
+  }
+
+  // Gemini Execution
+  try {
+    const result = await callGeminiForInteraction(ctx);
+
+    if (redis) {
+      try {
+        await redis.set(
+          cacheKey,
+          { explanation: result.explanation, generatedAt: result.generatedAt },
+          { ex: 60 * 60 * 24 * 7 } // 7-day TTL
+        );
+        console.info(`[Redis] Cache WRITE for interaction: ${interactionId}`);
+      } catch (err) {
+        console.warn("[Redis] Cache write error:", err);
+      }
+    }
+
+    return jsonNoStore({
+      explanation: result.explanation,
+      source: "gemini_live" as const,
+      generatedAt: result.generatedAt,
+      disclaimer: DISCLAIMER,
+    });
+  } catch (error) {
+    return jsonNoStore(
+      {
+        error: "Canlı AI açıklaması şu anda üretilemedi.",
+        source: "error" as const,
+        reason: getErrorReason(error),
+        disclaimer: DISCLAIMER,
+      },
+      503
+    );
+  }
+}
+
+async function handleCoverage(drugIds: unknown) {
+  if (
+    !Array.isArray(drugIds) ||
+    drugIds.length < 2 ||
+    drugIds.length > 10 ||
+    !drugIds.every(id => typeof id === "string" && id.trim() !== "" && id.length <= 50)
+  ) {
+    return jsonNoStore({ error: "drugIds 2 ila 10 adet geçerli kimlik içeren bir dizi olmalıdır." }, 400);
+  }
+
+  const ctx = getCoverageContext(drugIds);
+  if (!ctx) {
+    return jsonNoStore(
+      {
+        error: "Bu kombinasyon için canlı kapsam açıklaması üretilemedi.",
+        source: "error" as const,
+        reason: "unknown_drugs",
+        disclaimer: DISCLAIMER,
+      },
+      404
+    );
+  }
+
+  const sortedIds = [...drugIds].sort().join(":");
+  const cacheKey = `explanation:v1:coverage:${sortedIds}`;
+
+  // Redis Cache Check (with fail-safe wrapper)
+  if (redis) {
+    try {
+      const cached = await redis.get<{ explanation: string; generatedAt: string }>(cacheKey);
+      if (cached) {
+        console.info(`[Redis] Cache HIT for coverage: ${sortedIds}`);
+        return jsonNoStore({
+          explanation: cached.explanation,
+          source: "cache" as const,
+          generatedAt: cached.generatedAt,
+          disclaimer: DISCLAIMER,
+        });
+      }
+    } catch (err) {
+      console.warn("[Redis] Cache read error, continuing to live AI:", err);
+    }
+  }
+
+  // Gemini Execution
+  try {
+    const result = await callGeminiForCoverage(ctx);
+
+    if (redis) {
+      try {
+        await redis.set(
+          cacheKey,
+          { explanation: result.explanation, generatedAt: result.generatedAt },
+          { ex: 60 * 60 * 24 * 7 } // 7-day TTL
+        );
+        console.info(`[Redis] Cache WRITE for coverage: ${sortedIds}`);
+      } catch (err) {
+        console.warn("[Redis] Cache write error:", err);
+      }
+    }
+
+    return jsonNoStore({
+      explanation: result.explanation,
+      source: "gemini_live" as const,
+      generatedAt: result.generatedAt,
+      disclaimer: DISCLAIMER,
+    });
+  } catch (error) {
+    return jsonNoStore(
+      {
+        error: "Canlı AI açıklaması şu anda üretilemedi.",
+        source: "error" as const,
+        reason: getErrorReason(error),
+        disclaimer: DISCLAIMER,
+      },
+      503
+    );
+  }
+}
+
 export async function POST(request: Request) {
   try {
     // 1. Safe JSON Extraction
@@ -103,158 +258,12 @@ export async function POST(request: Request) {
 
     // 4. Strict Validation for interactionId
     if (interactionId !== undefined) {
-      if (typeof interactionId !== "string" || interactionId.trim() === "" || interactionId.length > 100) {
-        return jsonNoStore({ error: "Geçersiz veya aşırı uzun interactionId." }, 400);
-      }
-
-      const ctx = await getInteractionContext(interactionId);
-      if (!ctx) {
-        return jsonNoStore(
-          {
-            error: "Bu etkileşim için canlı açıklama üretilemedi.",
-            source: "error" as const,
-            reason: "unknown_interaction",
-            disclaimer: DISCLAIMER,
-          },
-          404
-        );
-      }
-
-      const cacheKey = `explanation:v1:interaction:${interactionId}`;
-
-      // Redis Cache Check (with fail-safe wrapper)
-      if (redis) {
-        try {
-          const cached = await redis.get<{ explanation: string; generatedAt: string }>(cacheKey);
-          if (cached) {
-            console.info(`[Redis] Cache HIT for interaction: ${interactionId}`);
-            return jsonNoStore({
-              explanation: cached.explanation,
-              source: "cache" as const,
-              generatedAt: cached.generatedAt,
-              disclaimer: DISCLAIMER,
-            });
-          }
-        } catch (err) {
-          console.warn("[Redis] Cache read error, continuing to live AI:", err);
-        }
-      }
-
-      // Gemini Execution
-      try {
-        const result = await callGeminiForInteraction(ctx);
-
-        if (redis) {
-          try {
-            await redis.set(
-              cacheKey,
-              { explanation: result.explanation, generatedAt: result.generatedAt },
-              { ex: 60 * 60 * 24 * 7 } // 7-day TTL
-            );
-            console.info(`[Redis] Cache WRITE for interaction: ${interactionId}`);
-          } catch (err) {
-            console.warn("[Redis] Cache write error:", err);
-          }
-        }
-
-        return jsonNoStore({
-          explanation: result.explanation,
-          source: "gemini_live" as const,
-          generatedAt: result.generatedAt,
-          disclaimer: DISCLAIMER,
-        });
-      } catch (error) {
-        return jsonNoStore(
-          {
-            error: "Canlı AI açıklaması şu anda üretilemedi.",
-            source: "error" as const,
-            reason: getErrorReason(error),
-            disclaimer: DISCLAIMER,
-          },
-          503
-        );
-      }
+      return await handleInteraction(interactionId);
     }
 
     // 5. Strict Validation for drugIds
     if (drugIds !== undefined) {
-      if (
-        !Array.isArray(drugIds) ||
-        drugIds.length < 2 ||
-        drugIds.length > 10 ||
-        !drugIds.every(id => typeof id === "string" && id.trim() !== "" && id.length <= 50)
-      ) {
-        return jsonNoStore({ error: "drugIds 2 ila 10 adet geçerli kimlik içeren bir dizi olmalıdır." }, 400);
-      }
-
-      const ctx = getCoverageContext(drugIds);
-      if (!ctx) {
-        return jsonNoStore(
-          {
-            error: "Bu kombinasyon için canlı kapsam açıklaması üretilemedi.",
-            source: "error" as const,
-            reason: "unknown_drugs",
-            disclaimer: DISCLAIMER,
-          },
-          404
-        );
-      }
-
-      const sortedIds = [...drugIds].sort().join(":");
-      const cacheKey = `explanation:v1:coverage:${sortedIds}`;
-
-      // Redis Cache Check (with fail-safe wrapper)
-      if (redis) {
-        try {
-          const cached = await redis.get<{ explanation: string; generatedAt: string }>(cacheKey);
-          if (cached) {
-            console.info(`[Redis] Cache HIT for coverage: ${sortedIds}`);
-            return jsonNoStore({
-              explanation: cached.explanation,
-              source: "cache" as const,
-              generatedAt: cached.generatedAt,
-              disclaimer: DISCLAIMER,
-            });
-          }
-        } catch (err) {
-          console.warn("[Redis] Cache read error, continuing to live AI:", err);
-        }
-      }
-
-      // Gemini Execution
-      try {
-        const result = await callGeminiForCoverage(ctx);
-
-        if (redis) {
-          try {
-            await redis.set(
-              cacheKey,
-              { explanation: result.explanation, generatedAt: result.generatedAt },
-              { ex: 60 * 60 * 24 * 7 } // 7-day TTL
-            );
-            console.info(`[Redis] Cache WRITE for coverage: ${sortedIds}`);
-          } catch (err) {
-            console.warn("[Redis] Cache write error:", err);
-          }
-        }
-
-        return jsonNoStore({
-          explanation: result.explanation,
-          source: "gemini_live" as const,
-          generatedAt: result.generatedAt,
-          disclaimer: DISCLAIMER,
-        });
-      } catch (error) {
-        return jsonNoStore(
-          {
-            error: "Canlı AI açıklaması şu anda üretilemedi.",
-            source: "error" as const,
-            reason: getErrorReason(error),
-            disclaimer: DISCLAIMER,
-          },
-          503
-        );
-      }
+      return await handleCoverage(drugIds);
     }
 
     return jsonNoStore({ error: "interactionId veya en az 2 drugId alanı gereklidir." }, 400);

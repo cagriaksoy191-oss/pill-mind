@@ -285,6 +285,73 @@ describe("callGeminiForInteraction", () => {
 });
 
 
+describe("callGeminiForCoverage", () => {
+  const originalFetch = global.fetch;
+  const originalEnv = process.env;
+
+  beforeEach(() => {
+    jest.resetModules();
+    process.env = { ...originalEnv, GOOGLE_API_KEY: "test_key", NEXT_PUBLIC_DEMO_MODE: "false" };
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    process.env = originalEnv;
+    jest.restoreAllMocks();
+  });
+
+  it("should return parsed GeminiResult when generation and Reviewer Agent succeed for coverage", async () => {
+    global.fetch = jest.fn().mockImplementation((url, options) => {
+      const body = JSON.parse(options.body);
+      const text = body.contents[0].parts[0].text;
+
+      if (text.includes("Sen Sağlık Bilgi Sistemleri Yöneticisi")) {
+        // Reviewer agent request -> PASSES the safety check
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            candidates: [{ content: { parts: [{ text: "EVET" }] }, finishReason: "STOP" }],
+          }),
+        });
+      } else {
+        // Main generation request
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            candidates: [{
+              content: {
+                parts: [{
+                  text: JSON.stringify({
+                    girisCumlesi: "Bu ilaçların birlikte kullanımı üzerine demo veri setimizde kayıtlı bir etkileşim bulunmamaktadır.",
+                    klinikEtkiAciklamasi: "Bu durum, ilaçların tamamen risksiz olduğu anlamına gelmez. Veritabanımızda belgelenmiş spesifik bir kayıt yoktur.",
+                    hastalaraOneriler: ["İlaçlarınızı doktorunuzun önerdiği şekilde kullanmaya devam edin.", "Beklenmeyen bir etki görürseniz bildirin."],
+                    hekimYonlendirmesi: "Kesin bir risk değerlendirmesi için mutlaka hekiminize veya eczacınıza danışın."
+                  })
+                }]
+              },
+              finishReason: "STOP"
+            }],
+          }),
+        });
+      }
+    });
+
+    const { callGeminiForCoverage } = await import("../lib/gemini");
+    const mockCtx = {
+      drugNames: ["Drug A", "Drug B"],
+      drugIngredients: ["Ingredient A", "Ingredient B"]
+    };
+
+    const result = await callGeminiForCoverage(mockCtx);
+
+    expect(result).toHaveProperty("explanation");
+    expect(result.explanation).toContain("demo veri setimizde kayıtlı bir etkileşim bulunmamaktadır.");
+    expect(result.explanation).toContain("Beklenmeyen bir etki görürseniz bildirin.");
+    expect(result.explanation).toContain("mutlaka hekiminize veya eczacınıza danışın.");
+    expect(result).toHaveProperty("generatedAt");
+  });
+});
+
 describe("formatExplanation", () => {
 
   it("should handle completely missing hastalaraOneriler property gracefully", () => {

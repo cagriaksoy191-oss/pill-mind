@@ -83,6 +83,10 @@ graph TD
 *   **Unicode Birleşik Nokta (`\u0307`) Yaması**: Bazı Windows ve Node.js ortamlarında büyük Türkçe `"İ"` harfinin küçük harfe çevrilirken karakter uzunluğunu 2'ye çıkaran diakritik uyuşmazlığı giderilmiştir. `normalizeTurkish` filtresiyle diakritikler tamamen elenerek arama eşleşmeleri kusursuzlaştırılmıştır.
 *   **Gelişmiş Puanlama**: Levenshtein hece hataları toleransı, ardışık harf eşleşme (subsequence) bonusları ve etken maddeye kıyasla marka adı önceliklendirmesi içeren yüksek performanslı arama algoritması.
 
+### 7. Sunucu Derleme Otomasyonu ve Çakışma Yönetimi
+*   **Vercel Peer Dependency Aşımı**: Next.js 16/Turbopack ve `@sentry/nextjs` arasındaki npm akran bağımlılığı (`ERESOLVE`) çakışmaları, `package.json` içerisine `overrides` parametresi eklenerek ve `.npmrc` üzerinden `legacy-peer-deps=true` ayarlanarak global olarak çözülmüştür.
+*   **Prisma İstemci Derleme Otomasyonu**: Vercel sunucusundaki derleme sırasında yeni eklenen veri modellerinin (`User`, `SavedPillbox`) bulunamaması sorunu, `package.json` build betiğine `prisma generate` eklenerek ve `postinstall` kancası aktif edilerek tamamen giderilmiştir.
+
 ---
 
 ## 💻 Teknoloji Yığıtı (Tech Stack)

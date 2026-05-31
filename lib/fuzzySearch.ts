@@ -1,16 +1,14 @@
+const turkishCharMap: Record<string, string> = {
+  'İ': 'i', 'I': 'i', 'ı': 'i', 'ğ': 'g', 'ü': 'u', 'ş': 's', 'ö': 'o', 'ç': 'c', '\u0307': '',
+  'Ğ': 'g', 'Ü': 'u', 'Ş': 's', 'Ö': 'o', 'Ç': 'c'
+};
+const turkishRegex = /[İIığüşöçĞÜŞÖÇ\u0307]/g;
+
 export function normalizeTurkish(text: string): string {
   if (!text) return "";
   return text
-    .replace(/İ/g, "i")
-    .replace(/I/g, "i")
+    .replace(turkishRegex, (m) => turkishCharMap[m] || "")
     .toLowerCase()
-    .replace(/ı/g, "i")
-    .replace(/ğ/g, "g")
-    .replace(/ü/g, "u")
-    .replace(/ş/g, "s")
-    .replace(/ö/g, "o")
-    .replace(/ç/g, "c")
-    .replace(/\u0307/g, "") // remove combining dot
     .trim();
 }
 

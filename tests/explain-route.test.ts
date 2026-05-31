@@ -4,6 +4,8 @@ import {
   shouldUseFallback,
   getInteractionContext,
   callGeminiForInteraction,
+  getCoverageContext,
+  callGeminiForCoverage,
 } from "@/lib/gemini";
 
 jest.mock("@/lib/redis", () => ({
@@ -186,5 +188,57 @@ describe("POST /api/explain", () => {
     });
 
     expect(consoleWarnSpy).toHaveBeenCalledWith("[Security Alert] Rate limit exceeded for IP: 192.168.1.1");
+  });
+
+  it("should gracefully fallback to live AI when Redis cache read fails for coverage (drugIds)", async () => {
+    const fakeError = new Error("Redis read timeout for coverage");
+    (redis!.get as jest.Mock).mockRejectedValueOnce(fakeError);
+    (redis!.set as jest.Mock).mockResolvedValueOnce("OK");
+
+    (getCoverageContext as jest.Mock).mockReturnValue({
+      drugs: [{ id: "drug1", name: "Drug1" }, { id: "drug2", name: "Drug2" }],
+      combinations: []
+    });
+
+    (callGeminiForCoverage as jest.Mock).mockResolvedValue({
+      explanation: "Live AI coverage explanation generated after cache fail.",
+      generatedAt: "2024-05-20T12:00:00.000Z"
+    });
+
+    const req = new Request("http://localhost/api/explain", {
+      method: "POST",
+      body: JSON.stringify({ drugIds: ["drug1", "drug2"] }),
+      headers: {
+        "Content-Type": "application/json",
+      }
+    });
+
+    const res = await POST(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(data).toEqual({
+      explanation: "Live AI coverage explanation generated after cache fail.",
+      source: "gemini_live",
+      generatedAt: "2024-05-20T12:00:00.000Z",
+      disclaimer: "Bu açıklama bilgilendirme amaçlıdır ve tıbbi tavsiye niteliği taşımaz.",
+    });
+
+    // Check if the fallback warning was logged
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      "[Redis] Cache read error, continuing to live AI:",
+      fakeError
+    );
+
+    // Verify it attempted to write the result back to cache
+    // The cacheKey for drugIds uses sorted ids "drug1:drug2"
+    expect(redis!.set).toHaveBeenCalledWith(
+      "explanation:v1:coverage:drug1:drug2",
+      {
+        explanation: "Live AI coverage explanation generated after cache fail.",
+        generatedAt: "2024-05-20T12:00:00.000Z"
+      },
+      { ex: 604800 }
+    );
   });
 });

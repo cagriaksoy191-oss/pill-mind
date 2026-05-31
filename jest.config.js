@@ -13,7 +13,7 @@ const customJestConfig = {
     // tsconfig.json içindeki path alias eşleşmesi
     "^@/(.*)$": "<rootDir>/$1",
   },
-  testMatch: ["**/tests/**/*.test.ts"],
+  testMatch: ["**/tests/**/*.test.{ts,tsx}"],
 };
 
 module.exports = createJestConfig(customJestConfig);

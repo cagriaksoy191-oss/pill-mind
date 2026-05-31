@@ -61,3 +61,8 @@ This document tracks all features that are fully implemented, compiled, and test
     *   `tests/explain-route.test.ts` & `tests/gemini.test.ts`: API zaman aşımı, rate limit ihlalleri, cache hit/miss durumları ve Gemini kaskatlı model zinciri entegrasyonu test edilmiştir.
 *   **Uçtan Uca (E2E) Testleri (Playwright)**:
     *   `tests/e2e.spec.ts`: Autocomplete klavye gezinimi, seçili chip strict mode yönetimi, dinamik buton ARIA nitelikleri (`button[aria-controls^='explain-drawer-']`), asenkron drawer açılma durumları ve odak halkası standartları test edilmiştir.
+
+## 🚀 9. Sunucu Derleme Otomasyonu ve Çakışma Yönetimi (Coded & Verified)
+*   **Vercel Peer Dependency Aşımı**: Next.js 16/Turbopack ve `@sentry/nextjs` arasındaki npm akran bağımlılığı (`ERESOLVE`) çakışmaları, `package.json` içerisine `overrides` parametresi eklenerek ve `.npmrc` üzerinden `legacy-peer-deps=true` ayarlanarak global olarak çözülmüştür.
+*   **Prisma İstemci Derleme Otomasyonu**: Vercel sunucusundaki derleme sırasında yeni eklenen veri modellerinin (`User`, `SavedPillbox`) bulunamaması sorunu, `package.json` build betiğine `prisma generate` eklenerek ve `postinstall` kancası aktif edilerek tamamen giderilmiştir.
+

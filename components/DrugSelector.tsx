@@ -23,7 +23,8 @@ export default function DrugSelector({
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Exclude already selected drugs, then fuzzy search
-  const availableDrugs = drugs.filter((d) => !selected.includes(d.id));
+  const selectedSet = new Set(selected);
+  const availableDrugs = drugs.filter((d) => !selectedSet.has(d.id));
   const filtered = query.trim()
     ? fuzzySearchDrugs(query, availableDrugs).map((r) => r.item)
     : availableDrugs;
@@ -92,7 +93,7 @@ export default function DrugSelector({
     }
   };
 
-  const selectedDrugs = drugs.filter((d) => selected.includes(d.id));
+  const selectedDrugs = drugs.filter((d) => selectedSet.has(d.id));
 
   return (
     <div ref={wrapperRef} className="w-full relative z-30">

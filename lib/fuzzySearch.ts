@@ -78,6 +78,19 @@ export interface FuzzyResult<T> {
 
 const normalizedCache = new WeakMap<object, { name: string; activeIngredient: string; category: string }>();
 
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const searchCache = new Map<string, { items: unknown[]; results: any[] }>();
+
+function arraysEqual(a: unknown[], b: unknown[]): boolean {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+}
+
 export function fuzzySearchDrugs<T extends { name: string; activeIngredient: string; category?: string }>(
   query: string,
   items: T[]
@@ -85,6 +98,12 @@ export function fuzzySearchDrugs<T extends { name: string; activeIngredient: str
   const q = normalizeTurkish(query);
   if (!q) {
     return items.map(item => ({ item, score: 0 }));
+  }
+
+  const cacheKey = q;
+  const cached = searchCache.get(cacheKey);
+  if (cached && arraysEqual(cached.items, items)) {
+    return cached.results;
   }
 
   const results: FuzzyResult<T>[] = [];
@@ -111,9 +130,19 @@ export function fuzzySearchDrugs<T extends { name: string; activeIngredient: str
     }
   }
 
-  return results.sort((a, b) => b.score - a.score);
-}
+  const sortedResults = results.sort((a, b) => b.score - a.score);
 
+  // Cache management: keep cache size bounded to prevent memory leaks
+  if (searchCache.size > 50) {
+    const firstKey = searchCache.keys().next().value;
+    if (firstKey !== undefined) {
+      searchCache.delete(firstKey);
+    }
+  }
+  searchCache.set(cacheKey, { items, results: sortedResults });
+
+  return sortedResults;
+}
 function calculateScore(q: string, t: string): number {
   if (q === t) return 1000;
 

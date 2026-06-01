@@ -1,6 +1,4 @@
 
-import React from "react";
-
 interface ExplanationData {
   explanation?: string;
   source?: string;

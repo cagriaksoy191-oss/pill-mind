@@ -1,0 +1,8 @@
+🎯 What:
+Fixed a rate limit bypass vulnerability in `lib/ip.ts` by removing the insecure `request-ip` library fallback logic.
+
+⚠️ Risk:
+The `request-ip` library blindly trusts spoofable IP headers like `x-real-ip`. Attackers could exploit this to bypass rate limits by continuously sending requests with spoofed IP headers, leading to potential DoS attacks or brute force attacks against API endpoints.
+
+🛡️ Solution:
+Removed the `request-ip` library and its fallback logic. The application now correctly relies on securely parsed Next.js `ip` properties or previously validated trusted proxy headers (e.g., `x-vercel-forwarded-for`), falling back to a safe default (`127.0.0.1`) if no valid IP is found. Test cases relying on the insecure behavior have also been removed.

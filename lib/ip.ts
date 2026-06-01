@@ -1,5 +1,3 @@
-import requestIp from "request-ip";
-
 export function getClientIp(request: Request): string {
   // 1. Check for Next.js explicit `ip` property (e.g. Edge environments)
   if ("ip" in request && typeof request.ip === "string" && request.ip) {
@@ -33,19 +31,6 @@ export function getClientIp(request: Request): string {
     }
   }
 
-  // 4. Fallback to `request-ip` logic for other headers like x-real-ip
-  const headers: Record<string, string> = {};
-  request.headers.forEach((value, key) => {
-    headers[key.toLowerCase()] = value;
-  });
-
-  const req = { headers, connection: { remoteAddress: "" } };
-  const clientIp = requestIp.getClientIp(req as unknown as requestIp.Request);
-
-  if (clientIp) {
-    // If requestIp found something, return it cleanly.
-    return clientIp.split(",")[0].trim();
-  }
 
   // 5. Default fallback
   return "127.0.0.1";

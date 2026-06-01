@@ -22,11 +22,11 @@ export interface SessionData {
 export function encryptSession(data: SessionData): string {
   const secret = getJwtSecret();
   const key = crypto.scryptSync(secret, "salt", 32);
-  const iv = Buffer.alloc(16, 0); // Sabit IV (Basit serverless oturumu için)
+  const iv = crypto.randomBytes(16); // Rastgele IV
   const cipher = crypto.createCipheriv("aes-256-cbc", key, iv);
   let encrypted = cipher.update(JSON.stringify(data), "utf8", "hex");
   encrypted += cipher.final("hex");
-  return encrypted;
+  return `${iv.toString("hex")}:${encrypted}`;
 }
 
 /**
@@ -36,9 +36,22 @@ export function decryptSession(token: string): SessionData | null {
   try {
     const secret = getJwtSecret();
     const key = crypto.scryptSync(secret, "salt", 32);
-    const iv = Buffer.alloc(16, 0);
+
+    let ivHex;
+    let encryptedText;
+
+    if (token.includes(":")) {
+      const parts = token.split(":");
+      ivHex = parts[0];
+      encryptedText = parts[1];
+    } else {
+      ivHex = Buffer.alloc(16, 0).toString("hex");
+      encryptedText = token;
+    }
+
+    const iv = Buffer.from(ivHex, "hex");
     const decipher = crypto.createDecipheriv("aes-256-cbc", key, iv);
-    let decrypted = decipher.update(token, "hex", "utf8");
+    let decrypted = decipher.update(encryptedText, "hex", "utf8");
     decrypted += decipher.final("utf8");
     const data = JSON.parse(decrypted) as SessionData;
     return data;

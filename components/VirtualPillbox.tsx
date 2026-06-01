@@ -3,7 +3,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useTiltEffect } from "@/hooks/useTiltEffect";
 
-
 interface Drug {
   id: string;
   name: string;
@@ -22,21 +21,25 @@ export default function VirtualPillbox({
 }: VirtualPillboxProps) {
   const prevCountRef = useRef(selectedDrugs.length);
   const [newlyAddedId, setNewlyAddedId] = useState<string | null>(null);
-  const { containerRef, tilt, isHovered, handleMouseMove, handleMouseEnter, handleMouseLeave } = useTiltEffect();
+  const {
+    containerRef,
+    tilt,
+    isHovered,
+    handleMouseMove,
+    handleMouseEnter,
+    handleMouseLeave,
+  } = useTiltEffect();
 
   // Track additions to trigger the 3D entry animation
   useEffect(() => {
     if (selectedDrugs.length > prevCountRef.current) {
       const added = selectedDrugs[selectedDrugs.length - 1];
       if (added) {
-        // Since we cannot call setState directly in useEffect without triggering warning,
-        // we can wrap it in setTimeout. However, another way is just disabling the eslint rule since it was already there.
-        // Actually wrapping it in a setTimeout is safe for this animation.
         setTimeout(() => setNewlyAddedId(added.id), 0);
         const timer = setTimeout(() => setNewlyAddedId(null), 1000);
         prevCountRef.current = selectedDrugs.length;
         return () => {
-           clearTimeout(timer);
+          clearTimeout(timer);
         };
       }
     }
@@ -44,7 +47,7 @@ export default function VirtualPillbox({
   }, [selectedDrugs]);
 
   return (
-    <div 
+    <div
       className="perspective-container w-full"
       style={{ perspective: "1200px" }}
     >
@@ -65,16 +68,16 @@ export default function VirtualPillbox({
         }}
       >
         {/* Dynamic visual mesh background */}
-        <div 
+        <div
           className="absolute inset-0 pointer-events-none opacity-10 bg-[linear-gradient(to_right,#808080_1px,transparent_1px),linear-gradient(to_bottom,#808080_1px,transparent_1px)] bg-[size:24px_24px]"
           style={{ transform: "translateZ(-20px)" }}
         />
 
-        <div 
+        <div
           className="absolute -top-24 -left-24 w-48 h-48 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none"
           style={{ transform: "translateZ(-30px)" }}
         />
-        <div 
+        <div
           className="absolute -bottom-24 -right-24 w-48 h-48 bg-purple-500/20 rounded-full blur-3xl pointer-events-none"
           style={{ transform: "translateZ(-30px)" }}
         />
@@ -91,9 +94,9 @@ export default function VirtualPillbox({
               Etkileşim kontrolü için kutuya eklediğiniz ilaçlar
             </p>
           </div>
-          
+
           {selectedDrugs.length > 0 && (
-            <div 
+            <div
               className="text-[11px] text-emerald-400 font-medium bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-2.5 py-1 flex items-center gap-1.5 self-start md:self-center"
               style={{ transform: "translateZ(20px)" }}
             >
@@ -104,17 +107,18 @@ export default function VirtualPillbox({
         </div>
 
         {selectedDrugs.length === 0 ? (
-          <div 
+          <div
             className="flex flex-col items-center justify-center py-10 border border-dashed border-white/10 rounded-2xl bg-white/5 transition-all duration-300"
             style={{ transform: "translateZ(10px)" }}
           >
             <span className="text-4xl mb-3 animate-bounce">💊</span>
             <p className="text-slate-400 text-sm italic text-center px-4">
-              Kutunuz şu an boş. Üst kısımdan ilaç arayıp ekleyerek anında tarama başlatabilirsiniz.
+              Kutunuz şu an boş. Üst kısımdan ilaç arayıp ekleyerek anında
+              tarama başlatabilirsiniz.
             </p>
           </div>
         ) : (
-          <div 
+          <div
             className="grid grid-cols-1 sm:grid-cols-2 gap-4"
             style={{ transform: "translateZ(15px)" }}
           >
@@ -124,19 +128,24 @@ export default function VirtualPillbox({
                 <div
                   key={drug.id}
                   className={`relative flex items-center justify-between p-4 rounded-2xl border transition-all duration-300 ease-out group overflow-hidden ${
-                    isNew 
-                      ? "animate-drop-pill border-emerald-500/50 bg-emerald-500/10" 
+                    isNew
+                      ? "animate-drop-pill border-emerald-500/50 bg-emerald-500/10"
                       : "border-white/10 bg-slate-900/40 hover:border-indigo-500/30 hover:bg-slate-900/60"
                   }`}
                   style={{
                     transformStyle: "preserve-3d",
-                    animation: isNew ? "drop-pill 0.8s cubic-bezier(0.25, 1, 0.5, 1) forwards" : undefined,
+                    animation: isNew
+                      ? "drop-pill 0.8s cubic-bezier(0.25, 1, 0.5, 1) forwards"
+                      : undefined,
                   }}
                 >
                   {/* Glowing background on hover */}
                   <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
 
-                  <div className="flex items-center gap-3 relative z-10" style={{ transform: "translateZ(20px)" }}>
+                  <div
+                    className="flex items-center gap-3 relative z-10"
+                    style={{ transform: "translateZ(20px)" }}
+                  >
                     <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 border border-white/10 flex items-center justify-center text-xl shadow-inner group-hover:scale-110 transition-transform duration-300">
                       💊
                     </div>

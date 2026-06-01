@@ -13,7 +13,6 @@ export default function Error({
 }) {
   useEffect(() => {
     // Hatayı otomatik olarak Sentry'ye raporluyoruz
-    console.error("[PillMind Global Error Boundary] Yakalanan Hata:", error);
     Sentry.captureException(error);
   }, [error]);
 
@@ -24,9 +23,12 @@ export default function Error({
       <div className="absolute bottom-1/4 right-1/4 w-[30rem] h-[30rem] rounded-full bg-indigo-500/5 blur-[120px] pointer-events-none" />
 
       {/* Cam Kart Arayüzü */}
-      <div 
+      <div
         className="backdrop-blur-xl bg-white/[0.03] border border-white/10 rounded-3xl p-8 sm:p-12 shadow-2xl max-w-lg w-full text-center relative z-10 overflow-hidden"
-        style={{ boxShadow: "0 20px 50px -15px rgba(239, 68, 68, 0.15), inset 0 1px 0 0 rgba(255, 255, 255, 0.05)" }}
+        style={{
+          boxShadow:
+            "0 20px 50px -15px rgba(239, 68, 68, 0.15), inset 0 1px 0 0 rgba(255, 255, 255, 0.05)",
+        }}
       >
         {/* Glow Sınır Çizgisi */}
         <div className="absolute inset-0 rounded-3xl overflow-hidden pointer-events-none">
@@ -46,14 +48,20 @@ export default function Error({
         </h2>
 
         <p className="text-sm text-slate-400 mt-4 leading-relaxed">
-          PillMind tarama motoru beklenmeyen bir çalışma zamanı hatasıyla karşılaştı. Bu hata klinik ekiplerimize ve hata gözlemleme sistemimize (Sentry) otomatik olarak bildirilmiştir.
+          PillMind tarama motoru beklenmeyen bir çalışma zamanı hatasıyla
+          karşılaştı. Bu hata klinik ekiplerimize ve hata gözlemleme sistemimize
+          (Sentry) otomatik olarak bildirilmiştir.
         </p>
 
         {/* Hata detayı (Hastayı paniğe sevk etmeyecek şekilde teknik detay gizlenir veya sadeleştirilir) */}
         <div className="mt-6 bg-slate-900/50 rounded-xl p-4 border border-white/5 text-left text-xs font-mono text-slate-400 max-h-24 overflow-y-auto">
-          <span className="text-red-400/80 font-bold block mb-1">Durum Kodu (Digest):</span>
+          <span className="text-red-400/80 font-bold block mb-1">
+            Durum Kodu (Digest):
+          </span>
           {error.digest || "Bilinmeyen Kayıt"}
-          <span className="text-slate-500 block mt-2">Detay: {error.message || "Çalışma zamanı uyuşmazlığı."}</span>
+          <span className="text-slate-500 block mt-2">
+            Detay: {error.message || "Çalışma zamanı uyuşmazlığı."}
+          </span>
         </div>
 
         {/* Aksiyon Butonları */}
@@ -64,9 +72,9 @@ export default function Error({
           >
             🔄 Yeniden Dene
           </button>
-          
+
           <button
-            onClick={() => window.location.href = "/"}
+            onClick={() => (window.location.href = "/")}
             className="px-6 py-3.5 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white font-semibold text-sm rounded-xl border border-white/10 transition-all cursor-pointer"
           >
             Ana Sayfaya Dön
@@ -74,7 +82,8 @@ export default function Error({
         </div>
 
         <div className="mt-6 text-[10px] text-slate-500 leading-relaxed font-medium">
-          İlaç kombinasyonu sorgulamaları ve AI analizleri kesinlikle hekim veya eczacı kararının yerine geçemez.
+          İlaç kombinasyonu sorgulamaları ve AI analizleri kesinlikle hekim veya
+          eczacı kararının yerine geçemez.
         </div>
       </div>
     </div>

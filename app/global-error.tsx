@@ -12,7 +12,6 @@ export default function GlobalError({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error("[PillMind Global Layout Error] Yakalanan Hata:", error);
     Sentry.captureException(error);
   }, [error]);
 
@@ -24,9 +23,12 @@ export default function GlobalError({
         <div className="absolute bottom-1/4 right-1/4 w-[30rem] h-[30rem] rounded-full bg-indigo-500/5 blur-[120px] pointer-events-none" />
 
         {/* Cam Kart Arayüzü */}
-        <div 
+        <div
           className="backdrop-blur-xl bg-white/[0.03] border border-white/10 rounded-3xl p-8 sm:p-12 shadow-2xl max-w-lg w-full text-center relative z-10 overflow-hidden"
-          style={{ boxShadow: "0 20px 50px -15px rgba(239, 68, 68, 0.15), inset 0 1px 0 0 rgba(255, 255, 255, 0.05)" }}
+          style={{
+            boxShadow:
+              "0 20px 50px -15px rgba(239, 68, 68, 0.15), inset 0 1px 0 0 rgba(255, 255, 255, 0.05)",
+          }}
         >
           {/* Glow Sınır Çizgisi */}
           <div className="absolute inset-0 rounded-3xl overflow-hidden pointer-events-none">
@@ -46,13 +48,19 @@ export default function GlobalError({
           </h2>
 
           <p className="text-sm text-slate-400 mt-4 leading-relaxed">
-            Sistemin kök katmanında (Root Layout) beklenmeyen bir uyuşmazlık saptandı. Sorun çözümü için Sentry üzerinden geliştirici ekibimiz bilgilendirilmiştir.
+            Sistemin kök katmanında (Root Layout) beklenmeyen bir uyuşmazlık
+            saptandı. Sorun çözümü için Sentry üzerinden geliştirici ekibimiz
+            bilgilendirilmiştir.
           </p>
 
           <div className="mt-6 bg-slate-900/50 rounded-xl p-4 border border-white/5 text-left text-xs font-mono text-slate-400 max-h-24 overflow-y-auto">
-            <span className="text-red-400/80 font-bold block mb-1">Durum Kodu (Digest):</span>
+            <span className="text-red-400/80 font-bold block mb-1">
+              Durum Kodu (Digest):
+            </span>
             {error.digest || "Kök Katman Hatası"}
-            <span className="text-slate-500 block mt-2">Detay: {error.message || "Root layout execution mismatch."}</span>
+            <span className="text-slate-500 block mt-2">
+              Detay: {error.message || "Root layout execution mismatch."}
+            </span>
           </div>
 
           {/* Aksiyon Butonları */}

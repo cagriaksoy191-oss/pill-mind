@@ -2,7 +2,13 @@
 import { NextRequest } from "next/server";
 import crypto from "crypto";
 
-const JWT_SECRET = process.env.JWT_SECRET || "pillmind-ultimate-32-chars-fallback-secret!";
+function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error("JWT_SECRET environment variable is not defined");
+  }
+  return secret;
+}
 
 export interface SessionData {
   userId: string;
@@ -14,7 +20,8 @@ export interface SessionData {
  * AES-256-CBC algoritmasıyla oturum verisini şifreler
  */
 export function encryptSession(data: SessionData): string {
-  const key = crypto.scryptSync(JWT_SECRET, "salt", 32);
+  const secret = getJwtSecret();
+  const key = crypto.scryptSync(secret, "salt", 32);
   const iv = Buffer.alloc(16, 0); // Sabit IV (Basit serverless oturumu için)
   const cipher = crypto.createCipheriv("aes-256-cbc", key, iv);
   let encrypted = cipher.update(JSON.stringify(data), "utf8", "hex");
@@ -27,7 +34,8 @@ export function encryptSession(data: SessionData): string {
  */
 export function decryptSession(token: string): SessionData | null {
   try {
-    const key = crypto.scryptSync(JWT_SECRET, "salt", 32);
+    const secret = getJwtSecret();
+    const key = crypto.scryptSync(secret, "salt", 32);
     const iv = Buffer.alloc(16, 0);
     const decipher = crypto.createDecipheriv("aes-256-cbc", key, iv);
     let decrypted = decipher.update(token, "hex", "utf8");
@@ -47,7 +55,7 @@ export function getSession(req: NextRequest): SessionData | null {
   if (!cookie) return null;
   const session = decryptSession(cookie.value);
   if (!session) return null;
-  
+
   // Zaman aşımı kontrolü
   if (Date.now() > session.expires) {
     return null;

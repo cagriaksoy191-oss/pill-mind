@@ -1,4 +1,5 @@
 // tests/auth.test.ts
+import { encryptSession, decryptSession } from "../lib/auth";
 import type { SessionData } from "../lib/auth";
 
 describe("AES-256 Oturum Güvenliği Birim Testleri (Session Cryptography Unit Tests)", () => {
@@ -11,7 +12,6 @@ describe("AES-256 Oturum Güvenliği Birim Testleri (Session Cryptography Unit T
   const ORIGINAL_ENV = process.env;
 
   beforeEach(() => {
-    jest.resetModules(); // clears the cache
     process.env = { ...ORIGINAL_ENV }; // Make a copy
   });
 
@@ -19,16 +19,21 @@ describe("AES-256 Oturum Güvenliği Birim Testleri (Session Cryptography Unit T
     process.env = ORIGINAL_ENV; // Restore old environment
   });
 
-  test("Missing JWT_SECRET throws an error", async () => {
+  test("Missing JWT_SECRET throws an error at runtime", () => {
     delete process.env.JWT_SECRET;
-    await expect(import("../lib/auth")).rejects.toThrow(
-      "JWT_SECRET environment variable is not defined",
-    );
+
+    // encryptSession should throw
+    expect(() => {
+      encryptSession(testSession);
+    }).toThrow("JWT_SECRET environment variable is not defined");
+
+    // decryptSession catches the error and returns null
+    const decrypted = decryptSession("some-token");
+    expect(decrypted).toBeNull();
   });
 
-  test("Oturum şifreleme ve deşifre etme simetrisi (Symmetry Check)", async () => {
+  test("Oturum şifreleme ve deşifre etme simetrisi (Symmetry Check)", () => {
     process.env.JWT_SECRET = "test-secret-32-chars-very-secure!";
-    const { encryptSession, decryptSession } = await import("../lib/auth");
 
     // 1. Şifreleme işlemi
     const token = encryptSession(testSession);
@@ -44,9 +49,8 @@ describe("AES-256 Oturum Güvenliği Birim Testleri (Session Cryptography Unit T
     expect(decrypted?.expires).toBe(testSession.expires);
   });
 
-  test("Bozuk veya kurcalanmış token'ların güvenle yakalanması (Integrity Protection)", async () => {
+  test("Bozuk veya kurcalanmış token'ların güvenle yakalanması (Integrity Protection)", () => {
     process.env.JWT_SECRET = "test-secret-32-chars-very-secure!";
-    const { encryptSession, decryptSession } = await import("../lib/auth");
 
     const token = encryptSession(testSession);
 
@@ -61,17 +65,15 @@ describe("AES-256 Oturum Güvenliği Birim Testleri (Session Cryptography Unit T
     expect(decrypted).toBeNull();
   });
 
-  test("Geçersiz veya tamamen rastgele token'lar için null dönmesi (Invalid Token Handlers)", async () => {
+  test("Geçersiz veya tamamen rastgele token'lar için null dönmesi (Invalid Token Handlers)", () => {
     process.env.JWT_SECRET = "test-secret-32-chars-very-secure!";
-    const { decryptSession } = await import("../lib/auth");
     const fakeToken = "completely-random-non-hex-token";
     const decrypted = decryptSession(fakeToken);
     expect(decrypted).toBeNull();
   });
 
-  test("Zaman aşımına uğramış oturumların tespiti için süre kontrolü (Session Expiry Mechanics)", async () => {
+  test("Zaman aşımına uğramış oturumların tespiti için süre kontrolü (Session Expiry Mechanics)", () => {
     process.env.JWT_SECRET = "test-secret-32-chars-very-secure!";
-    const { encryptSession, decryptSession } = await import("../lib/auth");
     const expiredSession: SessionData = {
       userId: "expired-user-uuid",
       email: "eski@pillmind.com",

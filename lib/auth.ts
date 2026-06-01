@@ -2,10 +2,12 @@
 import { NextRequest } from "next/server";
 import crypto from "crypto";
 
-const JWT_SECRET = process.env.JWT_SECRET as string;
-
-if (!JWT_SECRET) {
-  throw new Error("JWT_SECRET environment variable is not defined");
+function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error("JWT_SECRET environment variable is not defined");
+  }
+  return secret;
 }
 
 export interface SessionData {
@@ -18,7 +20,8 @@ export interface SessionData {
  * AES-256-CBC algoritmasıyla oturum verisini şifreler
  */
 export function encryptSession(data: SessionData): string {
-  const key = crypto.scryptSync(JWT_SECRET, "salt", 32);
+  const secret = getJwtSecret();
+  const key = crypto.scryptSync(secret, "salt", 32);
   const iv = Buffer.alloc(16, 0); // Sabit IV (Basit serverless oturumu için)
   const cipher = crypto.createCipheriv("aes-256-cbc", key, iv);
   let encrypted = cipher.update(JSON.stringify(data), "utf8", "hex");
@@ -31,7 +34,8 @@ export function encryptSession(data: SessionData): string {
  */
 export function decryptSession(token: string): SessionData | null {
   try {
-    const key = crypto.scryptSync(JWT_SECRET, "salt", 32);
+    const secret = getJwtSecret();
+    const key = crypto.scryptSync(secret, "salt", 32);
     const iv = Buffer.alloc(16, 0);
     const decipher = crypto.createDecipheriv("aes-256-cbc", key, iv);
     let decrypted = decipher.update(token, "hex", "utf8");

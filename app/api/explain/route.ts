@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import {
   callGeminiForCoverage,
   callGeminiForInteraction,
@@ -84,7 +85,7 @@ async function handleInteraction(interactionId: unknown) {
         });
       }
     } catch (err) {
-      console.warn("[Redis] Cache read error, continuing to live AI:", err);
+      Sentry.captureException(err, { tags: { redis: "read_error" } });
     }
   }
 
@@ -100,7 +101,7 @@ async function handleInteraction(interactionId: unknown) {
           { ex: 60 * 60 * 24 * 7 }, // 7-day TTL
         );
       } catch (err) {
-        console.warn("[Redis] Cache write error:", err);
+        Sentry.captureException(err, { tags: { redis: "write_error" } });
       }
     }
 
@@ -173,7 +174,7 @@ async function handleCoverage(drugIds: unknown) {
         });
       }
     } catch (err) {
-      console.warn("[Redis] Cache read error, continuing to live AI:", err);
+      Sentry.captureException(err, { tags: { redis: "read_error" } });
     }
   }
 
@@ -189,7 +190,7 @@ async function handleCoverage(drugIds: unknown) {
           { ex: 60 * 60 * 24 * 7 }, // 7-day TTL
         );
       } catch (err) {
-        console.warn("[Redis] Cache write error:", err);
+        Sentry.captureException(err, { tags: { redis: "write_error" } });
       }
     }
 
@@ -243,7 +244,10 @@ export async function POST(request: Request) {
 
         if (currentRequests > 15) {
           // Limit to 15 requests per minute
-          console.warn(`[Security Alert] Rate limit exceeded for IP: ${ip}`);
+          Sentry.captureMessage(
+            `[Security Alert] Rate limit exceeded for IP: ${ip}`,
+            "warning",
+          );
           return jsonNoStore(
             {
               error: "Çok fazla istek gönderildi. Lütfen bir dakika bekleyin.",
@@ -255,10 +259,9 @@ export async function POST(request: Request) {
         }
       } catch (redisErr) {
         // Fail-safe: If Redis is down, log it but let the application continue
-        console.warn(
-          "[Redis Rate Limiter] Resilient Fallback - Bypass due to Redis error:",
-          redisErr,
-        );
+        Sentry.captureException(redisErr, {
+          tags: { redis: "rate_limit_error" },
+        });
       }
     }
 
@@ -293,7 +296,7 @@ export async function POST(request: Request) {
       400,
     );
   } catch (error) {
-    console.error("[Severe API Error] Explain route crashed:", error);
+    Sentry.captureException(error, { tags: { route: "explain_crash" } });
     return jsonNoStore(
       {
         error: "Açıklama oluşturulurken beklenmeyen bir sunucu hatası oluştu.",

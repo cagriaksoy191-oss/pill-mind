@@ -41,10 +41,12 @@ for (const d of drugsData as Drug[]) {
 
 const interactionsMap = new Map<string, Map<string, Interaction>>();
 for (const int of interactionsData as Interaction[]) {
-  if (!interactionsMap.has(int.drug1)) interactionsMap.set(int.drug1, new Map<string, Interaction>());
+  if (!interactionsMap.has(int.drug1))
+    interactionsMap.set(int.drug1, new Map<string, Interaction>());
   interactionsMap.get(int.drug1)!.set(int.drug2, int);
 
-  if (!interactionsMap.has(int.drug2)) interactionsMap.set(int.drug2, new Map<string, Interaction>());
+  if (!interactionsMap.has(int.drug2))
+    interactionsMap.set(int.drug2, new Map<string, Interaction>());
   interactionsMap.get(int.drug2)!.set(int.drug1, int);
 }
 
@@ -55,27 +57,70 @@ export function findInteractions(drugIds: string[]): CheckResult[] {
   if (!Array.isArray(drugIds) || drugIds.length < 2) {
     return [];
   }
+
   const results: CheckResult[] = [];
 
+  // Track counts of each drug to handle duplicates correctly
+  // (Original test cases expect duplicates to return duplicate results)
+  // This uses a plain object instead of Map for faster instantiation
+  const drugCounts: Record<string, number> = Object.create(null);
+  let uniqueCount = 0;
+  const uniqueDrugs: string[] = [];
+
   for (let i = 0; i < drugIds.length; i++) {
-    const a = drugIds[i];
-    const mapA = interactionsMap.get(a);
+    const id = drugIds[i];
+    // Only bother tracking drugs that actually have known interactions
+    // This handles the N^2 bottleneck AND filters out irrelevant strings in one O(N) pass
+    if (interactionsMap.has(id)) {
+      if (drugCounts[id] === undefined) {
+        drugCounts[id] = 1;
+        uniqueDrugs.push(id);
+        uniqueCount++;
+      } else {
+        drugCounts[id]++;
+      }
+    }
+  }
 
-    if (!mapA) continue;
+  // We use seenPairs to ensure we only process each unique pair once
+  const seenPairs = new Set<string>();
 
-    for (let j = i + 1; j < drugIds.length; j++) {
-      const b = drugIds[j];
+  for (let i = 0; i < uniqueCount; i++) {
+    const a = uniqueDrugs[i];
+    const mapA = interactionsMap.get(a)!; // Guaranteed to exist because of filtering
 
-      const match = mapA.get(b);
+    // Graph traversal: iterate ONLY over known interactions for drug A
+    // instead of nested looping over all other drugs in the input array.
+    // This reduces an O(N^2) operation to O(N * K) where K is the number
+    // of known interactions for drug A.
+    for (const [b, match] of mapA.entries()) {
+      // Check if the interacting drug B is in our input (O(1) property lookup)
+      // and ensure A != B (drugs don't interact with themselves)
+      if (drugCounts[b] !== undefined && a !== b) {
+        // Create a normalized pair ID to avoid processing A->B and B->A twice
+        const pairId = a < b ? `${a}|${b}` : `${b}|${a}`;
 
-      if (match) {
-        const drug1 = drugsMap.get(match.drug1);
-        const drug2 = drugsMap.get(match.drug2);
-        results.push({
-          interaction: match,
-          drug1Name: drug1?.name ?? match.drug1,
-          drug2Name: drug2?.name ?? match.drug2,
-        });
+        if (!seenPairs.has(pairId)) {
+          seenPairs.add(pairId);
+
+          const drug1 = drugsMap.get(match.drug1);
+          const drug2 = drugsMap.get(match.drug2);
+
+          const result = {
+            interaction: match,
+            drug1Name: drug1?.name ?? match.drug1,
+            drug2Name: drug2?.name ?? match.drug2,
+          };
+
+          // Original implementation returned duplicate pairs if duplicates existed in the input array.
+          // To preserve exact semantics for tests, we add the interaction multiple times
+          // based on the product of the counts of drug A and drug B.
+          const totalOccurrences = drugCounts[a] * drugCounts[b];
+
+          for (let k = 0; k < totalOccurrences; k++) {
+            results.push(result);
+          }
+        }
       }
     }
   }
@@ -87,10 +132,17 @@ export function findInteractions(drugIds: string[]): CheckResult[] {
  * Production-ready asynchronous N-Drug check using PostgreSQL database via Prisma.
  * Falls back to local JSON if the database URL is not configured or fails.
  */
-export async function findInteractionsDB(drugIds: string[]): Promise<CheckResult[]> {
+export async function findInteractionsDB(
+  drugIds: string[],
+): Promise<CheckResult[]> {
   // Eğer veritabanı bağlantısı yoksa doğrudan lokal kontrole yönlendir
-  if (!process.env.DATABASE_URL || process.env.DATABASE_URL.includes("[SIFRE]")) {
-    console.info("[PillMind CMIO Engine] DATABASE_URL tanımlı değil veya şablon halinde. Lokal JSON kontrolü yapılıyor.");
+  if (
+    !process.env.DATABASE_URL ||
+    process.env.DATABASE_URL.includes("[SIFRE]")
+  ) {
+    console.info(
+      "[PillMind CMIO Engine] DATABASE_URL tanımlı değil veya şablon halinde. Lokal JSON kontrolü yapılıyor.",
+    );
     return findInteractions(drugIds);
   }
 
@@ -103,9 +155,9 @@ export async function findInteractionsDB(drugIds: string[]): Promise<CheckResult
         OR: [
           { id: { in: drugIds } },
           { name: { in: drugIds } },
-          { brandNames: { some: { name: { in: drugIds } } } }
-        ]
-      }
+          { brandNames: { some: { name: { in: drugIds } } } },
+        ],
+      },
     });
 
     const resolvedDrugIds = resolvedDrugs.map((d) => d.id);
@@ -114,8 +166,8 @@ export async function findInteractionsDB(drugIds: string[]): Promise<CheckResult
     const dbInteractions = await prisma.drugInteraction.findMany({
       where: {
         drug1Id: { in: resolvedDrugIds },
-        drug2Id: { in: resolvedDrugIds }
-      }
+        drug2Id: { in: resolvedDrugIds },
+      },
     });
 
     const results: CheckResult[] = [];
@@ -141,18 +193,23 @@ export async function findInteractionsDB(drugIds: string[]): Promise<CheckResult
             summary: match.summary,
             source: match.source,
             sourceLabel: match.sourceLabel,
-            verificationStatus: match.verificationStatus.toLowerCase()
+            verificationStatus: match.verificationStatus.toLowerCase(),
           },
           drug1Name: drugA.name,
-          drug2Name: drugB.name
+          drug2Name: drugB.name,
         });
       }
     }
 
-    console.info(`[PillMind CMIO Engine] Veritabanı sorgusu başarılı (1 roundtrip). ${results.length} etkileşim bulundu.`);
+    console.info(
+      `[PillMind CMIO Engine] Veritabanı sorgusu başarılı (1 roundtrip). ${results.length} etkileşim bulundu.`,
+    );
     return results;
   } catch (error) {
-    console.error("[PillMind CMIO Engine] Veritabanı sorgusu başarısız oldu! Lokal yedek kontrol devreye alınıyor:", error);
+    console.error(
+      "[PillMind CMIO Engine] Veritabanı sorgusu başarısız oldu! Lokal yedek kontrol devreye alınıyor:",
+      error,
+    );
     // Güvenlik fallback katmanı: Hata durumunda sistem çökmez, lokal mock veriye döner
     return findInteractions(drugIds);
   }

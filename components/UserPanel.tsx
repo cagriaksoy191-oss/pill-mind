@@ -1,6 +1,8 @@
 // components/UserPanel.tsx
 "use client";
 
+import * as Sentry from "@sentry/nextjs";
+
 import { useState, useEffect } from "react";
 
 interface SavedPillbox {
@@ -30,7 +32,7 @@ export default function UserPanel({
   const [emailInput, setEmailInput] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [authLoading, setAuthLoading] = useState(false);
-  
+
   // Saved pillboxes states
   const [savedBoxes, setSavedBoxes] = useState<SavedPillbox[]>([]);
   const [listBoxesLoading, setListBoxesLoading] = useState(false);
@@ -50,8 +52,9 @@ export default function UserPanel({
           fetchSavedBoxes();
         }
       }
-    } catch (err) {
-      console.error("[PillMind Auth] Oturum kontrolü başarısız:", err);
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      Sentry.captureException(err);
     } finally {
       setLoading(false);
     }
@@ -66,8 +69,9 @@ export default function UserPanel({
         const data = await res.json();
         setSavedBoxes(data.pillboxes || []);
       }
-    } catch (err) {
-      console.error("[Pillbox List] Çekilirken hata:", err);
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      Sentry.captureException(err);
     } finally {
       setListBoxesLoading(false);
     }
@@ -104,7 +108,8 @@ export default function UserPanel({
       setShowModal(false);
       setEmailInput("");
       fetchSavedBoxes();
-    } catch (err: any) {
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
       setErrorMsg(err.message || "Giriş yaparken bir hata oluştu.");
     } finally {
       setAuthLoading(false);
@@ -120,8 +125,9 @@ export default function UserPanel({
         setSavedBoxes([]);
         setShowDropdown(false);
       }
-    } catch (err) {
-      console.error("[Pillbox Logout] Hata:", err);
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      Sentry.captureException(err);
     }
   };
 
@@ -146,7 +152,8 @@ export default function UserPanel({
       setSaveName("");
       setShowSavePrompt(false);
       fetchSavedBoxes();
-    } catch (err: any) {
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
       alert(err.message || "Kutu kaydedilirken bir hata oluştu.");
     } finally {
       setSaveLoading(false);
@@ -155,7 +162,8 @@ export default function UserPanel({
 
   // Kutu Silme Akışı
   const handleDeleteBox = async (id: string) => {
-    if (!confirm("Bu kayıtlı ilaç kutusunu silmek istediğinize emin misiniz?")) return;
+    if (!confirm("Bu kayıtlı ilaç kutusunu silmek istediğinize emin misiniz?"))
+      return;
 
     try {
       const res = await fetch("/api/pillbox/delete", {
@@ -170,8 +178,9 @@ export default function UserPanel({
         const data = await res.json();
         alert(data.error || "Silinemedi.");
       }
-    } catch (err) {
-      console.error("[Pillbox Delete] Hata:", err);
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      Sentry.captureException(err);
     }
   };
 
@@ -217,29 +226,46 @@ export default function UserPanel({
             {showDropdown && (
               <div className="absolute right-0 mt-2 w-72 backdrop-blur-2xl bg-slate-900/95 border border-white/10 rounded-2xl p-4 shadow-2xl z-50 animate-slide-down">
                 <div className="pb-3 border-b border-white/5">
-                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Aktif Oturum</p>
-                  <p className="text-xs font-semibold text-white truncate mt-0.5">{user.email}</p>
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                    Aktif Oturum
+                  </p>
+                  <p className="text-xs font-semibold text-white truncate mt-0.5">
+                    {user.email}
+                  </p>
                 </div>
 
                 <div className="py-3">
-                  <h4 className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-2">💾 Kayıtlı Kutularım</h4>
-                  
+                  <h4 className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-2">
+                    💾 Kayıtlı Kutularım
+                  </h4>
+
                   {listBoxesLoading ? (
-                    <div className="py-3 text-center text-xs text-slate-500">Yükleniyor...</div>
+                    <div className="py-3 text-center text-xs text-slate-500">
+                      Yükleniyor...
+                    </div>
                   ) : savedBoxes.length === 0 ? (
-                    <p className="text-[11px] text-slate-500 italic py-2">Bulutta kayıtlı kutunuz bulunmuyor.</p>
+                    <p className="text-[11px] text-slate-500 italic py-2">
+                      Bulutta kayıtlı kutunuz bulunmuyor.
+                    </p>
                   ) : (
                     <ul className="space-y-2 max-h-48 overflow-y-auto pr-1">
                       {savedBoxes.map((box) => (
-                        <li 
-                          key={box.id} 
+                        <li
+                          key={box.id}
                           className="flex items-center justify-between p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 transition-all text-left"
                         >
                           <div className="min-w-0 flex-1 pr-2">
-                            <p className="text-xs font-bold text-white truncate">{box.name}</p>
-                            <p className="text-[9px] text-slate-400 mt-0.5">{box.drugIds.length} İlaç • {new Date(box.createdAt).toLocaleDateString("tr-TR")}</p>
+                            <p className="text-xs font-bold text-white truncate">
+                              {box.name}
+                            </p>
+                            <p className="text-[9px] text-slate-400 mt-0.5">
+                              {box.drugIds.length} İlaç •{" "}
+                              {new Date(box.createdAt).toLocaleDateString(
+                                "tr-TR",
+                              )}
+                            </p>
                           </div>
-                          
+
                           <div className="flex items-center gap-1.5 shrink-0">
                             <button
                               onClick={() => {
@@ -295,15 +321,20 @@ export default function UserPanel({
               <div className="w-12 h-12 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-2xl mx-auto mb-3 shadow-inner">
                 🩺
               </div>
-              <h3 className="text-xl font-extrabold text-white">PillMind Hesabınıza Giriş Yapın</h3>
+              <h3 className="text-xl font-extrabold text-white">
+                PillMind Hesabınıza Giriş Yapın
+              </h3>
               <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                İlaç kutularınızı buluta kaydetmek ve dilediğiniz an erişmek için e-posta adresinizle anında şifresiz giriş yapın.
+                İlaç kutularınızı buluta kaydetmek ve dilediğiniz an erişmek
+                için e-posta adresinizle anında şifresiz giriş yapın.
               </p>
             </div>
 
             <form onSubmit={handleAuthSubmit} className="space-y-4">
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">E-POSTA ADRESİ</label>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+                  E-POSTA ADRESİ
+                </label>
                 <input
                   type="email"
                   placeholder="isim@örnek.com"
@@ -354,15 +385,20 @@ export default function UserPanel({
               <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-2xl mx-auto mb-3 shadow-inner">
                 💾
               </div>
-              <h3 className="text-xl font-extrabold text-white">İlaç Kutunuzu Kaydedin</h3>
+              <h3 className="text-xl font-extrabold text-white">
+                İlaç Kutunuzu Kaydedin
+              </h3>
               <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                Şu an sanal kutunuzda bulunan {selectedDrugIds.length} ilacı daha sonra kolayca yüklemek için isimlendirip buluta kaydedin.
+                Şu an sanal kutunuzda bulunan {selectedDrugIds.length} ilacı
+                daha sonra kolayca yüklemek için isimlendirip buluta kaydedin.
               </p>
             </div>
 
             <form onSubmit={handleSavePillbox} className="space-y-4">
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">KUTU ADI / ETİKETİ</label>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+                  KUTU ADI / ETİKETİ
+                </label>
                 <input
                   type="text"
                   placeholder="Örn: Sabah İlaçlarım, Tansiyon Tedavim"

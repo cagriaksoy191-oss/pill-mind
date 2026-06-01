@@ -2,7 +2,11 @@
 import { NextRequest } from "next/server";
 import crypto from "crypto";
 
-const JWT_SECRET = process.env.JWT_SECRET || "pillmind-ultimate-32-chars-fallback-secret!";
+const JWT_SECRET = process.env.JWT_SECRET as string;
+
+if (!JWT_SECRET) {
+  throw new Error("JWT_SECRET environment variable is not defined");
+}
 
 export interface SessionData {
   userId: string;
@@ -47,7 +51,7 @@ export function getSession(req: NextRequest): SessionData | null {
   if (!cookie) return null;
   const session = decryptSession(cookie.value);
   if (!session) return null;
-  
+
   // Zaman aşımı kontrolü
   if (Date.now() > session.expires) {
     return null;

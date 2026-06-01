@@ -15,12 +15,10 @@
   "dependencies": {
     "@prisma/client": "^5.11.0",
     "@sentry/nextjs": "^8.54.0",
-    "@types/request-ip": "^0.0.41",
     "@upstash/redis": "^1.28.4",
     "next": "16.2.2",
     "react": "19.2.4",
-    "react-dom": "19.2.4",
-    "request-ip": "^3.3.0"
+    "react-dom": "19.2.4"
   },
   "devDependencies": {
     "@playwright/test": "^1.50.0",

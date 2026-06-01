@@ -91,4 +91,36 @@ describe("POST /api/auth/register (Security - No Enumeration)", () => {
 
     consoleSpy.mockRestore();
   });
+
+  it("should return 400 if email is missing from the payload", async () => {
+    const req = new Request("http://localhost/api/auth/register", {
+      method: "POST",
+      body: JSON.stringify({}),
+      headers: { "Content-Type": "application/json" },
+    });
+
+    const res = await POST(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(data.error).toBe("Geçersiz bir e-posta adresi girdiniz.");
+    expect(prisma.user.findUnique).not.toHaveBeenCalled();
+    expect(prisma.user.create).not.toHaveBeenCalled();
+  });
+
+  it("should return 400 if email is invalid (missing @)", async () => {
+    const req = new Request("http://localhost/api/auth/register", {
+      method: "POST",
+      body: JSON.stringify({ email: "invalidemail.com" }),
+      headers: { "Content-Type": "application/json" },
+    });
+
+    const res = await POST(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(data.error).toBe("Geçersiz bir e-posta adresi girdiniz.");
+    expect(prisma.user.findUnique).not.toHaveBeenCalled();
+    expect(prisma.user.create).not.toHaveBeenCalled();
+  });
 });

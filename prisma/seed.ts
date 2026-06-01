@@ -1,4 +1,3 @@
-// prisma/seed.ts
 import { PrismaClient, Severity, Status } from "@prisma/client";
 import * as fs from "fs";
 import * as path from "path";
@@ -23,19 +22,16 @@ interface InteractionMock {
   sourceLabel: string;
 }
 
-async function main() {
-  console.log("🌱 Veritabanı tohumlama işlemi başladı...");
-
-  // 1. Mevcut verileri temizle (Önce ilişkili tablolar)
+async function cleanDatabase() {
   await prisma.foodInteraction.deleteMany({});
   await prisma.contraindication.deleteMany({});
   await prisma.drugInteraction.deleteMany({});
   await prisma.brandName.deleteMany({});
   await prisma.drug.deleteMany({});
-
   console.log("🧹 Eski veriler temizlendi.");
+}
 
-  // 2. İlaçları Oku ve Ekle
+async function seedDrugs() {
   const drugsFilePath = path.join(process.cwd(), "data", "drugs.json");
   const drugsData: DrugMock[] = JSON.parse(
     fs.readFileSync(drugsFilePath, "utf-8"),
@@ -93,14 +89,22 @@ async function main() {
     const startBrandNames = performance.now();
     await prisma.brandName.createMany({ data: brandNamesToCreate });
     const endBrandNames = performance.now();
-    console.log(`⚡ Inserted brand names in ${(endBrandNames - startBrandNames).toFixed(2)}ms`);
+    console.log(
+      `⚡ Inserted brand names in ${(endBrandNames - startBrandNames).toFixed(2)}ms`,
+    );
   }
 
   console.log(
     `📦 ${Object.keys(drugIdMap).length} adet temel ilaç ve alternatif marka isimleri yüklendi.`,
   );
 
-  // 3. Etkileşimleri Oku ve Ekle
+  return { drugIdMap, drugNameMap };
+}
+
+async function seedInteractions(
+  drugIdMap: Record<string, string>,
+  drugNameMap: Record<string, string>,
+) {
   const interactionsFilePath = path.join(
     process.cwd(),
     "data",
@@ -149,16 +153,18 @@ async function main() {
       data: interactionsToCreate,
     });
     const endInteractions = performance.now();
-    console.log(`⚡ Inserted drug interactions in ${(endInteractions - startInteractions).toFixed(2)}ms`);
+    console.log(
+      `⚡ Inserted drug interactions in ${(endInteractions - startInteractions).toFixed(2)}ms`,
+    );
     interactionCount = result.count;
   }
 
   console.log(
     `🔗 ${interactionCount} adet doğrulanmış ilaç-ilaç etkileşim kaydı yüklendi.`,
   );
+}
 
-  // 4. Örnek Besin Etkileşimleri (Food Interactions) Ekle
-  const warfarinId = drugIdMap["warfarin"];
+async function seedFoodInteractions(warfarinId?: string) {
   if (warfarinId) {
     const startFoodInteractions = performance.now();
     await prisma.foodInteraction.createMany({
@@ -180,9 +186,20 @@ async function main() {
       ],
     });
     const endFoodInteractions = performance.now();
-    console.log(`⚡ Inserted food interactions in ${(endFoodInteractions - startFoodInteractions).toFixed(2)}ms`);
+    console.log(
+      `⚡ Inserted food interactions in ${(endFoodInteractions - startFoodInteractions).toFixed(2)}ms`,
+    );
     console.log("🥗 Warfarin için besin etkileşimleri eklendi.");
   }
+}
+
+async function main() {
+  console.log("🌱 Veritabanı tohumlama işlemi başladı...");
+
+  await cleanDatabase();
+  const { drugIdMap, drugNameMap } = await seedDrugs();
+  await seedInteractions(drugIdMap, drugNameMap);
+  await seedFoodInteractions(drugIdMap["warfarin"]);
 
   console.log("🏁 Tohumlama başarıyla tamamlandı!");
 }

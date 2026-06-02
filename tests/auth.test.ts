@@ -96,7 +96,26 @@ describe("AES-256 Oturum Güvenliği Birim Testleri (Session Cryptography Unit T
     const token2 = encryptSession(testSession);
 
     expect(token1).not.toEqual(token2); // IV farklı olduğu için şifreli metinler farklı olmalıdır
-    expect(token1.split(":")[1]).not.toEqual(token2.split(":")[1]);
+    expect(token1.split(":")[2]).not.toBeUndefined();
+    expect(token1.split(":")[2]).not.toEqual(token2.split(":")[2]);
+  });
+
+  test("Orta tip (1 kolon, dinamik IV, sabit salt) token'ların hala desteklenmesi", () => {
+    process.env.JWT_SECRET = "test-secret-32-chars-very-secure!";
+
+    const secret = "test-secret-32-chars-very-secure!";
+    const key = crypto.scryptSync(secret, "salt", 32);
+    const iv = crypto.randomBytes(16);
+    const cipher = crypto.createCipheriv("aes-256-cbc", key, iv);
+    let encrypted = cipher.update(JSON.stringify(testSession), "utf8", "hex");
+    encrypted += cipher.final("hex");
+
+    const intermediateToken = `${iv.toString("hex")}:${encrypted}`;
+    const decrypted = decryptSession(intermediateToken);
+
+    expect(decrypted).toBeDefined();
+    expect(decrypted?.userId).toBe(testSession.userId);
+    expect(decrypted?.email).toBe(testSession.email);
   });
 
   test("Eski tip (sabit IV) token'ların hala desteklenmesi (Backward Compatibility)", () => {

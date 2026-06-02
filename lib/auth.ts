@@ -21,12 +21,13 @@ export interface SessionData {
  */
 export function encryptSession(data: SessionData): string {
   const secret = getJwtSecret();
-  const key = crypto.scryptSync(secret, "salt", 32);
+  const salt = crypto.randomBytes(16).toString("hex");
+  const key = crypto.scryptSync(secret, salt, 32);
   const iv = crypto.randomBytes(16); // Rastgele IV
   const cipher = crypto.createCipheriv("aes-256-cbc", key, iv);
   let encrypted = cipher.update(JSON.stringify(data), "utf8", "hex");
   encrypted += cipher.final("hex");
-  return `${iv.toString("hex")}:${encrypted}`;
+  return `${salt}:${iv.toString("hex")}:${encrypted}`;
 }
 
 /**
@@ -35,12 +36,19 @@ export function encryptSession(data: SessionData): string {
 export function decryptSession(token: string): SessionData | null {
   try {
     const secret = getJwtSecret();
-    const key = crypto.scryptSync(secret, "salt", 32);
 
+    let saltHex = "salt";
     let ivHex;
     let encryptedText;
 
-    if (token.includes(":")) {
+    const colons = (token.match(/:/g) || []).length;
+
+    if (colons === 2) {
+      const parts = token.split(":");
+      saltHex = parts[0];
+      ivHex = parts[1];
+      encryptedText = parts[2];
+    } else if (colons === 1) {
       const parts = token.split(":");
       ivHex = parts[0];
       encryptedText = parts[1];
@@ -49,6 +57,7 @@ export function decryptSession(token: string): SessionData | null {
       encryptedText = token;
     }
 
+    const key = crypto.scryptSync(secret, saltHex, 32);
     const iv = Buffer.from(ivHex, "hex");
     const decipher = crypto.createDecipheriv("aes-256-cbc", key, iv);
     let decrypted = decipher.update(encryptedText, "hex", "utf8");

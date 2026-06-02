@@ -182,8 +182,6 @@ async function main() {
   const { drugIdMap, drugNameMap } = await seedDrugs();
   await seedInteractions(drugIdMap, drugNameMap);
   await seedFoodInteractions(drugIdMap["warfarin"]);
-
-  console.log("🏁 Tohumlama başarıyla tamamlandı!");
 }
 
 main()

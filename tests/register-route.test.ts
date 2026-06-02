@@ -119,4 +119,38 @@ describe("POST /api/auth/register", () => {
     expect(prisma.user.findUnique).not.toHaveBeenCalled();
     expect(prisma.user.create).not.toHaveBeenCalled();
   });
+
+  it("should return a generic success message if the user already exists in production to prevent user enumeration", async () => {
+    const originalEnv = process.env.NODE_ENV;
+    Object.defineProperty(process.env, "NODE_ENV", {
+      value: "production",
+      configurable: true,
+    });
+
+    (prisma.user.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "existing-user-id",
+      email: "test@example.com",
+    });
+
+    const req = new Request("http://localhost/api/auth/register", {
+      method: "POST",
+      body: JSON.stringify({ email: "test@example.com" }),
+      headers: { "Content-Type": "application/json" },
+    });
+
+    const res = await POST(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(data.success).toBe(true);
+    expect(data.message).toBe(
+      "Kayıt işlemi başarılı. Lütfen e-postanızı kontrol edin.",
+    );
+    expect(prisma.user.create).not.toHaveBeenCalled();
+
+    Object.defineProperty(process.env, "NODE_ENV", {
+      value: originalEnv,
+      configurable: true,
+    });
+  });
 });

@@ -75,4 +75,36 @@ describe("useTiltEffect", () => {
 
     expect(result.current.tilt).toEqual({ x: 0, y: 0 });
   });
+
+  it("calculates tilt correctly when maxRotation is 0", () => {
+    const { result } = renderHook(() => useTiltEffect(0));
+
+    const mockElement = document.createElement("div");
+    mockElement.getBoundingClientRect = jest.fn(() => ({
+      width: 200,
+      height: 200,
+      top: 100,
+      left: 100,
+      bottom: 300,
+      right: 300,
+      x: 100,
+      y: 100,
+      toJSON: () => {},
+    }));
+
+    // Attach mock element to ref
+    (
+      result.current.containerRef as React.MutableRefObject<HTMLDivElement>
+    ).current = mockElement;
+
+    act(() => {
+      // @ts-expect-error Mocking MouseEvent for testing
+      result.current.handleMouseMove({
+        clientX: 150,
+        clientY: 150,
+      });
+    });
+
+    expect(result.current.tilt).toEqual({ x: 0, y: -0 });
+  });
 });

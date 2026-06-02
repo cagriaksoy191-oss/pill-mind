@@ -1,5 +1,5 @@
-🧪 Add DrugList loading state tests
+🧪 Test useKeyboardNavigation with empty items
 
-🎯 What: Added `isLoading` prop and visual loading state to `DrugList` component, and created unit tests to verify its behavior and edge cases (empty state, populated state).
-📊 Coverage: Added tests for `DrugList` component testing `isLoading`, empty and non-empty queries, and proper list population/highlighting.
-✨ Result: Improved component robustness and coverage by explicitly defining and verifying the `isLoading` branch and standard rendering paths.
+🎯 What: Added tests to `tests/useKeyboardNavigation.test.ts` to cover scenarios when the items array (`filtered`) is empty, specifically testing `ArrowDown`, `ArrowUp`, and `Enter` key events.
+📊 Coverage: Added tests for `useKeyboardNavigation` hook to cover boundaries and empty array scenarios.
+✨ Result: Increased test coverage for the `useKeyboardNavigation` custom hook, ensuring that arrow keys and Enter events correctly compute boundaries or handle empty items without errors.

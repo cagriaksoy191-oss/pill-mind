@@ -28,7 +28,6 @@ async function cleanDatabase() {
   await prisma.drugInteraction.deleteMany({});
   await prisma.brandName.deleteMany({});
   await prisma.drug.deleteMany({});
-  console.log("🧹 Eski veriler temizlendi.");
 }
 
 async function seedDrugs() {

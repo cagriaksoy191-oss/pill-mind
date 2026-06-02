@@ -86,12 +86,7 @@ async function seedDrugs() {
   }
 
   if (brandNamesToCreate.length > 0) {
-    const startBrandNames = performance.now();
     await prisma.brandName.createMany({ data: brandNamesToCreate });
-    const endBrandNames = performance.now();
-    console.log(
-      `⚡ Inserted brand names in ${(endBrandNames - startBrandNames).toFixed(2)}ms`,
-    );
   }
 
   return { drugIdMap, drugNameMap };

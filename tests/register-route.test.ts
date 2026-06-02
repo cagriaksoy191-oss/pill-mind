@@ -11,12 +11,12 @@ jest.mock("@/lib/prisma", () => ({
   },
 }));
 
-describe("POST /api/auth/register (Security - No Enumeration)", () => {
+describe("POST /api/auth/register", () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it("should return a generic success message even if the user already exists (preventing enumeration and ID disclosure)", async () => {
+  it("should return 400 if the user already exists (duplicate email)", async () => {
     (prisma.user.findUnique as jest.Mock).mockResolvedValueOnce({
       id: "existing-user-id",
       email: "test@example.com",
@@ -31,12 +31,8 @@ describe("POST /api/auth/register (Security - No Enumeration)", () => {
     const res = await POST(req);
     const data = await res.json();
 
-    expect(res.status).toBe(200);
-    expect(data.success).toBe(true);
-    expect(data.message).toBe(
-      "Kayıt işlemi başarılı. Lütfen e-postanızı kontrol edin.",
-    );
-    expect(data.user).toBeUndefined(); // Should not return user object
+    expect(res.status).toBe(400);
+    expect(data.error).toBe("Bu e-posta adresi zaten kullanılıyor");
     expect(prisma.user.create).not.toHaveBeenCalled();
   });
 

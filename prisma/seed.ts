@@ -101,7 +101,6 @@ async function seedInteractions(
     fs.readFileSync(interactionsFilePath, "utf-8"),
   );
 
-  let interactionCount = 0;
   const interactionsToCreate = [];
   for (const item of interactionsData) {
     const drug1Id = drugIdMap[item.drug1];

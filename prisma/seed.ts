@@ -134,10 +134,9 @@ async function seedInteractions(
   }
 
   if (interactionsToCreate.length > 0) {
-    const result = await prisma.drugInteraction.createMany({
+    await prisma.drugInteraction.createMany({
       data: interactionsToCreate,
     });
-    interactionCount = result.count;
   }
 }
 

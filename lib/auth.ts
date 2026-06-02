@@ -64,7 +64,7 @@ export function decryptSession(token: string): SessionData | null {
  * Request içerisindeki çerezden (cookie) oturum durumunu okur
  */
 export function getSession(req: NextRequest): SessionData | null {
-  const cookie = req.cookies.get("session");
+  const cookie = req.cookies.get("auth_token");
   if (!cookie) return null;
   const session = decryptSession(cookie.value);
   if (!session) return null;

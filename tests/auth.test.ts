@@ -1,6 +1,7 @@
+import { NextRequest } from "next/server";
 import crypto from "crypto";
 // tests/auth.test.ts
-import { encryptSession, decryptSession } from "../lib/auth";
+import { encryptSession, decryptSession, getSession } from "../lib/auth";
 import type { SessionData } from "../lib/auth";
 
 describe("AES-256 Oturum Güvenliği Birim Testleri (Session Cryptography Unit Tests)", () => {
@@ -121,5 +122,73 @@ describe("AES-256 Oturum Güvenliği Birim Testleri (Session Cryptography Unit T
     expect(decrypted).toBeDefined();
     expect(decrypted?.userId).toBe(testSession.userId);
     expect(decrypted?.email).toBe(testSession.email);
+  });
+});
+
+describe("getSession (NextRequest Integration)", () => {
+  const testSession: SessionData = {
+    userId: "test-user-uuid",
+    email: "hasta@pillmind.com",
+    expires: Date.now() + 1000 * 60 * 60, // 1 Saat sonra
+  };
+
+  beforeEach(() => {
+    process.env.JWT_SECRET = "test-secret-32-chars-very-secure!";
+  });
+
+  test("returns null when 'auth_token' cookie is missing", () => {
+    // Create a mock NextRequest without the 'auth_token' cookie
+    const req = {
+      cookies: {
+        get: jest.fn().mockReturnValue(undefined),
+      },
+    } as unknown as NextRequest;
+
+    const session = getSession(req);
+    expect(session).toBeNull();
+    expect(req.cookies.get).toHaveBeenCalledWith("auth_token");
+  });
+
+  test("returns null for an invalid token", () => {
+    const req = {
+      cookies: {
+        get: jest.fn().mockReturnValue({ value: "invalid-token" }),
+      },
+    } as unknown as NextRequest;
+
+    const session = getSession(req);
+    expect(session).toBeNull();
+  });
+
+  test("returns null for an expired auth_token token", () => {
+    const expiredSession: SessionData = {
+      ...testSession,
+      expires: Date.now() - 1000 * 60, // 1 minute ago
+    };
+    const token = encryptSession(expiredSession);
+
+    const req = {
+      cookies: {
+        get: jest.fn().mockReturnValue({ value: token }),
+      },
+    } as unknown as NextRequest;
+
+    const session = getSession(req);
+    expect(session).toBeNull();
+  });
+
+  test("returns SessionData for a valid, non-expired auth_token token", () => {
+    const token = encryptSession(testSession);
+
+    const req = {
+      cookies: {
+        get: jest.fn().mockReturnValue({ value: token }),
+      },
+    } as unknown as NextRequest;
+
+    const session = getSession(req);
+    expect(session).not.toBeNull();
+    expect(session?.userId).toBe(testSession.userId);
+    expect(session?.email).toBe(testSession.email);
   });
 });

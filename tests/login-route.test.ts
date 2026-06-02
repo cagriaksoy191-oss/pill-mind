@@ -146,4 +146,82 @@ describe("POST /api/auth/login (Auth Endpoint Tests)", () => {
 
     consoleSpy.mockRestore();
   });
+
+  it("should handle invalid JSON body and return a 500 status", async () => {
+    const consoleSpy = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    // Create a request with an invalid JSON body that will throw when .json() is called
+    const req = new Request("http://localhost/api/auth/login", {
+      method: "POST",
+      body: "this is not valid json",
+      headers: { "Content-Type": "application/json" },
+    });
+
+    const res = await POST(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(500);
+    expect(data.error).toBe("Giriş yapılırken sistemsel bir hata oluştu.");
+    expect(consoleSpy).toHaveBeenCalled();
+
+    consoleSpy.mockRestore();
+  });
+
+  it("should handle error when prisma.user.create fails", async () => {
+    const consoleSpy = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    (prisma.user.findUnique as jest.Mock).mockResolvedValueOnce(null);
+    (prisma.user.create as jest.Mock).mockRejectedValueOnce(
+      new Error("Create failed"),
+    );
+
+    const req = new Request("http://localhost/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email: "error_create@example.com" }),
+      headers: { "Content-Type": "application/json" },
+    });
+
+    const res = await POST(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(500);
+    expect(data.error).toBe("Giriş yapılırken sistemsel bir hata oluştu.");
+    expect(consoleSpy).toHaveBeenCalled();
+
+    consoleSpy.mockRestore();
+  });
+
+  it("should handle error when encryptSession fails", async () => {
+    const consoleSpy = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    (prisma.user.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "existing-user-id",
+      email: "test@example.com",
+    });
+
+    (encryptSession as jest.Mock).mockImplementationOnce(() => {
+      throw new Error("Encryption failed");
+    });
+
+    const req = new Request("http://localhost/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email: "test@example.com" }),
+      headers: { "Content-Type": "application/json" },
+    });
+
+    const res = await POST(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(500);
+    expect(data.error).toBe("Giriş yapılırken sistemsel bir hata oluştu.");
+    expect(consoleSpy).toHaveBeenCalled();
+
+    consoleSpy.mockRestore();
+  });
 });

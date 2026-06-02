@@ -135,20 +135,11 @@ async function seedInteractions(
   }
 
   if (interactionsToCreate.length > 0) {
-    const startInteractions = performance.now();
     const result = await prisma.drugInteraction.createMany({
       data: interactionsToCreate,
     });
-    const endInteractions = performance.now();
-    console.log(
-      `⚡ Inserted drug interactions in ${(endInteractions - startInteractions).toFixed(2)}ms`,
-    );
     interactionCount = result.count;
   }
-
-  console.log(
-    `🔗 ${interactionCount} adet doğrulanmış ilaç-ilaç etkileşim kaydı yüklendi.`,
-  );
 }
 
 async function seedFoodInteractions(warfarinId?: string) {
@@ -171,13 +162,10 @@ async function seedFoodInteractions(warfarinId?: string) {
         },
       ],
     });
-    console.log("🥗 Warfarin için besin etkileşimleri eklendi.");
   }
 }
 
 async function main() {
-  console.log("🌱 Veritabanı tohumlama işlemi başladı...");
-
   await cleanDatabase();
   const { drugIdMap, drugNameMap } = await seedDrugs();
   await seedInteractions(drugIdMap, drugNameMap);

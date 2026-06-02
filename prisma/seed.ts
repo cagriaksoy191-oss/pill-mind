@@ -94,10 +94,6 @@ async function seedDrugs() {
     );
   }
 
-  console.log(
-    `📦 ${Object.keys(drugIdMap).length} adet temel ilaç ve alternatif marka isimleri yüklendi.`,
-  );
-
   return { drugIdMap, drugNameMap };
 }
 

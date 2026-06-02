@@ -166,7 +166,6 @@ async function seedInteractions(
 
 async function seedFoodInteractions(warfarinId?: string) {
   if (warfarinId) {
-    const startFoodInteractions = performance.now();
     await prisma.foodInteraction.createMany({
       data: [
         {
@@ -185,10 +184,6 @@ async function seedFoodInteractions(warfarinId?: string) {
         },
       ],
     });
-    const endFoodInteractions = performance.now();
-    console.log(
-      `⚡ Inserted food interactions in ${(endFoodInteractions - startFoodInteractions).toFixed(2)}ms`,
-    );
     console.log("🥗 Warfarin için besin etkileşimleri eklendi.");
   }
 }

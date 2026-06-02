@@ -1,0 +1,3 @@
+🎯 **What:** The testing gap addressed: added test coverage for `ExplanationDrawer` when the explanation component is fully rendered but receives an empty `explanation` string, or when `explanationData` properties are missing.
+📊 **Coverage:** Scenarios covered include testing `null` return on `isOpen` being false, fallback states, loading states, error states, and explicit assertion of the empty explanation rendering layout (`SuccessState` containing the title but empty explanation text).
+✨ **Result:** Improved test coverage verifying the conditional rendering and safe failure states for `ExplanationDrawer`.

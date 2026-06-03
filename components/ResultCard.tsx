@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { getSeverityLabel } from "@/lib/interactions";
+import { getSeverityLabel, ExplanationData } from "@/lib/interactions";
 import ExplanationDrawer from "./ExplanationDrawer";
 
 interface ResultCardProps {
@@ -13,13 +13,7 @@ interface ResultCardProps {
   sourceLabel?: string;
   verificationStatus?: string;
   source?: string;
-  explanationData?: {
-    explanation?: string;
-    source?: string;
-    generatedAt?: string;
-    reason?: string;
-    error?: string;
-  };
+  explanationData?: ExplanationData;
   isExplanationLoading?: boolean;
   onExplainRequested: (id: string, force: boolean) => void;
 }

@@ -353,6 +353,43 @@ describe("callGeminiForCoverage", () => {
 });
 
 describe("formatExplanation", () => {
+  it("should handle missing fields (girisCumlesi and klinikEtkiAciklamasi) properly without adding extra empty lines", () => {
+    const input = {
+      hastalaraOneriler: ["Öneri 1"],
+      hekimYonlendirmesi: "Hekime danışın."
+    };
+    const expected = `**Önemli Belirtiler ve Öneriler:**\n• Öneri 1\n\nHekime danışın.`;
+    expect(formatExplanation(input)).toBe(expected);
+  });
+
+  it("should properly output etkilesim_mekanizmasi if it exists", () => {
+    const input = {
+      etkilesim_mekanizmasi: "Mekanizma budur.",
+      girisCumlesi: "Giriş."
+    };
+    const expected = `**Etkileşim Mekanizması:**\nMekanizma budur.\n\nGiriş.`;
+    expect(formatExplanation(input)).toBe(expected);
+  });
+
+  it("should handle completely empty object gracefully", () => {
+    const input = {};
+    const expected = "";
+    expect(formatExplanation(input)).toBe(expected);
+  });
+
+
+  it("should handle missing girisCumlesi and klinikEtkiAciklamasi properly", () => {
+    const input = {
+      hastalaraOneriler: ["Öneri 1"],
+      hekimYonlendirmesi: "Hekime danışın."
+    };
+    const expected = `**Önemli Belirtiler ve Öneriler:**
+• Öneri 1
+
+Hekime danışın.`;
+    expect(formatExplanation(input)).toBe(expected);
+  });
+
 
   it("should handle completely missing hastalaraOneriler property gracefully", () => {
     const input = {
@@ -360,11 +397,7 @@ describe("formatExplanation", () => {
       klinikEtkiAciklamasi: "Klinik"
     };
 
-    const expected = `Giriş
-
-Klinik
-
-**Önemli Belirtiler ve Öneriler:**`;
+    const expected = `Giriş\n\nKlinik`;
 
     expect(formatExplanation(input)).toBe(expected);
   });
@@ -417,7 +450,7 @@ Bu bir hekim yönlendirmesidir.`;
     const input2 = { hastalaraOneriler: undefined };
     const input3 = {};
 
-    const expected = `**Önemli Belirtiler ve Öneriler:**`;
+    const expected = ``;
 
     expect(formatExplanation(input1)).toBe(expected);
     expect(formatExplanation(input2)).toBe(expected);
@@ -429,7 +462,7 @@ Bu bir hekim yönlendirmesidir.`;
       hastalaraOneriler: { someKey: "someValue" }
     };
 
-    const expected = `**Önemli Belirtiler ve Öneriler:**`;
+    const expected = ``;
 
     expect(formatExplanation(input)).toBe(expected);
   });
@@ -438,7 +471,7 @@ Bu bir hekim yönlendirmesidir.`;
     const input1 = { hastalaraOneriler: 123 };
     const input2 = { hastalaraOneriler: true };
 
-    const expected = `**Önemli Belirtiler ve Öneriler:**`;
+    const expected = ``;
 
     expect(formatExplanation(input1)).toBe(expected);
     expect(formatExplanation(input2)).toBe(expected);

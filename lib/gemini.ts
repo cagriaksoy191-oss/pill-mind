@@ -155,17 +155,22 @@ export async function getInteractionContext(interactionId: string): Promise<Inte
 }
 
 export function getCoverageContext(drugIds: string[]): CoverageContext | null {
-  const drugs = drugsData as DrugRecord[];
-  const selected = drugs.filter((drug) => drugIds.includes(drug.id));
+  try {
+    const drugs = drugsData as DrugRecord[];
+    const selected = drugs.filter((drug) => drugIds.includes(drug.id));
 
-  if (selected.length < 2) {
+    if (selected.length < 2) {
+      return null;
+    }
+
+    return {
+      drugNames: selected.map((drug) => drug.name),
+      drugIngredients: selected.map((drug) => drug.activeIngredient),
+    };
+  } catch (error) {
+    console.error("Context fetch error:", error);
     return null;
   }
-
-  return {
-    drugNames: selected.map((drug) => drug.name),
-    drugIngredients: selected.map((drug) => drug.activeIngredient),
-  };
 }
 
 export function shouldUseFallback(): boolean {

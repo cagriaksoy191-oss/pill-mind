@@ -137,7 +137,7 @@ describe("POST /api/explain", () => {
     );
   });
 
-  it("should return 503 and handle Gemini AI failure gracefully", async () => {
+  it("should return 500 and basic format when Gemini API throws an error during detailed explanation fallback", async () => {
     (getInteractionContext as jest.Mock).mockResolvedValueOnce({
       interaction: { id: "test", severity: "high" },
       drug1Name: "DrugA",
@@ -160,14 +160,15 @@ describe("POST /api/explain", () => {
     const res = await POST(req);
     const data = await res.json();
 
-    expect(res.status).toBe(503);
+    expect(res.status).toBe(500);
     expect(data).toEqual({
-      error: "Canlı AI açıklaması şu anda üretilemedi.",
-      source: "error",
-      reason: "timeout",
-      disclaimer:
-        "Bu açıklama bilgilendirme amaçlıdır ve tıbbi tavsiye niteliği taşımaz.",
+      result: "Etkileşim analizi yapılamadı. Lütfen doktorunuza danışın.",
     });
+
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      "Detailed explanation fallback failed, using basic format:",
+      fakeError,
+    );
   });
 
   it("should return 429 when rate limit is exceeded", async () => {
@@ -251,5 +252,32 @@ describe("POST /api/explain", () => {
       },
       { ex: 604800 },
     );
+  });
+
+  it("should return 500 when an unexpected server error occurs", async () => {
+    const fakeError = new Error("Unexpected crash");
+    (shouldUseFallback as jest.Mock).mockImplementationOnce(() => {
+      throw fakeError;
+    });
+
+    const req = new Request("http://localhost/api/explain", {
+      method: "POST",
+      body: JSON.stringify({ interactionId: "test-interaction" }),
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    const res = await POST(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(500);
+    expect(data).toEqual({
+      error: "Açıklama oluşturulurken beklenmeyen bir sunucu hatası oluştu.",
+    });
+
+    expect(Sentry.captureException).toHaveBeenCalledWith(fakeError, {
+      tags: { route: "explain_crash" },
+    });
   });
 });

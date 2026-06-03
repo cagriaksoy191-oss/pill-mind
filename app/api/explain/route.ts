@@ -112,14 +112,13 @@ async function handleInteraction(interactionId: unknown) {
       disclaimer: DISCLAIMER,
     });
   } catch (error) {
-    return jsonNoStore(
-      {
-        error: "Canlı AI açıklaması şu anda üretilemedi.",
-        source: "error" as const,
-        reason: getErrorReason(error),
-        disclaimer: DISCLAIMER,
-      },
-      503,
+    console.warn(
+      "Detailed explanation fallback failed, using basic format:",
+      error,
+    );
+    return NextResponse.json(
+      { result: "Etkileşim analizi yapılamadı. Lütfen doktorunuza danışın." },
+      { status: 500 },
     );
   }
 }
@@ -201,14 +200,13 @@ async function handleCoverage(drugIds: unknown) {
       disclaimer: DISCLAIMER,
     });
   } catch (error) {
-    return jsonNoStore(
-      {
-        error: "Canlı AI açıklaması şu anda üretilemedi.",
-        source: "error" as const,
-        reason: getErrorReason(error),
-        disclaimer: DISCLAIMER,
-      },
-      503,
+    console.warn(
+      "Detailed explanation fallback failed, using basic format:",
+      error,
+    );
+    return NextResponse.json(
+      { result: "Etkileşim analizi yapılamadı. Lütfen doktorunuza danışın." },
+      { status: 500 },
     );
   }
 }

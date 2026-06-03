@@ -5,6 +5,25 @@ import {
 } from "../lib/gemini";
 
 describe("getCoverageContext", () => {
+  it("should catch errors and return null when an exception occurs", () => {
+    // Mock the drugsData filter method to throw an error
+    const spy = jest.spyOn(Array.prototype, 'filter').mockImplementationOnce(() => {
+      throw new Error("Simulated array filter error");
+    });
+
+    // Call the function - it should catch the error and return null
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    expect(getCoverageContext(["aspirin", "warfarin"])).toBeNull();
+
+    // Verify error was logged
+    expect(consoleSpy).toHaveBeenCalledWith("Context fetch error:", expect.any(Error));
+
+    // Restore the mocks
+    spy.mockRestore();
+    consoleSpy.mockRestore();
+  });
+
   it("should return null when an empty array is provided", () => {
     expect(getCoverageContext([])).toBeNull();
   });

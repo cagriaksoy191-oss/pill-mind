@@ -1,12 +1,17 @@
 /** @jest-environment node */
 import { POST } from "../app/api/pillbox/save/route";
-import { getSession } from "@/lib/auth";
+import * as auth from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { NextRequest } from "next/server";
 
-jest.mock("@/lib/auth", () => ({
-  getSession: jest.fn(),
-}));
+jest.mock("@/lib/auth", () => {
+  const originalModule = jest.requireActual("@/lib/auth");
+  return {
+    __esModule: true,
+    ...originalModule,
+    getSession: jest.fn(),
+  };
+});
 
 jest.mock("@/lib/prisma", () => ({
   prisma: {
@@ -30,8 +35,13 @@ describe("POST /api/pillbox/save", () => {
   };
 
   it("should return 401 if user is not authenticated", async () => {
-    (getSession as jest.Mock).mockReturnValue(null);
+    // Override the mock to call the original actual function for this specific test
+    (auth.getSession as jest.Mock).mockImplementation((req) => {
+      const { getSession: actualGetSession } = jest.requireActual("@/lib/auth");
+      return actualGetSession(req);
+    });
 
+    // Request without a session cookie
     const req = createRequest({ name: "My Pillbox", drugIds: ["drug-1"] });
     const response = await POST(req);
     const data = await response.json();
@@ -43,7 +53,7 @@ describe("POST /api/pillbox/save", () => {
   });
 
   it("should return 400 if name is missing or empty", async () => {
-    (getSession as jest.Mock).mockReturnValue({ userId: "user-1" });
+    (auth.getSession as jest.Mock).mockReturnValue({ userId: "user-1" });
 
     const req = createRequest({ name: "   ", drugIds: ["drug-1"] });
     const response = await POST(req);
@@ -54,7 +64,7 @@ describe("POST /api/pillbox/save", () => {
   });
 
   it("should return 400 if drugIds is missing, empty, or not an array", async () => {
-    (getSession as jest.Mock).mockReturnValue({ userId: "user-1" });
+    (auth.getSession as jest.Mock).mockReturnValue({ userId: "user-1" });
 
     const req1 = createRequest({ name: "My Pillbox" });
     const res1 = await POST(req1);
@@ -70,7 +80,7 @@ describe("POST /api/pillbox/save", () => {
   });
 
   it("should return 200 and save pillbox if data is valid", async () => {
-    (getSession as jest.Mock).mockReturnValue({ userId: "user-1" });
+    (auth.getSession as jest.Mock).mockReturnValue({ userId: "user-1" });
     (prisma.savedPillbox.create as jest.Mock).mockResolvedValue({
       id: "pillbox-1",
       userId: "user-1",
@@ -99,7 +109,7 @@ describe("POST /api/pillbox/save", () => {
   });
 
   it("should return 500 if database creation fails", async () => {
-    (getSession as jest.Mock).mockReturnValue({ userId: "user-1" });
+    (auth.getSession as jest.Mock).mockReturnValue({ userId: "user-1" });
     (prisma.savedPillbox.create as jest.Mock).mockRejectedValue(
       new Error("DB error"),
     );

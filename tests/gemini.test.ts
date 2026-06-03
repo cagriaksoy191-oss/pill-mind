@@ -1,4 +1,8 @@
-import { getCoverageContext, getInteractionContext, formatExplanation } from "../lib/gemini";
+import {
+  getCoverageContext,
+  getInteractionContext,
+  formatExplanation,
+} from "../lib/gemini";
 
 describe("getCoverageContext", () => {
   it("should return null when an empty array is provided", () => {
@@ -17,14 +21,25 @@ describe("getCoverageContext", () => {
     const result = getCoverageContext(["aspirin", "warfarin"]);
     expect(result).not.toBeNull();
     expect(result?.drugNames).toEqual(["Aspirin", "Coumadin (Warfarin)"]);
-    expect(result?.drugIngredients).toEqual(["Asetilsalisilik Asit", "Warfarin Sodyum"]);
+    expect(result?.drugIngredients).toEqual([
+      "Asetilsalisilik Asit",
+      "Warfarin Sodyum",
+    ]);
   });
 
   it("should return correct CoverageContext for more than 2 valid drug IDs", () => {
     const result = getCoverageContext(["aspirin", "warfarin", "metformin"]);
     expect(result).not.toBeNull();
-    expect(result?.drugNames).toEqual(["Aspirin", "Coumadin (Warfarin)", "Metformin"]);
-    expect(result?.drugIngredients).toEqual(["Asetilsalisilik Asit", "Warfarin Sodyum", "Metformin HCl"]);
+    expect(result?.drugNames).toEqual([
+      "Aspirin",
+      "Coumadin (Warfarin)",
+      "Metformin",
+    ]);
+    expect(result?.drugIngredients).toEqual([
+      "Asetilsalisilik Asit",
+      "Warfarin Sodyum",
+      "Metformin HCl",
+    ]);
   });
 });
 
@@ -98,14 +113,17 @@ describe("shouldUseFallback", () => {
   });
 });
 
-
 describe("Gemini Safety Shield Bypass", () => {
   const originalFetch = global.fetch;
   const originalEnv = process.env;
 
   beforeEach(() => {
     jest.resetModules();
-    process.env = { ...originalEnv, GOOGLE_API_KEY: "test_key", NEXT_PUBLIC_DEMO_MODE: "false" };
+    process.env = {
+      ...originalEnv,
+      GOOGLE_API_KEY: "test_key",
+      NEXT_PUBLIC_DEMO_MODE: "false",
+    };
   });
 
   afterEach(() => {
@@ -125,7 +143,8 @@ describe("Gemini Safety Shield Bypass", () => {
                 {
                   text: JSON.stringify({
                     girisCumlesi: "Merhaba",
-                    klinikEtkiAciklamasi: "Bu ilacı kesinlikle kullanmayın. Çok tehlikelidir.",
+                    klinikEtkiAciklamasi:
+                      "Bu ilacı kesinlikle kullanmayın. Çok tehlikelidir.",
                     hastalaraOneriler: ["Sadece doktorunuzu dinleyin."],
                     hekimYonlendirmesi: "Doktorunuza danışın.",
                   }),
@@ -148,16 +167,15 @@ describe("Gemini Safety Shield Bypass", () => {
     // Dummy coverage context
     const mockCtx = {
       drugNames: ["Aspirin", "Warfarin"],
-      drugIngredients: ["Asetilsalisilik Asit", "Warfarin Sodyum"]
+      drugIngredients: ["Asetilsalisilik Asit", "Warfarin Sodyum"],
     };
 
     // Because callGeminiWithPrompt retries over MODEL_CHAIN, it will fail on all models and throw the lastError.
     await expect(callGeminiForCoverage(mockCtx)).rejects.toThrow(
-      "AI çıktısı klinik güvenlik kurallarını (regex) ihlal ediyor."
+      "AI çıktısı klinik güvenlik kurallarını (regex) ihlal ediyor.",
     );
   });
 });
-
 
 describe("callGeminiForInteraction", () => {
   const originalFetch = global.fetch;
@@ -165,7 +183,11 @@ describe("callGeminiForInteraction", () => {
 
   beforeEach(() => {
     jest.resetModules();
-    process.env = { ...originalEnv, GOOGLE_API_KEY: "test_key", NEXT_PUBLIC_DEMO_MODE: "false" };
+    process.env = {
+      ...originalEnv,
+      GOOGLE_API_KEY: "test_key",
+      NEXT_PUBLIC_DEMO_MODE: "false",
+    };
   });
 
   afterEach(() => {
@@ -183,29 +205,46 @@ describe("callGeminiForInteraction", () => {
         // Reviewer agent request
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve({
-            candidates: [{ content: { parts: [{ text: "EVET" }] }, finishReason: "STOP" }],
-          }),
+          json: () =>
+            Promise.resolve({
+              candidates: [
+                {
+                  content: { parts: [{ text: "EVET" }] },
+                  finishReason: "STOP",
+                },
+              ],
+            }),
         });
       } else {
         // Main generation request
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve({
-            candidates: [{
-              content: {
-                parts: [{
-                  text: JSON.stringify({
-                    girisCumlesi: "Bu iki ilacın birlikte kullanılması sonucunda bazı yan etkiler görülebilir ve bu durum hastanın genel sağlık durumunu etkileyebilir.",
-                    klinikEtkiAciklamasi: "İlaçların etki mekanizmaları birbirini etkileyerek istenmeyen bazı klinik sonuçlara yol açabilme potansiyeline sahiptir.",
-                    hastalaraOneriler: ["Lütfen ilaçlarınızı düzenli olarak alın.", "Herhangi bir yan etki hissederseniz derhal bildirin."],
-                    hekimYonlendirmesi: "Bu bilgileri mutlaka kendi hekiminizle paylaşınız ve hekiminizin yönlendirmesi olmadan tedavi planınızı kesinlikle değiştirmeyiniz."
-                  })
-                }]
-              },
-              finishReason: "STOP"
-            }],
-          }),
+          json: () =>
+            Promise.resolve({
+              candidates: [
+                {
+                  content: {
+                    parts: [
+                      {
+                        text: JSON.stringify({
+                          girisCumlesi:
+                            "Bu iki ilacın birlikte kullanılması sonucunda bazı yan etkiler görülebilir ve bu durum hastanın genel sağlık durumunu etkileyebilir.",
+                          klinikEtkiAciklamasi:
+                            "İlaçların etki mekanizmaları birbirini etkileyerek istenmeyen bazı klinik sonuçlara yol açabilme potansiyeline sahiptir.",
+                          hastalaraOneriler: [
+                            "Lütfen ilaçlarınızı düzenli olarak alın.",
+                            "Herhangi bir yan etki hissederseniz derhal bildirin.",
+                          ],
+                          hekimYonlendirmesi:
+                            "Bu bilgileri mutlaka kendi hekiminizle paylaşınız ve hekiminizin yönlendirmesi olmadan tedavi planınızı kesinlikle değiştirmeyiniz.",
+                        }),
+                      },
+                    ],
+                  },
+                  finishReason: "STOP",
+                },
+              ],
+            }),
         });
       }
     });
@@ -213,21 +252,34 @@ describe("callGeminiForInteraction", () => {
     const { callGeminiForInteraction } = await import("../lib/gemini");
     const mockCtx = {
       interaction: {
-        id: "test", drug1: "test1", drug2: "test2", severity: "high", summary: "sum", source: "src"
+        id: "test",
+        drug1: "test1",
+        drug2: "test2",
+        severity: "high",
+        summary: "sum",
+        source: "src",
       },
       drug1Name: "Drug1",
       drug2Name: "Drug2",
       drug1Ingredient: "Ing1",
-      drug2Ingredient: "Ing2"
+      drug2Ingredient: "Ing2",
     };
 
     const result = await callGeminiForInteraction(mockCtx);
 
     expect(result).toHaveProperty("explanation");
-    expect(result.explanation).toContain("Bu iki ilacın birlikte kullanılması sonucunda bazı yan etkiler görülebilir ve bu durum hastanın genel sağlık durumunu etkileyebilir.");
-    expect(result.explanation).toContain("İlaçların etki mekanizmaları birbirini etkileyerek istenmeyen bazı klinik sonuçlara yol açabilme potansiyeline sahiptir.");
-    expect(result.explanation).toContain("Lütfen ilaçlarınızı düzenli olarak alın.");
-    expect(result.explanation).toContain("Bu bilgileri mutlaka kendi hekiminizle paylaşınız ve hekiminizin yönlendirmesi olmadan tedavi planınızı kesinlikle değiştirmeyiniz.");
+    expect(result.explanation).toContain(
+      "Bu iki ilacın birlikte kullanılması sonucunda bazı yan etkiler görülebilir ve bu durum hastanın genel sağlık durumunu etkileyebilir.",
+    );
+    expect(result.explanation).toContain(
+      "İlaçların etki mekanizmaları birbirini etkileyerek istenmeyen bazı klinik sonuçlara yol açabilme potansiyeline sahiptir.",
+    );
+    expect(result.explanation).toContain(
+      "Lütfen ilaçlarınızı düzenli olarak alın.",
+    );
+    expect(result.explanation).toContain(
+      "Bu bilgileri mutlaka kendi hekiminizle paylaşınız ve hekiminizin yönlendirmesi olmadan tedavi planınızı kesinlikle değiştirmeyiniz.",
+    );
     expect(result).toHaveProperty("generatedAt");
   });
 
@@ -240,29 +292,40 @@ describe("callGeminiForInteraction", () => {
         // Reviewer agent request -> FAILS the safety check
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve({
-            candidates: [{ content: { parts: [{ text: "HAYIR" }] }, finishReason: "STOP" }],
-          }),
+          json: () =>
+            Promise.resolve({
+              candidates: [
+                {
+                  content: { parts: [{ text: "HAYIR" }] },
+                  finishReason: "STOP",
+                },
+              ],
+            }),
         });
       } else {
         // Main generation request
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve({
-            candidates: [{
-              content: {
-                parts: [{
-                  text: JSON.stringify({
-                    girisCumlesi: "Giriş.",
-                    klinikEtkiAciklamasi: "Etki.",
-                    hastalaraOneriler: ["Öneri 1."],
-                    hekimYonlendirmesi: "Hekime danışın."
-                  })
-                }]
-              },
-              finishReason: "STOP"
-            }],
-          }),
+          json: () =>
+            Promise.resolve({
+              candidates: [
+                {
+                  content: {
+                    parts: [
+                      {
+                        text: JSON.stringify({
+                          girisCumlesi: "Giriş.",
+                          klinikEtkiAciklamasi: "Etki.",
+                          hastalaraOneriler: ["Öneri 1."],
+                          hekimYonlendirmesi: "Hekime danışın.",
+                        }),
+                      },
+                    ],
+                  },
+                  finishReason: "STOP",
+                },
+              ],
+            }),
         });
       }
     });
@@ -270,20 +333,24 @@ describe("callGeminiForInteraction", () => {
     const { callGeminiForInteraction } = await import("../lib/gemini");
     const mockCtx = {
       interaction: {
-        id: "test", drug1: "test1", drug2: "test2", severity: "high", summary: "sum", source: "src"
+        id: "test",
+        drug1: "test1",
+        drug2: "test2",
+        severity: "high",
+        summary: "sum",
+        source: "src",
       },
       drug1Name: "Drug1",
       drug2Name: "Drug2",
       drug1Ingredient: "Ing1",
-      drug2Ingredient: "Ing2"
+      drug2Ingredient: "Ing2",
     };
 
     await expect(callGeminiForInteraction(mockCtx)).rejects.toThrow(
-      "AI çıktısı klinik güvenlik kurallarını (Reviewer Agent) ihlal ediyor."
+      "AI çıktısı klinik güvenlik kurallarını (Reviewer Agent) ihlal ediyor.",
     );
   });
 });
-
 
 describe("callGeminiForCoverage", () => {
   const originalFetch = global.fetch;
@@ -291,7 +358,11 @@ describe("callGeminiForCoverage", () => {
 
   beforeEach(() => {
     jest.resetModules();
-    process.env = { ...originalEnv, GOOGLE_API_KEY: "test_key", NEXT_PUBLIC_DEMO_MODE: "false" };
+    process.env = {
+      ...originalEnv,
+      GOOGLE_API_KEY: "test_key",
+      NEXT_PUBLIC_DEMO_MODE: "false",
+    };
   });
 
   afterEach(() => {
@@ -309,29 +380,46 @@ describe("callGeminiForCoverage", () => {
         // Reviewer agent request -> PASSES the safety check
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve({
-            candidates: [{ content: { parts: [{ text: "EVET" }] }, finishReason: "STOP" }],
-          }),
+          json: () =>
+            Promise.resolve({
+              candidates: [
+                {
+                  content: { parts: [{ text: "EVET" }] },
+                  finishReason: "STOP",
+                },
+              ],
+            }),
         });
       } else {
         // Main generation request
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve({
-            candidates: [{
-              content: {
-                parts: [{
-                  text: JSON.stringify({
-                    girisCumlesi: "Bu ilaçların birlikte kullanımı üzerine demo veri setimizde kayıtlı bir etkileşim bulunmamaktadır.",
-                    klinikEtkiAciklamasi: "Bu durum, ilaçların tamamen risksiz olduğu anlamına gelmez. Veritabanımızda belgelenmiş spesifik bir kayıt yoktur.",
-                    hastalaraOneriler: ["İlaçlarınızı doktorunuzun önerdiği şekilde kullanmaya devam edin.", "Beklenmeyen bir etki görürseniz bildirin."],
-                    hekimYonlendirmesi: "Kesin bir risk değerlendirmesi için mutlaka hekiminize veya eczacınıza danışın."
-                  })
-                }]
-              },
-              finishReason: "STOP"
-            }],
-          }),
+          json: () =>
+            Promise.resolve({
+              candidates: [
+                {
+                  content: {
+                    parts: [
+                      {
+                        text: JSON.stringify({
+                          girisCumlesi:
+                            "Bu ilaçların birlikte kullanımı üzerine demo veri setimizde kayıtlı bir etkileşim bulunmamaktadır.",
+                          klinikEtkiAciklamasi:
+                            "Bu durum, ilaçların tamamen risksiz olduğu anlamına gelmez. Veritabanımızda belgelenmiş spesifik bir kayıt yoktur.",
+                          hastalaraOneriler: [
+                            "İlaçlarınızı doktorunuzun önerdiği şekilde kullanmaya devam edin.",
+                            "Beklenmeyen bir etki görürseniz bildirin.",
+                          ],
+                          hekimYonlendirmesi:
+                            "Kesin bir risk değerlendirmesi için mutlaka hekiminize veya eczacınıza danışın.",
+                        }),
+                      },
+                    ],
+                  },
+                  finishReason: "STOP",
+                },
+              ],
+            }),
         });
       }
     });
@@ -339,15 +427,21 @@ describe("callGeminiForCoverage", () => {
     const { callGeminiForCoverage } = await import("../lib/gemini");
     const mockCtx = {
       drugNames: ["Drug A", "Drug B"],
-      drugIngredients: ["Ingredient A", "Ingredient B"]
+      drugIngredients: ["Ingredient A", "Ingredient B"],
     };
 
     const result = await callGeminiForCoverage(mockCtx);
 
     expect(result).toHaveProperty("explanation");
-    expect(result.explanation).toContain("demo veri setimizde kayıtlı bir etkileşim bulunmamaktadır.");
-    expect(result.explanation).toContain("Beklenmeyen bir etki görürseniz bildirin.");
-    expect(result.explanation).toContain("mutlaka hekiminize veya eczacınıza danışın.");
+    expect(result.explanation).toContain(
+      "demo veri setimizde kayıtlı bir etkileşim bulunmamaktadır.",
+    );
+    expect(result.explanation).toContain(
+      "Beklenmeyen bir etki görürseniz bildirin.",
+    );
+    expect(result.explanation).toContain(
+      "mutlaka hekiminize veya eczacınıza danışın.",
+    );
     expect(result).toHaveProperty("generatedAt");
   });
 });
@@ -356,7 +450,7 @@ describe("formatExplanation", () => {
   it("should handle missing fields (girisCumlesi and klinikEtkiAciklamasi) properly without adding extra empty lines", () => {
     const input = {
       hastalaraOneriler: ["Öneri 1"],
-      hekimYonlendirmesi: "Hekime danışın."
+      hekimYonlendirmesi: "Hekime danışın.",
     };
     const expected = `**Önemli Belirtiler ve Öneriler:**\n• Öneri 1\n\nHekime danışın.`;
     expect(formatExplanation(input)).toBe(expected);
@@ -365,7 +459,7 @@ describe("formatExplanation", () => {
   it("should properly output etkilesim_mekanizmasi if it exists", () => {
     const input = {
       etkilesim_mekanizmasi: "Mekanizma budur.",
-      girisCumlesi: "Giriş."
+      girisCumlesi: "Giriş.",
     };
     const expected = `**Etkileşim Mekanizması:**\nMekanizma budur.\n\nGiriş.`;
     expect(formatExplanation(input)).toBe(expected);
@@ -377,11 +471,10 @@ describe("formatExplanation", () => {
     expect(formatExplanation(input)).toBe(expected);
   });
 
-
   it("should handle missing girisCumlesi and klinikEtkiAciklamasi properly", () => {
     const input = {
       hastalaraOneriler: ["Öneri 1"],
-      hekimYonlendirmesi: "Hekime danışın."
+      hekimYonlendirmesi: "Hekime danışın.",
     };
     const expected = `**Önemli Belirtiler ve Öneriler:**
 • Öneri 1
@@ -390,11 +483,10 @@ Hekime danışın.`;
     expect(formatExplanation(input)).toBe(expected);
   });
 
-
   it("should handle completely missing hastalaraOneriler property gracefully", () => {
     const input = {
       girisCumlesi: "Giriş",
-      klinikEtkiAciklamasi: "Klinik"
+      klinikEtkiAciklamasi: "Klinik",
     };
 
     const expected = `Giriş\n\nKlinik`;
@@ -407,7 +499,7 @@ Hekime danışın.`;
       girisCumlesi: "Bu bir giriş cümlesidir.",
       klinikEtkiAciklamasi: "Bu bir klinik etki açıklamasıdır.",
       hastalaraOneriler: ["Öneri 1", "Öneri 2"],
-      hekimYonlendirmesi: "Bu bir hekim yönlendirmesidir."
+      hekimYonlendirmesi: "Bu bir hekim yönlendirmesidir.",
     };
 
     const expected = `Bu bir giriş cümlesidir.
@@ -425,7 +517,7 @@ Bu bir hekim yönlendirmesidir.`;
 
   it("should handle missing string fields gracefully", () => {
     const input = {
-      hastalaraOneriler: ["Öneri 1"]
+      hastalaraOneriler: ["Öneri 1"],
     };
 
     const expected = `**Önemli Belirtiler ve Öneriler:**
@@ -436,7 +528,7 @@ Bu bir hekim yönlendirmesidir.`;
 
   it("should handle hastalaraOneriler as a string instead of an array", () => {
     const input = {
-      hastalaraOneriler: "Tek bir öneri string olarak"
+      hastalaraOneriler: "Tek bir öneri string olarak",
     };
 
     const expected = `**Önemli Belirtiler ve Öneriler:**
@@ -459,7 +551,7 @@ Bu bir hekim yönlendirmesidir.`;
 
   it("should handle hastalaraOneriler as an object (invalid type)", () => {
     const input = {
-      hastalaraOneriler: { someKey: "someValue" }
+      hastalaraOneriler: { someKey: "someValue" },
     };
 
     const expected = ``;
@@ -479,7 +571,14 @@ Bu bir hekim yönlendirmesidir.`;
 
   it("should handle hastalaraOneriler as an array with invalid elements gracefully", () => {
     const input = {
-      hastalaraOneriler: ["Valid", null, undefined, 456, false, "Another valid"]
+      hastalaraOneriler: [
+        "Valid",
+        null,
+        undefined,
+        456,
+        false,
+        "Another valid",
+      ],
     };
 
     const expected = `**Önemli Belirtiler ve Öneriler:**
@@ -489,5 +588,47 @@ Bu bir hekim yönlendirmesidir.`;
 
     expect(formatExplanation(input)).toBe(expected);
   });
+});
 
+describe("isOutputSafe", () => {
+  let isOutputSafe: (text: string) => boolean;
+
+  beforeAll(async () => {
+    const mod = await import("../lib/gemini");
+    isOutputSafe = mod.isOutputSafe;
+  });
+
+  it("should return true for safe text", () => {
+    expect(
+      isOutputSafe("Lütfen doktorunuza danışın ve tedavi planınızı uygulayın."),
+    ).toBe(true);
+    expect(isOutputSafe("Bu ilaçların olası etkileşimleri şunlardır...")).toBe(
+      true,
+    );
+  });
+
+  it("should return false for exact unsafe matches", () => {
+    expect(isOutputSafe("Bu ilacı kesinlikle kullanmayın.")).toBe(false);
+    expect(isOutputSafe("Tedavinizi bırakın.")).toBe(false);
+  });
+
+  it("should handle case-insensitivity correctly", () => {
+    expect(isOutputSafe("Kullanmayın!")).toBe(false);
+    expect(isOutputSafe("TEDAVİYİ Bırakmalısınız")).toBe(false);
+  });
+
+  it("should correctly catch various unsafe patterns with word boundaries", () => {
+    expect(isOutputSafe("Bu ilaç kesinlikle tehlikelidir")).toBe(false); // tehlikeli
+    expect(isOutputSafe("Bunun yerine şu ilacı kullan.")).toBe(false); // yerine ... kullan
+    expect(
+      isOutputSafe("Doktorunuza danışmadan tedavinizi değiştirmeyiniz"),
+    ).toBe(false); // tedavinizi değiştir
+  });
+
+  it("should not match substrings of longer safe words", () => {
+    // Ensuring "bırakın" inside a larger word wouldn't normally trigger it,
+    // though the regex allows trailing letters so this needs care.
+    // E.g., "bırakınız" should be unsafe, but if there was a word "abırakın", it should be safe.
+    expect(isOutputSafe("abırakın")).toBe(true);
+  });
 });

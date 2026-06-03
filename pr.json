@@ -1,4 +1,0 @@
-{
-  "title": "🧪 Add tests for isOutputSafe in gemini.ts",
-  "description": "🎯 **What:** The `isOutputSafe` function inside `lib/gemini.ts` was previously untested. This PR adds a comprehensive test suite to ensure its reliability.\n📊 **Coverage:** Covered happy paths (safe text), exact matches (unsafe phrases like 'kullanmayın', 'bırakın'), regex-based word boundary patterns, case-insensitivity, and substring safety.\n✨ **Result:** Improved test coverage for critical safety-checking logic, ensuring the AI model outputs adhere to clinical safety regulations."
-}

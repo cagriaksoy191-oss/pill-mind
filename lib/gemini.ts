@@ -355,7 +355,7 @@ async function executeGeminiRequest(model: string, payload: string): Promise<str
   return rawText;
 }
 
-function parseGeminiResponse(rawText: string): any {
+function parseGeminiResponse(rawText: string): unknown {
   let cleanText = rawText.trim();
 
   // Strip markdown json blocks if returned by the model under any edge conditions
@@ -370,25 +370,34 @@ function parseGeminiResponse(rawText: string): any {
   }
 }
 
-export function formatExplanation(parsedJSON: any): string {
+interface GeminiResponseShape {
+  etkilesim_mekanizmasi?: string;
+  girisCumlesi?: string;
+  klinikEtkiAciklamasi?: string;
+  hastalaraOneriler?: string | string[];
+  hekimYonlendirmesi?: string;
+}
+
+export function formatExplanation(parsedJSON: Record<string, unknown>): string {
+  const data = parsedJSON as unknown as GeminiResponseShape;
   let result = "";
 
-  if (parsedJSON.etkilesim_mekanizmasi) {
-    result += `**Etkileşim Mekanizması:**\n${parsedJSON.etkilesim_mekanizmasi}\n\n`;
+  if (typeof data.etkilesim_mekanizmasi === "string" && data.etkilesim_mekanizmasi) {
+    result += `**Etkileşim Mekanizması:**\n${data.etkilesim_mekanizmasi}\n\n`;
   }
 
-  const giris = normalizeExplanation(parsedJSON.girisCumlesi || "");
+  const giris = normalizeExplanation(typeof data.girisCumlesi === "string" ? data.girisCumlesi : "");
   if (giris) {
     result += `${giris}\n\n`;
   }
 
-  const klinik = normalizeExplanation(parsedJSON.klinikEtkiAciklamasi || "");
+  const klinik = normalizeExplanation(typeof data.klinikEtkiAciklamasi === "string" ? data.klinikEtkiAciklamasi : "");
   if (klinik) {
     result += `${klinik}\n\n`;
   }
 
   // Resilient parsing for patient advice list to avoid type crashes if model outputs non-array values
-  let rawOneriler = parsedJSON.hastalaraOneriler;
+  let rawOneriler = data.hastalaraOneriler;
   if (!Array.isArray(rawOneriler)) {
     if (typeof rawOneriler === "string") {
       rawOneriler = [rawOneriler];
@@ -396,8 +405,8 @@ export function formatExplanation(parsedJSON: any): string {
       rawOneriler = [];
     }
   }
-  const oneriler: string[] = rawOneriler
-    .map((o: any) => normalizeExplanation(String(o || "")))
+  const oneriler: string[] = (rawOneriler as unknown[])
+    .map((o: unknown) => normalizeExplanation(String(o || "")))
     .filter(Boolean);
 
   if (oneriler.length > 0) {
@@ -406,7 +415,7 @@ export function formatExplanation(parsedJSON: any): string {
     result += "\n\n";
   }
 
-  const hekim = normalizeExplanation(parsedJSON.hekimYonlendirmesi || "");
+  const hekim = normalizeExplanation(typeof data.hekimYonlendirmesi === "string" ? data.hekimYonlendirmesi : "");
   if (hekim) {
     result += `${hekim}\n\n`;
   }
@@ -425,7 +434,7 @@ function createTimeoutReject(ms: number, message: string): { promise: Promise<ne
 
 async function executeGeminiChainTask(model: string, payload: string): Promise<GeminiResult> {
   const rawText = await executeGeminiRequest(model, payload);
-  const parsedJSON = parseGeminiResponse(rawText);
+  const parsedJSON = parseGeminiResponse(rawText) as Record<string, unknown>;
   const compiledExplanation = formatExplanation(parsedJSON);
 
   if (!isOutputSafe(compiledExplanation)) {

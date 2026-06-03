@@ -1,9 +1,9 @@
 import ResultCard from "@/components/ResultCard";
-import { CheckResult } from "@/lib/interactions";
+import { CheckResult, ExplanationData } from "@/lib/interactions";
 
 interface InteractionListProps {
   interactions: CheckResult[];
-  explanations: Record<string, any>;
+  explanations: Record<string, ExplanationData>;
   loadingExplanations: Record<string, boolean>;
   onExplainRequested: (interactionId: string, force: boolean) => Promise<void>;
   handleRequestCoverageExplanation: () => Promise<void>;
@@ -45,7 +45,8 @@ export default function InteractionList({
           <span>🧬</span> Tüm Kombinasyonun Canlı AI Analizi
         </h4>
         <p className="text-[10px] text-slate-400 mt-1 max-w-xs mx-auto leading-relaxed">
-          Kutudaki tüm ilaçları bir bütün olarak değerlendiren kapsamlı bir tıbbi yapay zeka analizi alın.
+          Kutudaki tüm ilaçları bir bütün olarak değerlendiren kapsamlı bir
+          tıbbi yapay zeka analizi alın.
         </p>
         <button
           onClick={handleRequestCoverageExplanation}
@@ -54,9 +55,24 @@ export default function InteractionList({
         >
           {isCoverageLoading ? (
             <>
-              <svg className="animate-spin h-3.5 w-3.5 text-indigo-400" viewBox="0 0 24 24" fill="none">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              <svg
+                className="animate-spin h-3.5 w-3.5 text-indigo-400"
+                viewBox="0 0 24 24"
+                fill="none"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                />
               </svg>
               Yükleniyor...
             </>

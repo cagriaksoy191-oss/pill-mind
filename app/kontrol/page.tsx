@@ -1,7 +1,12 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { getAllDrugs, Drug, CheckResult } from "@/lib/interactions";
+import {
+  getAllDrugs,
+  Drug,
+  CheckResult,
+  ExplanationData,
+} from "@/lib/interactions";
 import DrugSelector from "@/components/DrugSelector";
 import VirtualPillbox from "@/components/VirtualPillbox";
 import Disclaimer from "@/components/Disclaimer";
@@ -23,19 +28,16 @@ export default function KontrolPage() {
   const [checkingError, setCheckingError] = useState<string | null>(null);
 
   // Individual interaction explanation states
-  const [explanations, setExplanations] = useState<Record<string, any>>({});
+  const [explanations, setExplanations] = useState<
+    Record<string, ExplanationData>
+  >({});
   const [loadingExplanations, setLoadingExplanations] = useState<
     Record<string, boolean>
   >({});
 
   // Global combination analysis states (Coverage)
-  const [coverageExplanation, setCoverageExplanation] = useState<{
-    explanation?: string;
-    source?: string;
-    generatedAt?: string;
-    error?: string;
-    reason?: string;
-  } | null>(null);
+  const [coverageExplanation, setCoverageExplanation] =
+    useState<ExplanationData | null>(null);
   const [isCoverageLoading, setIsCoverageLoading] = useState(false);
   const [showCoveragePanel, setShowCoveragePanel] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
@@ -103,7 +105,8 @@ export default function KontrolPage() {
 
         const data = await res.json();
         setInteractions(data.interactions || []);
-      } catch (err: any) {
+      } catch (error) {
+        const err = error instanceof Error ? error : new Error(String(error));
         console.warn(
           "[PillMind Check Engine] Sunucu API hatası veya ağ kaybı, çevrimdışı yerel tarama çekirdeği devreye alınıyor:",
           err,
@@ -144,7 +147,8 @@ export default function KontrolPage() {
 
         const data = await res.json();
         setExplanations((prev) => ({ ...prev, [interactionId]: data }));
-      } catch (err: any) {
+      } catch (error) {
+        const err = error instanceof Error ? error : new Error(String(error));
         console.error("[PillMind Explain Engine] Error:", err);
         setExplanations((prev) => ({
           ...prev,
@@ -181,7 +185,8 @@ export default function KontrolPage() {
 
       const data = await res.json();
       setCoverageExplanation(data);
-    } catch (err: any) {
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
       console.error("[PillMind Coverage Engine] Error:", err);
       setCoverageExplanation({
         source: "error",

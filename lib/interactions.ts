@@ -268,3 +268,12 @@ export function getSeverityColor(severity: string): {
       };
   }
 }
+
+export interface ExplanationData {
+  explanation?: string;
+  source?: string;
+  generatedAt?: string;
+  reason?: string;
+  error?: string;
+  disclaimer?: string;
+}

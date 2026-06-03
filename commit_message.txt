@@ -1,6 +1,0 @@
-🧪 Add tests for isOutputSafe in gemini.ts
-
-- Added a comprehensive test suite for isOutputSafe inside tests/gemini.test.ts.
-- Tests verify detection of unsafe texts using existing regex patterns.
-- Covered exact matches, case-insensitivity, and regex word boundaries.
-- Covered safe text passages and substring validations.

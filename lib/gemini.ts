@@ -371,8 +371,21 @@ function parseGeminiResponse(rawText: string): any {
 }
 
 export function formatExplanation(parsedJSON: any): string {
+  let result = "";
+
+  if (parsedJSON.etkilesim_mekanizmasi) {
+    result += `**Etkileşim Mekanizması:**\n${parsedJSON.etkilesim_mekanizmasi}\n\n`;
+  }
+
   const giris = normalizeExplanation(parsedJSON.girisCumlesi || "");
+  if (giris) {
+    result += `${giris}\n\n`;
+  }
+
   const klinik = normalizeExplanation(parsedJSON.klinikEtkiAciklamasi || "");
+  if (klinik) {
+    result += `${klinik}\n\n`;
+  }
 
   // Resilient parsing for patient advice list to avoid type crashes if model outputs non-array values
   let rawOneriler = parsedJSON.hastalaraOneriler;
@@ -387,18 +400,18 @@ export function formatExplanation(parsedJSON: any): string {
     .map((o: any) => normalizeExplanation(String(o || "")))
     .filter(Boolean);
 
+  if (oneriler.length > 0) {
+    result += `**Önemli Belirtiler ve Öneriler:**\n`;
+    result += oneriler.map((o) => `• ${o}`).join("\n");
+    result += "\n\n";
+  }
+
   const hekim = normalizeExplanation(parsedJSON.hekimYonlendirmesi || "");
+  if (hekim) {
+    result += `${hekim}\n\n`;
+  }
 
-  return `
-${giris}
-
-${klinik}
-
-**Önemli Belirtiler ve Öneriler:**
-${oneriler.map((o) => `• ${o}`).join("\n")}
-
-${hekim}
-`.trim();
+  return result.trim();
 }
 
 // Helper to create a promise that rejects after a timeout, with cleanup

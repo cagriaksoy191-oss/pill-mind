@@ -72,7 +72,7 @@ describe('StatusHeader Component', () => {
       <StatusHeader
         selectedDrugIds={['drug1', 'drug2']}
         isChecking={false}
-        interactions={interactions}
+        interactions={interactions as any}
         onLoadPillbox={mockOnLoadPillbox}
       />
     );
@@ -87,7 +87,7 @@ describe('StatusHeader Component', () => {
       <StatusHeader
         selectedDrugIds={['drug1', 'drug2']}
         isChecking={false}
-        interactions={interactions}
+        interactions={interactions as any}
         onLoadPillbox={mockOnLoadPillbox}
       />
     );

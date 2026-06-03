@@ -612,6 +612,26 @@ describe("isOutputSafe", () => {
     expect(isOutputSafe("Tedavinizi bırakın.")).toBe(false);
   });
 
+
+  it.each([
+    ["kullanmayın", "Bu ilacı kullanmayın."],
+    ["bırakın", "Tedaviyi hemen bırakınız."],
+    ["bırakmalı", "İlacı bırakmalısınız."],
+    ["tedaviye başlayın", "Yeni bir tedaviye başlayın."],
+    ["tedavinizi değiştir", "Lütfen tedavinizi değiştirin."],
+    ["tanı koy", "Bu belirtilerle tanınız hipertansiyondur."],
+    ["reçete yaz", "Size yeni bir reçete yazıyorum."],
+    ["doz ayarla", "İlacın dozunu ayarlayınız."],
+    ["dozu değiştir", "Kendi başınıza dozu değiştirmeyiniz."],
+    ["kesinlikle güvenli", "Bu kombinasyon kesinlikle güvenlidir."],
+    ["kesinlikle tehlikeli", "Bu ilaçları birlikte almak kesinlikle tehlikelidir."],
+    ["muadil ilaç", "Bu ilacın yerine muadil ilaç kullanabilirsiniz."],
+    ["yerine kullan", "Bunun yerine Aspirin kullanın."],
+  ])("should return false for pattern %s", (pattern, phrase) => {
+    expect(isOutputSafe(phrase)).toBe(false);
+  });
+
+
   it("should handle case-insensitivity correctly", () => {
     expect(isOutputSafe("Kullanmayın!")).toBe(false);
     expect(isOutputSafe("TEDAVİYİ Bırakmalısınız")).toBe(false);

@@ -1,5 +1,6 @@
-🧪 Test useKeyboardNavigation with empty items
+🧪 Add tests for isOutputSafe in gemini.ts
 
-🎯 What: Added tests to `tests/useKeyboardNavigation.test.ts` to cover scenarios when the items array (`filtered`) is empty, specifically testing `ArrowDown`, `ArrowUp`, and `Enter` key events.
-📊 Coverage: Added tests for `useKeyboardNavigation` hook to cover boundaries and empty array scenarios.
-✨ Result: Increased test coverage for the `useKeyboardNavigation` custom hook, ensuring that arrow keys and Enter events correctly compute boundaries or handle empty items without errors.
+- Added a comprehensive test suite for isOutputSafe inside tests/gemini.test.ts.
+- Tests verify detection of unsafe texts using existing regex patterns.
+- Covered exact matches, case-insensitivity, and regex word boundaries.
+- Covered safe text passages and substring validations.

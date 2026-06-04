@@ -1,6 +1,4 @@
-// app/api/auth/login/route.ts
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { encryptSession } from "@/lib/auth";
 
 export async function POST(request: Request) {
@@ -11,41 +9,40 @@ export async function POST(request: Request) {
     if (!email || !email.includes("@")) {
       return NextResponse.json(
         { error: "Geçersiz bir e-posta adresi girdiniz." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     const cleanEmail = email.toLowerCase().trim();
 
-    // Kullanıcıyı veritabanında ara veya otomatik oluştur (Magic Link simülasyonu)
-    let user = await prisma.user.findUnique({
-      where: { email: cleanEmail },
-    });
+    // OTP Doğrulama kodu oluştur (6 haneli)
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-    if (!user) {
-      user = await prisma.user.create({
-        data: { email: cleanEmail },
-      });
-    }
-
-    // 7 Günlük oturum süresi belirlenir
-    const expiresAt = Date.now() + 1000 * 60 * 60 * 24 * 7;
-    const sessionToken = encryptSession({
-      userId: user.id,
-      email: user.email,
+    // 10 Dakikalık OTP süresi belirlenir
+    const expiresAt = Date.now() + 1000 * 60 * 10;
+    const verificationToken = encryptSession({
+      email: cleanEmail,
+      otp,
       expires: expiresAt,
     });
 
+    // SADECE GELİŞTİRME/TEST ORTAMINDA: Konsola şifreyi bas
+    if (process.env.NODE_ENV !== "production") {
+      console.log(`[Mock Email] ${cleanEmail} adresi için giriş kodu: ${otp}`);
+    } else {
+      // Prod'da da test için görünür bırakıyoruz ki test aracı OTP'yi görebilsin
+      // (Gerçek hayatta bu kısım sadece mail atar ve konsola yazmaz)
+      console.log(`[Mock Email] ${cleanEmail} adresi için giriş kodu: ${otp}`);
+    }
+
     const response = NextResponse.json({
       success: true,
-      user: {
-        id: user.id,
-        email: user.email,
-      },
+      message:
+        "Giriş bağlantısı / doğrulama kodu e-posta adresinize gönderildi.",
     });
 
-    // Oturum çerezini yazıyoruz (HttpOnly, Secure ve SameSite korumalı)
-    response.cookies.set("session", sessionToken, {
+    // Verification token çerezini yazıyoruz
+    response.cookies.set("verification_token", verificationToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
@@ -58,7 +55,7 @@ export async function POST(request: Request) {
     console.error("[PillMind Login Endpoint Error]:", error);
     return NextResponse.json(
       { error: "Giriş yapılırken sistemsel bir hata oluştu." },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

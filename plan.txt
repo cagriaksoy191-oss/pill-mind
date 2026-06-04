@@ -1,0 +1,22 @@
+1. Modify `app/api/auth/login/route.ts` to implement a real mock email verification flow.
+    Currently, the API endpoint just automatically creates a user if they don't exist and logs them in immediately. This simulates a magic link but misses the verification part entirely. Any user can log in as any other user by just guessing or knowing their email address. We should fix this.
+
+    Since we don't actually have an email provider configured to send magic links, we'll implement a secure fallback or simulate it. But the prompt says "Implementing proper authentication requires adding password hashing or an actual email verification flow, which involves moderate code changes but is definitely fixable."
+
+    Wait, we don't have a password field in the Prisma schema.
+    Prisma schema `User` model:
+    ```prisma
+    model User {
+      id             String         @id @default(uuid())
+      email          String         @unique
+      createdAt      DateTime       @default(now())
+      savedPillboxes SavedPillbox[]
+    }
+    ```
+    If we don't add a password, we can simulate an email verification step where we pretend to send an email, and maybe we just print the code in the server logs or we could add a simple password to the schema.
+    Let's check if the frontend has a password field. In `components/UserPanel.tsx`, the form only takes `emailInput`.
+
+    If we need to fix it securely but avoid adding passwords or real emails, we can:
+    - Log an error or return a specific response if the user tries to login but we are simulating the magic link.
+    Actually, maybe we shouldn't just create the user and log them in instantly. We could at least require a mock OTP or something.
+    Wait, what is the standard fix for "Insecure Authentication (Missing Verification)" when it says "which involves moderate code changes but is definitely fixable"?

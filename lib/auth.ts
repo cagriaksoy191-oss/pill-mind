@@ -10,10 +10,17 @@ export interface SessionData {
   expires: number;
 }
 
+export interface VerificationData {
+  email: string;
+  otp: string;
+  expires: number;
+}
+
+
 /**
  * AES-256-CBC algoritmasıyla oturum verisini şifreler
  */
-export function encryptSession(data: SessionData): string {
+export function encryptSession(data: SessionData | VerificationData): string {
   const key = crypto.scryptSync(JWT_SECRET, "salt", 32);
   const iv = Buffer.alloc(16, 0); // Sabit IV (Basit serverless oturumu için)
   const cipher = crypto.createCipheriv("aes-256-cbc", key, iv);
@@ -25,14 +32,14 @@ export function encryptSession(data: SessionData): string {
 /**
  * Oturum şifresini çözerek doğrular
  */
-export function decryptSession(token: string): SessionData | null {
+export function decryptSession(token: string): SessionData | VerificationData | null {
   try {
     const key = crypto.scryptSync(JWT_SECRET, "salt", 32);
     const iv = Buffer.alloc(16, 0);
     const decipher = crypto.createDecipheriv("aes-256-cbc", key, iv);
     let decrypted = decipher.update(token, "hex", "utf8");
     decrypted += decipher.final("utf8");
-    const data = JSON.parse(decrypted) as SessionData;
+    const data = JSON.parse(decrypted) as SessionData | VerificationData;
     return data;
   } catch {
     return null;
@@ -45,7 +52,7 @@ export function decryptSession(token: string): SessionData | null {
 export function getSession(req: NextRequest): SessionData | null {
   const cookie = req.cookies.get("session");
   if (!cookie) return null;
-  const session = decryptSession(cookie.value);
+  const session = decryptSession(cookie.value) as SessionData | null;
   if (!session) return null;
 
   // Zaman aşımı kontrolü

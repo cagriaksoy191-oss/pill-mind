@@ -1,0 +1,12 @@
+Wait, let's review memory: "The application uses a passwordless 'Magic Link' simulation for authentication (auto-creating users via email) rather than traditional passwords with `bcrypt`. Ensure testing accounts for this specific architecture."
+
+Wait, the prompt says:
+"Implementing proper authentication requires adding password hashing or an actual email verification flow, which involves moderate code changes but is definitely fixable."
+
+Ah, wait! I have an option! "adding password hashing OR an actual email verification flow". But the memory guideline explicitly says:
+"The application uses a passwordless 'Magic Link' simulation for authentication (auto-creating users via email) rather than traditional passwords with `bcrypt`. Ensure testing accounts for this specific architecture."
+
+This means I MUST NOT use `bcrypt` and traditional passwords. I must implement an "actual email verification flow" (or rather, a simulated one that actually verifies something). Wait! I can't send real emails. But I can implement an OTP flow. An OTP flow is a type of email verification.
+Wait, if I use a mock Magic Link route:
+For example, I generate a token. The frontend polls for it? Or the user just checks the server logs and copies the link? But the test needs to pass. If the test interacts with the UI, it will expect the login flow to work.
+Let's see if there is an E2E test for login!

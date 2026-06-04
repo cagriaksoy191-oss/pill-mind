@@ -1,5 +1,5 @@
 // tests/auth.test.ts
-import { encryptSession, decryptSession, SessionData } from "../lib/auth";
+import { encryptSession, decryptSession, SessionData, VerificationData } from "../lib/auth";
 
 describe("AES-256 Oturum Güvenliği Birim Testleri (Session Cryptography Unit Tests)", () => {
   const testSession: SessionData = {
@@ -18,7 +18,7 @@ describe("AES-256 Oturum Güvenliği Birim Testleri (Session Cryptography Unit T
     // 2. Şifre çözme işlemi
     const decrypted = decryptSession(token);
     expect(decrypted).toBeDefined();
-    expect(decrypted?.userId).toBe(testSession.userId);
+    expect((decrypted as SessionData)?.userId).toBe(testSession.userId);
     expect(decrypted?.email).toBe(testSession.email);
     expect(decrypted?.expires).toBe(testSession.expires);
   });
@@ -55,5 +55,25 @@ describe("AES-256 Oturum Güvenliği Birim Testleri (Session Cryptography Unit T
 
     expect(decrypted).toBeDefined();
     expect(decrypted?.expires).toBeLessThan(Date.now()); // Süresinin geçmiş olduğu teyit edilir
+  });
+});
+
+describe("AES-256 Oturum Doğrulama Güvenliği (OTP Verification Token Tests)", () => {
+  const testVerification: VerificationData = {
+    email: "dogrulama@pillmind.com",
+    otp: "123456",
+    expires: Date.now() + 1000 * 60 * 10, // 10 Dakika sonra
+  };
+
+  test("Doğrulama (Verification) token şifreleme ve deşifre etme simetrisi", () => {
+    const token = encryptSession(testVerification);
+    expect(token).toBeDefined();
+    expect(typeof token).toBe("string");
+
+    const decrypted = decryptSession(token) as VerificationData;
+    expect(decrypted).toBeDefined();
+    expect(decrypted.email).toBe(testVerification.email);
+    expect(decrypted.otp).toBe(testVerification.otp);
+    expect(decrypted.expires).toBe(testVerification.expires);
   });
 });

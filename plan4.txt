@@ -1,0 +1,69 @@
+Okay, no test is checking the auth flow right now. The `tests/auth.test.ts` only checks session encryption and decryption.
+
+Wait, what is "Insecure Authentication (Missing Verification)" vulnerability?
+Currently, any user can type ANY email address (e.g., admin@pillmind.com) and instantly gain access to that account because there is ZERO verification step. It just looks up the email and creates a session cookie.
+
+If it's a "Magic Link" system, we MUST verify that the person logging in actually owns the email address.
+The easiest and standard mock way to do this without a real email provider is:
+1. `POST /api/auth/login`: Instead of creating a session immediately, we generate an OTP (e.g., 6-digit code) or a token.
+Since it's a stateless/passwordless system, we can just send back a temporary token OR we can expect the user to pass a verification code.
+Wait, if it's a magic link, the URL contains a token.
+Usually, a magic link sends an email with a link like: `https://.../api/auth/verify?token=XYZ`
+But we don't have a database table for storing these tokens!
+Prisma schema:
+```prisma
+model User {
+  id             String         @id @default(uuid())
+  email          String         @unique
+  createdAt      DateTime       @default(now())
+  savedPillboxes SavedPillbox[]
+}
+```
+If we can't store OTPs in the DB, we can use the `lib/auth.ts` encryption to create a "Magic Link Token" that contains the email and an expiry time (e.g., 10 minutes).
+Then we log it to the console (to simulate email).
+But wait! If the user submits the form in the frontend, how will the frontend finish the login?
+In `components/UserPanel.tsx`:
+```typescript
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: emailInput }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Giriş başarısız.");
+      }
+
+      setUser(data.user);
+      setShowModal(false);
+      setEmailInput("");
+```
+If I change the API to NOT return `user` but instead return `{ success: true, message: "Magic link sent" }`, the frontend will break unless I also update the frontend.
+Wait, if I update the frontend to support an OTP code input, that perfectly satisfies "an actual email verification flow" and "passwordless 'Magic Link' simulation".
+
+Let's do this:
+1. When user enters email and clicks "Giriş Yap", we call `/api/auth/login`.
+2. `/api/auth/login` generates an OTP (e.g., "123456").
+   To make it stateless, it encrypts `{ email, otp, expires }` into a `verificationToken` using `encryptSession` and returns it in a HttpOnly cookie or directly in the JSON response.
+   Wait, returning it in the JSON response defeats the purpose because the attacker gets the OTP directly!
+   If it's stateless, we can set a HttpOnly cookie `verification_token` containing `{ email, otp, expires }`.
+   And we print the OTP to `console.log` (mock email).
+3. The frontend shows a new input field: "E-posta adresinize gönderilen 6 haneli kodu girin" (Enter the 6-digit code sent to your email).
+4. The user types the mock code (from the server console).
+5. The frontend calls `/api/auth/verify` with `{ code }`.
+6. `/api/auth/verify` reads the `verification_token` cookie, checks if `code === otp`, and if so, clears the `verification_token` cookie, finds/creates the User in Prisma, and sets the real `session` cookie!
+
+This is extremely secure, fully stateless (no DB changes required for OTPs), implements a true verification flow, aligns with "passwordless 'Magic Link' simulation", and prevents the vulnerability!
+
+Wait! Does the prompt specifically ask to fix the vulnerability by adding an OTP, or can I just use a token in the URL?
+The prompt says: "Implementing proper authentication requires adding password hashing or an actual email verification flow, which involves moderate code changes but is definitely fixable."
+Since we shouldn't add a password, adding an OTP verification flow is the perfect solution.
+
+Wait, if we use a Dual-Mode Environment Guard to skip the actual email sending and just print to console, that's exactly what "simulation" means. But actually, to make it easier to test in the sandbox (since I can't easily read the server console while running the frontend), maybe I can return the OTP in the JSON response ONLY IF `process.env.NODE_ENV === 'test'` or `process.env.NODE_ENV === 'development'`?
+Actually, Next.js server logs will be visible if we run `npm run dev`. But wait, in production, printing to console is fine as a mock, or we can just use a static mock OTP like "123456" for demonstration if we don't have a real email provider. No, static OTP is a backdoor. We should generate a random 6-digit code.
+
+Let's refine the plan:
+1. Update `components/UserPanel.tsx` to handle an OTP state (`otpStep`, `otpInput`).
+2. Create `/api/auth/verify/route.ts` to handle the OTP verification.
+3. Update `/api/auth/login/route.ts` to generate OTP, set an encrypted `verification` cookie, and simulate sending an email (by logging it).

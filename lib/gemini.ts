@@ -360,7 +360,7 @@ async function executeGeminiRequest(model: string, payload: string): Promise<str
   return rawText;
 }
 
-function parseGeminiResponse(rawText: string): unknown {
+function parseGeminiResponse(rawText: string): Record<string, unknown> | unknown[] | string {
   let cleanText = rawText.trim();
 
   // Strip markdown json blocks if returned by the model under any edge conditions

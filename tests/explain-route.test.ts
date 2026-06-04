@@ -99,7 +99,7 @@ describe("POST /api/explain", () => {
 
     const req = new Request("http://localhost/api/explain", {
       method: "POST",
-      body: JSON.stringify({ interactionId: "test-interaction" }),
+      body: JSON.stringify({ interactionId: "test-interaction-fallback" }),
       headers: {
         "Content-Type": "application/json",
       }
@@ -124,7 +124,7 @@ describe("POST /api/explain", () => {
 
     // Verify it attempted to write the result back to cache
     expect(redis!.set).toHaveBeenCalledWith(
-      "explanation:v1:interaction:test-interaction",
+      "explanation:v1:interaction:test-interaction-fallback",
       {
         explanation: "Live AI explanation generated after cache fail.",
         generatedAt: "2024-05-20T12:00:00.000Z"
@@ -147,7 +147,7 @@ describe("POST /api/explain", () => {
 
     const req = new Request("http://localhost/api/explain", {
       method: "POST",
-      body: JSON.stringify({ interactionId: "test-interaction" }),
+      body: JSON.stringify({ interactionId: "test-interaction-503" }),
       headers: {
         "Content-Type": "application/json",
       }
@@ -170,7 +170,7 @@ describe("POST /api/explain", () => {
 
     const req = new Request("http://localhost/api/explain", {
       method: "POST",
-      body: JSON.stringify({ interactionId: "test-interaction" }),
+      body: JSON.stringify({ interactionId: "test-interaction-429" }),
       headers: {
         "Content-Type": "application/json",
         "x-vercel-forwarded-for": "192.168.1.1"

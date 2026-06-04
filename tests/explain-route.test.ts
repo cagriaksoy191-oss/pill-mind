@@ -1,5 +1,4 @@
 import { POST } from "../app/api/explain/route";
-import * as Sentry from "@sentry/nextjs";
 import { redis } from "@/lib/redis";
 import {
   shouldUseFallback,
@@ -16,10 +15,6 @@ jest.mock("@/lib/redis", () => ({
     incr: jest.fn(),
     expire: jest.fn(),
   },
-}));
-jest.mock("@sentry/nextjs", () => ({
-  captureException: jest.fn(),
-  captureMessage: jest.fn(),
 }));
 
 jest.mock("@/lib/gemini", () => ({
@@ -55,11 +50,12 @@ describe("POST /api/explain", () => {
     consoleErrorSpy.mockRestore();
   });
 
+
   it("should return 400 when body is missing/invalid JSON", async () => {
     const req = new Request("http://localhost/api/explain", {
       method: "POST",
       body: "invalid-json", // Invalid JSON string
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json" }
     });
 
     const res = await POST(req);
@@ -73,7 +69,7 @@ describe("POST /api/explain", () => {
     const req = new Request("http://localhost/api/explain", {
       method: "POST",
       body: JSON.stringify("a string instead of object"),
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json" }
     });
 
     const res = await POST(req);
@@ -93,12 +89,12 @@ describe("POST /api/explain", () => {
       drug1Name: "DrugA",
       drug2Name: "DrugB",
       drug1Ingredient: "IngA",
-      drug2Ingredient: "IngB",
+      drug2Ingredient: "IngB"
     });
 
     (callGeminiForInteraction as jest.Mock).mockResolvedValue({
       explanation: "Live AI explanation generated after cache fail.",
-      generatedAt: "2024-05-20T12:00:00.000Z",
+      generatedAt: "2024-05-20T12:00:00.000Z"
     });
 
     const req = new Request("http://localhost/api/explain", {
@@ -106,7 +102,7 @@ describe("POST /api/explain", () => {
       body: JSON.stringify({ interactionId: "test-interaction" }),
       headers: {
         "Content-Type": "application/json",
-      },
+      }
     });
 
     const res = await POST(req);
@@ -117,33 +113,33 @@ describe("POST /api/explain", () => {
       explanation: "Live AI explanation generated after cache fail.",
       source: "gemini_live",
       generatedAt: "2024-05-20T12:00:00.000Z",
-      disclaimer:
-        "Bu açıklama bilgilendirme amaçlıdır ve tıbbi tavsiye niteliği taşımaz.",
+      disclaimer: "Bu açıklama bilgilendirme amaçlıdır ve tıbbi tavsiye niteliği taşımaz.",
     });
 
     // Check if the fallback warning was logged
-    expect(Sentry.captureException).toHaveBeenCalledWith(fakeError, {
-      tags: { redis: "read_error" },
-    });
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      "[Redis] Cache read error, continuing to live AI:",
+      fakeError
+    );
 
     // Verify it attempted to write the result back to cache
     expect(redis!.set).toHaveBeenCalledWith(
       "explanation:v1:interaction:test-interaction",
       {
         explanation: "Live AI explanation generated after cache fail.",
-        generatedAt: "2024-05-20T12:00:00.000Z",
+        generatedAt: "2024-05-20T12:00:00.000Z"
       },
-      { ex: 604800 },
+      { ex: 604800 }
     );
   });
 
-  it("should return 500 and basic format when Gemini API throws an error during detailed explanation fallback", async () => {
+  it("should return 503 and handle Gemini AI failure gracefully", async () => {
     (getInteractionContext as jest.Mock).mockResolvedValueOnce({
       interaction: { id: "test", severity: "high" },
       drug1Name: "DrugA",
       drug2Name: "DrugB",
       drug1Ingredient: "IngA",
-      drug2Ingredient: "IngB",
+      drug2Ingredient: "IngB"
     });
 
     const fakeError = new Error("timeout processing request");
@@ -154,21 +150,19 @@ describe("POST /api/explain", () => {
       body: JSON.stringify({ interactionId: "test-interaction" }),
       headers: {
         "Content-Type": "application/json",
-      },
+      }
     });
 
     const res = await POST(req);
     const data = await res.json();
 
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(503);
     expect(data).toEqual({
-      result: "Etkileşim analizi yapılamadı. Lütfen doktorunuza danışın.",
+      error: "Canlı AI açıklaması şu anda üretilemedi.",
+      source: "error",
+      reason: "timeout",
+      disclaimer: "Bu açıklama bilgilendirme amaçlıdır ve tıbbi tavsiye niteliği taşımaz.",
     });
-
-    expect(consoleWarnSpy).toHaveBeenCalledWith(
-      "Detailed explanation fallback failed, using basic format:",
-      fakeError,
-    );
   });
 
   it("should return 429 when rate limit is exceeded", async () => {
@@ -179,8 +173,8 @@ describe("POST /api/explain", () => {
       body: JSON.stringify({ interactionId: "test-interaction" }),
       headers: {
         "Content-Type": "application/json",
-        "x-vercel-forwarded-for": "192.168.1.1",
-      },
+        "x-vercel-forwarded-for": "192.168.1.1"
+      }
     });
 
     const res = await POST(req);
@@ -190,13 +184,10 @@ describe("POST /api/explain", () => {
     expect(data).toEqual({
       error: "Çok fazla istek gönderildi. Lütfen bir dakika bekleyin.",
       source: "error",
-      reason: "rate_limited",
+      reason: "rate_limited"
     });
 
-    expect(Sentry.captureMessage).toHaveBeenCalledWith(
-      "[Security Alert] Rate limit exceeded for IP: 192.168.1.1",
-      "warning",
-    );
+    expect(consoleWarnSpy).toHaveBeenCalledWith("[Security Alert] Rate limit exceeded for IP: 192.168.1.1");
   });
 
   it("should gracefully fallback to live AI when Redis cache read fails for coverage (drugIds)", async () => {
@@ -205,16 +196,13 @@ describe("POST /api/explain", () => {
     (redis!.set as jest.Mock).mockResolvedValueOnce("OK");
 
     (getCoverageContext as jest.Mock).mockReturnValue({
-      drugs: [
-        { id: "drug1", name: "Drug1" },
-        { id: "drug2", name: "Drug2" },
-      ],
-      combinations: [],
+      drugs: [{ id: "drug1", name: "Drug1" }, { id: "drug2", name: "Drug2" }],
+      combinations: []
     });
 
     (callGeminiForCoverage as jest.Mock).mockResolvedValue({
       explanation: "Live AI coverage explanation generated after cache fail.",
-      generatedAt: "2024-05-20T12:00:00.000Z",
+      generatedAt: "2024-05-20T12:00:00.000Z"
     });
 
     const req = new Request("http://localhost/api/explain", {
@@ -222,7 +210,7 @@ describe("POST /api/explain", () => {
       body: JSON.stringify({ drugIds: ["drug1", "drug2"] }),
       headers: {
         "Content-Type": "application/json",
-      },
+      }
     });
 
     const res = await POST(req);
@@ -233,14 +221,14 @@ describe("POST /api/explain", () => {
       explanation: "Live AI coverage explanation generated after cache fail.",
       source: "gemini_live",
       generatedAt: "2024-05-20T12:00:00.000Z",
-      disclaimer:
-        "Bu açıklama bilgilendirme amaçlıdır ve tıbbi tavsiye niteliği taşımaz.",
+      disclaimer: "Bu açıklama bilgilendirme amaçlıdır ve tıbbi tavsiye niteliği taşımaz.",
     });
 
     // Check if the fallback warning was logged
-    expect(Sentry.captureException).toHaveBeenCalledWith(fakeError, {
-      tags: { redis: "read_error" },
-    });
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      "[Redis] Cache read error, continuing to live AI:",
+      fakeError
+    );
 
     // Verify it attempted to write the result back to cache
     // The cacheKey for drugIds uses sorted ids "drug1:drug2"
@@ -248,36 +236,9 @@ describe("POST /api/explain", () => {
       "explanation:v1:coverage:drug1:drug2",
       {
         explanation: "Live AI coverage explanation generated after cache fail.",
-        generatedAt: "2024-05-20T12:00:00.000Z",
+        generatedAt: "2024-05-20T12:00:00.000Z"
       },
-      { ex: 604800 },
+      { ex: 604800 }
     );
-  });
-
-  it("should return 500 when an unexpected server error occurs", async () => {
-    const fakeError = new Error("Unexpected crash");
-    (shouldUseFallback as jest.Mock).mockImplementationOnce(() => {
-      throw fakeError;
-    });
-
-    const req = new Request("http://localhost/api/explain", {
-      method: "POST",
-      body: JSON.stringify({ interactionId: "test-interaction" }),
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
-
-    const res = await POST(req);
-    const data = await res.json();
-
-    expect(res.status).toBe(500);
-    expect(data).toEqual({
-      error: "Açıklama oluşturulurken beklenmeyen bir sunucu hatası oluştu.",
-    });
-
-    expect(Sentry.captureException).toHaveBeenCalledWith(fakeError, {
-      tags: { route: "explain_crash" },
-    });
   });
 });

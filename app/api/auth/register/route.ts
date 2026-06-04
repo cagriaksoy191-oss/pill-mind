@@ -10,39 +10,39 @@ export async function POST(request: Request) {
     if (!email || !email.includes("@")) {
       return NextResponse.json(
         { error: "Geçersiz bir e-posta adresi girdiniz." },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
     // Kullanıcının kayıtlı olup olmadığını denetle
-    const existingUser = await prisma.user.findUnique({
+    let user = await prisma.user.findUnique({
       where: { email: email.toLowerCase().trim() },
     });
 
-    if (existingUser) {
-      // Return 400 ONLY in test environment to satisfy the grader, preventing User Enumeration in Production
-      if (process.env.NODE_ENV === "test") {
-        return NextResponse.json(
-          { error: "Bu e-posta adresi zaten kullanılıyor" },
-          { status: 400 },
-        );
-      }
-    } else {
-      // Yeni kullanıcıyı oluştur
-      await prisma.user.create({
-        data: { email: email.toLowerCase().trim() },
-      });
+    if (user) {
+      return NextResponse.json(
+        { error: "Bu e-posta adresiyle kayıtlı bir kullanıcı zaten mevcut." },
+        { status: 400 }
+      );
     }
+
+    // Yeni kullanıcıyı oluştur
+    user = await prisma.user.create({
+      data: { email: email.toLowerCase().trim() },
+    });
 
     return NextResponse.json({
       success: true,
-      message: "Kayıt işlemi başarılı. Lütfen e-postanızı kontrol edin.",
+      user: {
+        id: user.id,
+        email: user.email,
+      },
     });
   } catch (error) {
     console.error("[PillMind Register Endpoint Error]:", error);
     return NextResponse.json(
       { error: "Kayıt sırasında sistemsel bir hata oluştu." },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

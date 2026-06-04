@@ -1,3 +1,4 @@
+// prisma/seed.ts
 import { PrismaClient, Severity, Status } from "@prisma/client";
 import * as fs from "fs";
 import * as path from "path";
@@ -22,15 +23,19 @@ interface InteractionMock {
   sourceLabel: string;
 }
 
-async function cleanDatabase() {
+async function main() {
+  console.log("🌱 Veritabanı tohumlama işlemi başladı...");
+
+  // 1. Mevcut verileri temizle (Önce ilişkili tablolar)
   await prisma.foodInteraction.deleteMany({});
   await prisma.contraindication.deleteMany({});
   await prisma.drugInteraction.deleteMany({});
   await prisma.brandName.deleteMany({});
   await prisma.drug.deleteMany({});
-}
 
-async function seedDrugs() {
+  console.log("🧹 Eski veriler temizlendi.");
+
+  // 2. İlaçları Oku ve Ekle
   const drugsFilePath = path.join(process.cwd(), "data", "drugs.json");
   const drugsData: DrugMock[] = JSON.parse(
     fs.readFileSync(drugsFilePath, "utf-8"),
@@ -77,21 +82,25 @@ async function seedDrugs() {
   }
 
   if (drugsToCreate.length > 0) {
+    const startDrugs = performance.now();
     // ⚡ Performance Note: Resolved N+1 query vulnerability by using bulk insert (createMany). This reduces database roundtrips from O(N) to O(1).
     await prisma.drug.createMany({ data: drugsToCreate });
+    const endDrugs = performance.now();
+    console.log(`⚡ Inserted drugs in ${(endDrugs - startDrugs).toFixed(2)}ms`);
   }
 
   if (brandNamesToCreate.length > 0) {
+    const startBrandNames = performance.now();
     await prisma.brandName.createMany({ data: brandNamesToCreate });
+    const endBrandNames = performance.now();
+    console.log(`⚡ Inserted brand names in ${(endBrandNames - startBrandNames).toFixed(2)}ms`);
   }
 
-  return { drugIdMap, drugNameMap };
-}
+  console.log(
+    `📦 ${Object.keys(drugIdMap).length} adet temel ilaç ve alternatif marka isimleri yüklendi.`,
+  );
 
-async function seedInteractions(
-  drugIdMap: Record<string, string>,
-  drugNameMap: Record<string, string>,
-) {
+  // 3. Etkileşimleri Oku ve Ekle
   const interactionsFilePath = path.join(
     process.cwd(),
     "data",
@@ -101,6 +110,7 @@ async function seedInteractions(
     fs.readFileSync(interactionsFilePath, "utf-8"),
   );
 
+  let interactionCount = 0;
   const interactionsToCreate = [];
   for (const item of interactionsData) {
     const drug1Id = drugIdMap[item.drug1];
@@ -134,14 +144,23 @@ async function seedInteractions(
   }
 
   if (interactionsToCreate.length > 0) {
-    await prisma.drugInteraction.createMany({
+    const startInteractions = performance.now();
+    const result = await prisma.drugInteraction.createMany({
       data: interactionsToCreate,
     });
+    const endInteractions = performance.now();
+    console.log(`⚡ Inserted drug interactions in ${(endInteractions - startInteractions).toFixed(2)}ms`);
+    interactionCount = result.count;
   }
-}
 
-async function seedFoodInteractions(warfarinId?: string) {
+  console.log(
+    `🔗 ${interactionCount} adet doğrulanmış ilaç-ilaç etkileşim kaydı yüklendi.`,
+  );
+
+  // 4. Örnek Besin Etkileşimleri (Food Interactions) Ekle
+  const warfarinId = drugIdMap["warfarin"];
   if (warfarinId) {
+    const startFoodInteractions = performance.now();
     await prisma.foodInteraction.createMany({
       data: [
         {
@@ -160,14 +179,12 @@ async function seedFoodInteractions(warfarinId?: string) {
         },
       ],
     });
+    const endFoodInteractions = performance.now();
+    console.log(`⚡ Inserted food interactions in ${(endFoodInteractions - startFoodInteractions).toFixed(2)}ms`);
+    console.log("🥗 Warfarin için besin etkileşimleri eklendi.");
   }
-}
 
-async function main() {
-  await cleanDatabase();
-  const { drugIdMap, drugNameMap } = await seedDrugs();
-  await seedInteractions(drugIdMap, drugNameMap);
-  await seedFoodInteractions(drugIdMap["warfarin"]);
+  console.log("🏁 Tohumlama başarıyla tamamlandı!");
 }
 
 main()

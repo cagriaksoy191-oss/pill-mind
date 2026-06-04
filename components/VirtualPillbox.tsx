@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useTiltEffect } from "@/hooks/useTiltEffect";
 
+
 interface Drug {
   id: string;
   name: string;
@@ -15,130 +16,27 @@ interface VirtualPillboxProps {
   onRemove: (id: string) => void;
 }
 
-function PillboxHeader({ selectedCount }: { selectedCount: number }) {
-  return (
-    <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-      <div style={{ transform: "translateZ(30px)" }}>
-        <h3 className="text-xl font-bold text-white flex items-center gap-2">
-          📥 Sanal İlaç Kutusu
-          <span className="text-xs px-2.5 py-0.5 rounded-full bg-indigo-500/30 text-indigo-200 border border-indigo-500/20 font-semibold">
-            {selectedCount} Aktif İlaç
-          </span>
-        </h3>
-        <p className="text-xs text-slate-400 mt-1">
-          Etkileşim kontrolü için kutuya eklediğiniz ilaçlar
-        </p>
-      </div>
-
-      {selectedCount > 0 && (
-        <div
-          className="text-[11px] text-emerald-400 font-medium bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-2.5 py-1 flex items-center gap-1.5 self-start md:self-center"
-          style={{ transform: "translateZ(20px)" }}
-        >
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-          Klinik Tarama Aktif
-        </div>
-      )}
-    </div>
-  );
-}
-
-function PillboxEmptyState() {
-  return (
-    <div
-      className="flex flex-col items-center justify-center py-10 border border-dashed border-white/10 rounded-2xl bg-white/5 transition-all duration-300"
-      style={{ transform: "translateZ(10px)" }}
-    >
-      <span className="text-4xl mb-3 animate-bounce">💊</span>
-      <p className="text-slate-400 text-sm italic text-center px-4">
-        Kutunuz şu an boş. Üst kısımdan ilaç arayıp ekleyerek anında
-        tarama başlatabilirsiniz.
-      </p>
-    </div>
-  );
-}
-
-function PillboxDrugItem({
-  drug,
-  isNew,
-  onRemove,
-}: {
-  drug: Drug;
-  isNew: boolean;
-  onRemove: (id: string) => void;
-}) {
-  return (
-    <div
-      key={drug.id}
-      className={`relative flex items-center justify-between p-4 rounded-2xl border transition-all duration-300 ease-out group overflow-hidden ${
-        isNew
-          ? "animate-drop-pill border-emerald-500/50 bg-emerald-500/10"
-          : "border-white/10 bg-slate-900/40 hover:border-indigo-500/30 hover:bg-slate-900/60"
-      }`}
-      style={{
-        transformStyle: "preserve-3d",
-        animation: isNew
-          ? "drop-pill 0.8s cubic-bezier(0.25, 1, 0.5, 1) forwards"
-          : undefined,
-      }}
-    >
-      {/* Glowing background on hover */}
-      <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-
-      <div
-        className="flex items-center gap-3 relative z-10"
-        style={{ transform: "translateZ(20px)" }}
-      >
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 border border-white/10 flex items-center justify-center text-xl shadow-inner group-hover:scale-110 transition-transform duration-300">
-          💊
-        </div>
-        <div>
-          <h4 className="font-bold text-white text-sm group-hover:text-indigo-300 transition-colors">
-            {drug.name}
-          </h4>
-          <p className="text-[11px] text-slate-400 font-medium truncate max-w-[180px] mt-0.5">
-            {drug.activeIngredient}
-          </p>
-        </div>
-      </div>
-
-      <button
-        onClick={() => onRemove(drug.id)}
-        className="relative z-10 w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 hover:text-red-400 hover:bg-red-500/10 hover:border-red-500/20 transition-all cursor-pointer shadow-md"
-        aria-label={`${drug.name} ilacını kutudan çıkar`}
-        style={{ transform: "translateZ(20px)" }}
-      >
-        ✕
-      </button>
-    </div>
-  );
-}
-
 export default function VirtualPillbox({
   selectedDrugs,
   onRemove,
 }: VirtualPillboxProps) {
   const prevCountRef = useRef(selectedDrugs.length);
   const [newlyAddedId, setNewlyAddedId] = useState<string | null>(null);
-  const {
-    containerRef,
-    tilt,
-    isHovered,
-    handleMouseMove,
-    handleMouseEnter,
-    handleMouseLeave,
-  } = useTiltEffect();
+  const { containerRef, tilt, isHovered, handleMouseMove, handleMouseEnter, handleMouseLeave } = useTiltEffect();
 
   // Track additions to trigger the 3D entry animation
   useEffect(() => {
     if (selectedDrugs.length > prevCountRef.current) {
       const added = selectedDrugs[selectedDrugs.length - 1];
       if (added) {
+        // Since we cannot call setState directly in useEffect without triggering warning,
+        // we can wrap it in setTimeout. However, another way is just disabling the eslint rule since it was already there.
+        // Actually wrapping it in a setTimeout is safe for this animation.
         setTimeout(() => setNewlyAddedId(added.id), 0);
         const timer = setTimeout(() => setNewlyAddedId(null), 1000);
         prevCountRef.current = selectedDrugs.length;
         return () => {
-          clearTimeout(timer);
+           clearTimeout(timer);
         };
       }
     }
@@ -181,23 +79,88 @@ export default function VirtualPillbox({
           style={{ transform: "translateZ(-30px)" }}
         />
 
-        <PillboxHeader selectedCount={selectedDrugs.length} />
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+          <div style={{ transform: "translateZ(30px)" }}>
+            <h3 className="text-xl font-bold text-white flex items-center gap-2">
+              📥 Sanal İlaç Kutusu
+              <span className="text-xs px-2.5 py-0.5 rounded-full bg-indigo-500/30 text-indigo-200 border border-indigo-500/20 font-semibold">
+                {selectedDrugs.length} Aktif İlaç
+              </span>
+            </h3>
+            <p className="text-xs text-slate-400 mt-1">
+              Etkileşim kontrolü için kutuya eklediğiniz ilaçlar
+            </p>
+          </div>
+
+          {selectedDrugs.length > 0 && (
+            <div
+              className="text-[11px] text-emerald-400 font-medium bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-2.5 py-1 flex items-center gap-1.5 self-start md:self-center"
+              style={{ transform: "translateZ(20px)" }}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              Klinik Tarama Aktif
+            </div>
+          )}
+        </div>
 
         {selectedDrugs.length === 0 ? (
-          <PillboxEmptyState />
+          <div
+            className="flex flex-col items-center justify-center py-10 border border-dashed border-white/10 rounded-2xl bg-white/5 transition-all duration-300"
+            style={{ transform: "translateZ(10px)" }}
+          >
+            <span className="text-4xl mb-3 animate-bounce">💊</span>
+            <p className="text-slate-400 text-sm italic text-center px-4">
+              Kutunuz şu an boş. Üst kısımdan ilaç arayıp ekleyerek anında tarama başlatabilirsiniz.
+            </p>
+          </div>
         ) : (
           <div
             className="grid grid-cols-1 sm:grid-cols-2 gap-4"
             style={{ transform: "translateZ(15px)" }}
           >
-            {selectedDrugs.map((drug) => (
-              <PillboxDrugItem
-                key={drug.id}
-                drug={drug}
-                isNew={drug.id === newlyAddedId}
-                onRemove={onRemove}
-              />
-            ))}
+            {selectedDrugs.map((drug) => {
+              const isNew = drug.id === newlyAddedId;
+              return (
+                <div
+                  key={drug.id}
+                  className={`relative flex items-center justify-between p-4 rounded-2xl border transition-all duration-300 ease-out group overflow-hidden ${
+                    isNew
+                      ? "animate-drop-pill border-emerald-500/50 bg-emerald-500/10"
+                      : "border-white/10 bg-slate-900/40 hover:border-indigo-500/30 hover:bg-slate-900/60"
+                  }`}
+                  style={{
+                    transformStyle: "preserve-3d",
+                    animation: isNew ? "drop-pill 0.8s cubic-bezier(0.25, 1, 0.5, 1) forwards" : undefined,
+                  }}
+                >
+                  {/* Glowing background on hover */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+
+                  <div className="flex items-center gap-3 relative z-10" style={{ transform: "translateZ(20px)" }}>
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 border border-white/10 flex items-center justify-center text-xl shadow-inner group-hover:scale-110 transition-transform duration-300">
+                      💊
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-white text-sm group-hover:text-indigo-300 transition-colors">
+                        {drug.name}
+                      </h4>
+                      <p className="text-[11px] text-slate-400 font-medium truncate max-w-[180px] mt-0.5">
+                        {drug.activeIngredient}
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => onRemove(drug.id)}
+                    className="relative z-10 w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 hover:text-red-400 hover:bg-red-500/10 hover:border-red-500/20 transition-all cursor-pointer shadow-md"
+                    aria-label={`${drug.name} ilacını kutudan çıkar`}
+                    style={{ transform: "translateZ(20px)" }}
+                  >
+                    ✕
+                  </button>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

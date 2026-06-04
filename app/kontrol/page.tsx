@@ -87,8 +87,9 @@ export default function KontrolPage() {
 
         const data = await res.json();
         setInteractions(data.interactions || []);
-      } catch (err: any) {
-        console.warn("[PillMind Check Engine] Sunucu API hatası veya ağ kaybı, çevrimdışı yerel tarama çekirdeği devreye alınıyor:", err);
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        console.warn("[PillMind Check Engine] Sunucu API hatası veya ağ kaybı, çevrimdışı yerel tarama çekirdeği devreye alınıyor:", errorMessage);
         try {
           const { findInteractions } = await import("@/lib/interactions");
           const localResults = findInteractions(selectedDrugIds);
@@ -122,8 +123,9 @@ export default function KontrolPage() {
 
       const data = await res.json();
       setExplanations((prev) => ({ ...prev, [interactionId]: data }));
-    } catch (err: any) {
-      console.error("[PillMind Explain Engine] Error:", err);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      console.error("[PillMind Explain Engine] Error:", errorMessage);
       setExplanations((prev) => ({
         ...prev,
         [interactionId]: {
@@ -156,8 +158,9 @@ export default function KontrolPage() {
 
       const data = await res.json();
       setCoverageExplanation(data);
-    } catch (err: any) {
-      console.error("[PillMind Coverage Engine] Error:", err);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      console.error("[PillMind Coverage Engine] Error:", errorMessage);
       setCoverageExplanation({
         source: "error",
         error: "Canlı AI kombinasyon analizi şu anda oluşturulamadı. Lütfen daha sonra tekrar deneyin.",

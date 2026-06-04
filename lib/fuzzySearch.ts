@@ -79,8 +79,7 @@ export interface FuzzyResult<T> {
 const normalizedCache = new WeakMap<object, { name: string; activeIngredient: string; category: string }>();
 
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const searchCache = new Map<string, { items: unknown[]; results: any[] }>();
+const searchCache = new Map<string, { items: unknown[]; results: unknown[] }>();
 
 export function fuzzySearchDrugs<T extends { name: string; activeIngredient: string; category?: string }>(
   query: string,
@@ -94,7 +93,7 @@ export function fuzzySearchDrugs<T extends { name: string; activeIngredient: str
   const cacheKey = q;
   const cached = searchCache.get(cacheKey);
   if (cached && (cached.items === items || cached.items.length === items.length)) {
-    return cached.results;
+    return cached.results as FuzzyResult<T>[];
   }
 
   const results: FuzzyResult<T>[] = [];

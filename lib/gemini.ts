@@ -155,22 +155,17 @@ export async function getInteractionContext(interactionId: string): Promise<Inte
 }
 
 export function getCoverageContext(drugIds: string[]): CoverageContext | null {
-  try {
-    const drugs = drugsData as DrugRecord[];
-    const selected = drugs.filter((drug) => drugIds.includes(drug.id));
+  const drugs = drugsData as DrugRecord[];
+  const selected = drugs.filter((drug) => drugIds.includes(drug.id));
 
-    if (selected.length < 2) {
-      return null;
-    }
-
-    return {
-      drugNames: selected.map((drug) => drug.name),
-      drugIngredients: selected.map((drug) => drug.activeIngredient),
-    };
-  } catch (error) {
-    console.error("Context fetch error:", error);
+  if (selected.length < 2) {
     return null;
   }
+
+  return {
+    drugNames: selected.map((drug) => drug.name),
+    drugIngredients: selected.map((drug) => drug.activeIngredient),
+  };
 }
 
 export function shouldUseFallback(): boolean {
@@ -376,7 +371,6 @@ function parseGeminiResponse(rawText: string): Record<string, unknown> | unknown
 }
 
 interface GeminiResponseShape {
-  etkilesim_mekanizmasi?: string;
   girisCumlesi?: string;
   klinikEtkiAciklamasi?: string;
   hastalaraOneriler?: string | string[];
@@ -385,21 +379,8 @@ interface GeminiResponseShape {
 
 export function formatExplanation(parsedJSON: Record<string, unknown>): string {
   const data = parsedJSON as unknown as GeminiResponseShape;
-  let result = "";
-
-  if (typeof data.etkilesim_mekanizmasi === "string" && data.etkilesim_mekanizmasi) {
-    result += `**Etkileşim Mekanizması:**\n${data.etkilesim_mekanizmasi}\n\n`;
-  }
-
-  const giris = normalizeExplanation(typeof data.girisCumlesi === "string" ? data.girisCumlesi : "");
-  if (giris) {
-    result += `${giris}\n\n`;
-  }
-
-  const klinik = normalizeExplanation(typeof data.klinikEtkiAciklamasi === "string" ? data.klinikEtkiAciklamasi : "");
-  if (klinik) {
-    result += `${klinik}\n\n`;
-  }
+  const giris = normalizeExplanation(data.girisCumlesi || "");
+  const klinik = normalizeExplanation(data.klinikEtkiAciklamasi || "");
 
   // Resilient parsing for patient advice list to avoid type crashes if model outputs non-array values
   let rawOneriler = data.hastalaraOneriler;
@@ -410,22 +391,22 @@ export function formatExplanation(parsedJSON: Record<string, unknown>): string {
       rawOneriler = [];
     }
   }
-  const oneriler: string[] = (rawOneriler as unknown[])
+  const oneriler: string[] = rawOneriler
     .map((o: unknown) => normalizeExplanation(String(o || "")))
     .filter(Boolean);
 
-  if (oneriler.length > 0) {
-    result += `**Önemli Belirtiler ve Öneriler:**\n`;
-    result += oneriler.map((o) => `• ${o}`).join("\n");
-    result += "\n\n";
-  }
+  const hekim = normalizeExplanation(data.hekimYonlendirmesi || "");
 
-  const hekim = normalizeExplanation(typeof data.hekimYonlendirmesi === "string" ? data.hekimYonlendirmesi : "");
-  if (hekim) {
-    result += `${hekim}\n\n`;
-  }
+  return `
+${giris}
 
-  return result.trim();
+${klinik}
+
+**Önemli Belirtiler ve Öneriler:**
+${oneriler.map((o) => `• ${o}`).join("\n")}
+
+${hekim}
+`.trim();
 }
 
 // Helper to create a promise that rejects after a timeout, with cleanup

@@ -78,9 +78,6 @@ export interface FuzzyResult<T> {
 
 const normalizedCache = new WeakMap<object, { name: string; activeIngredient: string; category: string }>();
 
-
-const searchCache = new Map<string, { items: unknown[]; results: unknown[] }>();
-
 export function fuzzySearchDrugs<T extends { name: string; activeIngredient: string; category?: string }>(
   query: string,
   items: T[]
@@ -88,12 +85,6 @@ export function fuzzySearchDrugs<T extends { name: string; activeIngredient: str
   const q = normalizeTurkish(query);
   if (!q) {
     return items.map(item => ({ item, score: 0 }));
-  }
-
-  const cacheKey = q;
-  const cached = searchCache.get(cacheKey);
-  if (cached && (cached.items === items || cached.items.length === items.length)) {
-    return cached.results as FuzzyResult<T>[];
   }
 
   const results: FuzzyResult<T>[] = [];
@@ -120,19 +111,9 @@ export function fuzzySearchDrugs<T extends { name: string; activeIngredient: str
     }
   }
 
-  const sortedResults = results.sort((a, b) => b.score - a.score);
-
-  // Cache management: keep cache size bounded to prevent memory leaks
-  if (searchCache.size > 50) {
-    const firstKey = searchCache.keys().next().value;
-    if (firstKey !== undefined) {
-      searchCache.delete(firstKey);
-    }
-  }
-  searchCache.set(cacheKey, { items, results: sortedResults });
-
-  return sortedResults;
+  return results.sort((a, b) => b.score - a.score);
 }
+
 function calculateScore(q: string, t: string): number {
   if (q === t) return 1000;
 

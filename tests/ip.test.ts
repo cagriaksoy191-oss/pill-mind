@@ -45,6 +45,15 @@ describe("getClientIp", () => {
     expect(getClientIp(req)).toBe("100.100.100.100");
   });
 
+  it("should fallback to request-ip logic for x-real-ip", () => {
+    const req = new Request("http://localhost", {
+      headers: {
+        "x-real-ip": "200.200.200.200",
+      },
+    });
+    expect(getClientIp(req)).toBe("200.200.200.200");
+  });
+
   it("should extract IP from Next.js explicit `ip` property if present", () => {
     const req = new Request("http://localhost") as Request & { ip?: string };
     req.ip = "8.8.8.8";

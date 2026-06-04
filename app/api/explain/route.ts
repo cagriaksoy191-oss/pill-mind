@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import * as Sentry from "@sentry/nextjs";
 import {
   callGeminiForCoverage,
   callGeminiForInteraction,
@@ -42,16 +41,10 @@ function jsonNoStore(body: unknown, status = 200) {
   });
 }
 
+
 async function handleInteraction(interactionId: unknown) {
-  if (
-    typeof interactionId !== "string" ||
-    interactionId.trim() === "" ||
-    interactionId.length > 100
-  ) {
-    return jsonNoStore(
-      { error: "Geçersiz veya aşırı uzun interactionId." },
-      400,
-    );
+  if (typeof interactionId !== "string" || interactionId.trim() === "" || interactionId.length > 100) {
+    return jsonNoStore({ error: "Geçersiz veya aşırı uzun interactionId." }, 400);
   }
 
   const ctx = await getInteractionContext(interactionId);
@@ -63,7 +56,7 @@ async function handleInteraction(interactionId: unknown) {
         reason: "unknown_interaction",
         disclaimer: DISCLAIMER,
       },
-      404,
+      404
     );
   }
 
@@ -72,11 +65,9 @@ async function handleInteraction(interactionId: unknown) {
   // Redis Cache Check (with fail-safe wrapper)
   if (redis) {
     try {
-      const cached = await redis.get<{
-        explanation: string;
-        generatedAt: string;
-      }>(cacheKey);
+      const cached = await redis.get<{ explanation: string; generatedAt: string }>(cacheKey);
       if (cached) {
+        console.info(`[Redis] Cache HIT for interaction: ${interactionId}`);
         return jsonNoStore({
           explanation: cached.explanation,
           source: "cache" as const,
@@ -85,7 +76,7 @@ async function handleInteraction(interactionId: unknown) {
         });
       }
     } catch (err) {
-      Sentry.captureException(err, { tags: { redis: "read_error" } });
+      console.warn("[Redis] Cache read error, continuing to live AI:", err);
     }
   }
 
@@ -98,10 +89,11 @@ async function handleInteraction(interactionId: unknown) {
         await redis.set(
           cacheKey,
           { explanation: result.explanation, generatedAt: result.generatedAt },
-          { ex: 60 * 60 * 24 * 7 }, // 7-day TTL
+          { ex: 60 * 60 * 24 * 7 } // 7-day TTL
         );
+        console.info(`[Redis] Cache WRITE for interaction: ${interactionId}`);
       } catch (err) {
-        Sentry.captureException(err, { tags: { redis: "write_error" } });
+        console.warn("[Redis] Cache write error:", err);
       }
     }
 
@@ -112,13 +104,14 @@ async function handleInteraction(interactionId: unknown) {
       disclaimer: DISCLAIMER,
     });
   } catch (error) {
-    console.warn(
-      "Detailed explanation fallback failed, using basic format:",
-      error,
-    );
-    return NextResponse.json(
-      { result: "Etkileşim analizi yapılamadı. Lütfen doktorunuza danışın." },
-      { status: 500 },
+    return jsonNoStore(
+      {
+        error: "Canlı AI açıklaması şu anda üretilemedi.",
+        source: "error" as const,
+        reason: getErrorReason(error),
+        disclaimer: DISCLAIMER,
+      },
+      503
     );
   }
 }
@@ -128,17 +121,9 @@ async function handleCoverage(drugIds: unknown) {
     !Array.isArray(drugIds) ||
     drugIds.length < 2 ||
     drugIds.length > 10 ||
-    !drugIds.every(
-      (id) => typeof id === "string" && id.trim() !== "" && id.length <= 50,
-    )
+    !drugIds.every(id => typeof id === "string" && id.trim() !== "" && id.length <= 50)
   ) {
-    return jsonNoStore(
-      {
-        error:
-          "drugIds 2 ila 10 adet geçerli kimlik içeren bir dizi olmalıdır.",
-      },
-      400,
-    );
+    return jsonNoStore({ error: "drugIds 2 ila 10 adet geçerli kimlik içeren bir dizi olmalıdır." }, 400);
   }
 
   const ctx = getCoverageContext(drugIds);
@@ -150,7 +135,7 @@ async function handleCoverage(drugIds: unknown) {
         reason: "unknown_drugs",
         disclaimer: DISCLAIMER,
       },
-      404,
+      404
     );
   }
 
@@ -160,11 +145,9 @@ async function handleCoverage(drugIds: unknown) {
   // Redis Cache Check (with fail-safe wrapper)
   if (redis) {
     try {
-      const cached = await redis.get<{
-        explanation: string;
-        generatedAt: string;
-      }>(cacheKey);
+      const cached = await redis.get<{ explanation: string; generatedAt: string }>(cacheKey);
       if (cached) {
+        console.info(`[Redis] Cache HIT for coverage: ${sortedIds}`);
         return jsonNoStore({
           explanation: cached.explanation,
           source: "cache" as const,
@@ -173,7 +156,7 @@ async function handleCoverage(drugIds: unknown) {
         });
       }
     } catch (err) {
-      Sentry.captureException(err, { tags: { redis: "read_error" } });
+      console.warn("[Redis] Cache read error, continuing to live AI:", err);
     }
   }
 
@@ -186,10 +169,11 @@ async function handleCoverage(drugIds: unknown) {
         await redis.set(
           cacheKey,
           { explanation: result.explanation, generatedAt: result.generatedAt },
-          { ex: 60 * 60 * 24 * 7 }, // 7-day TTL
+          { ex: 60 * 60 * 24 * 7 } // 7-day TTL
         );
+        console.info(`[Redis] Cache WRITE for coverage: ${sortedIds}`);
       } catch (err) {
-        Sentry.captureException(err, { tags: { redis: "write_error" } });
+        console.warn("[Redis] Cache write error:", err);
       }
     }
 
@@ -200,13 +184,14 @@ async function handleCoverage(drugIds: unknown) {
       disclaimer: DISCLAIMER,
     });
   } catch (error) {
-    console.warn(
-      "Detailed explanation fallback failed, using basic format:",
-      error,
-    );
-    return NextResponse.json(
-      { result: "Etkileşim analizi yapılamadı. Lütfen doktorunuza danışın." },
-      { status: 500 },
+    return jsonNoStore(
+      {
+        error: "Canlı AI açıklaması şu anda üretilemedi.",
+        source: "error" as const,
+        reason: getErrorReason(error),
+        disclaimer: DISCLAIMER,
+      },
+      503
     );
   }
 }
@@ -240,34 +225,26 @@ export async function POST(request: Request) {
           await redis.expire(rateLimitKey, 60); // 1-minute window
         }
 
-        if (currentRequests > 15) {
-          // Limit to 15 requests per minute
-          Sentry.captureMessage(
-            `[Security Alert] Rate limit exceeded for IP: ${ip}`,
-            "warning",
-          );
+        if (currentRequests > 15) { // Limit to 15 requests per minute
+          console.warn(`[Security Alert] Rate limit exceeded for IP: ${ip}`);
           return jsonNoStore(
             {
               error: "Çok fazla istek gönderildi. Lütfen bir dakika bekleyin.",
               source: "error" as const,
-              reason: "rate_limited",
+              reason: "rate_limited"
             },
-            429,
+            429
           );
         }
       } catch (redisErr) {
         // Fail-safe: If Redis is down, log it but let the application continue
-        Sentry.captureException(redisErr, {
-          tags: { redis: "rate_limit_error" },
-        });
+        console.warn("[Redis Rate Limiter] Resilient Fallback - Bypass due to Redis error:", redisErr);
       }
     }
 
     // 3. Fallback Check (Demo Mode / API Key Availability)
     if (shouldUseFallback()) {
-      const reason = process.env.GOOGLE_API_KEY
-        ? "demo_mode"
-        : "missing_api_key";
+      const reason = process.env.GOOGLE_API_KEY ? "demo_mode" : "missing_api_key";
       return jsonNoStore(
         {
           error: "Canlı AI açıklaması şu anda kullanılamıyor.",
@@ -275,7 +252,7 @@ export async function POST(request: Request) {
           reason,
           disclaimer: DISCLAIMER,
         },
-        503,
+        503
       );
     }
 
@@ -289,17 +266,10 @@ export async function POST(request: Request) {
       return await handleCoverage(drugIds);
     }
 
-    return jsonNoStore(
-      { error: "interactionId veya en az 2 drugId alanı gereklidir." },
-      400,
-    );
+    return jsonNoStore({ error: "interactionId veya en az 2 drugId alanı gereklidir." }, 400);
+
   } catch (error) {
-    Sentry.captureException(error, { tags: { route: "explain_crash" } });
-    return jsonNoStore(
-      {
-        error: "Açıklama oluşturulurken beklenmeyen bir sunucu hatası oluştu.",
-      },
-      500,
-    );
+    console.error("[Severe API Error] Explain route crashed:", error);
+    return jsonNoStore({ error: "Açıklama oluşturulurken beklenmeyen bir sunucu hatası oluştu." }, 500);
   }
 }

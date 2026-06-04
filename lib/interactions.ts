@@ -41,10 +41,12 @@ for (const d of drugsData as Drug[]) {
 
 const interactionsMap = new Map<string, Map<string, Interaction>>();
 for (const int of interactionsData as Interaction[]) {
-  if (!interactionsMap.has(int.drug1)) interactionsMap.set(int.drug1, new Map<string, Interaction>());
+  if (!interactionsMap.has(int.drug1))
+    interactionsMap.set(int.drug1, new Map<string, Interaction>());
   interactionsMap.get(int.drug1)!.set(int.drug2, int);
 
-  if (!interactionsMap.has(int.drug2)) interactionsMap.set(int.drug2, new Map<string, Interaction>());
+  if (!interactionsMap.has(int.drug2))
+    interactionsMap.set(int.drug2, new Map<string, Interaction>());
   interactionsMap.get(int.drug2)!.set(int.drug1, int);
 }
 
@@ -87,10 +89,17 @@ export function findInteractions(drugIds: string[]): CheckResult[] {
  * Production-ready asynchronous N-Drug check using PostgreSQL database via Prisma.
  * Falls back to local JSON if the database URL is not configured or fails.
  */
-export async function findInteractionsDB(drugIds: string[]): Promise<CheckResult[]> {
+export async function findInteractionsDB(
+  drugIds: string[],
+): Promise<CheckResult[]> {
   // Eğer veritabanı bağlantısı yoksa doğrudan lokal kontrole yönlendir
-  if (!process.env.DATABASE_URL || process.env.DATABASE_URL.includes("[SIFRE]")) {
-    console.info("[PillMind CMIO Engine] DATABASE_URL tanımlı değil veya şablon halinde. Lokal JSON kontrolü yapılıyor.");
+  if (
+    !process.env.DATABASE_URL ||
+    process.env.DATABASE_URL.includes("[SIFRE]")
+  ) {
+    console.info(
+      "[PillMind CMIO Engine] DATABASE_URL tanımlı değil veya şablon halinde. Lokal JSON kontrolü yapılıyor.",
+    );
     return findInteractions(drugIds);
   }
 
@@ -103,9 +112,9 @@ export async function findInteractionsDB(drugIds: string[]): Promise<CheckResult
         OR: [
           { id: { in: drugIds } },
           { name: { in: drugIds } },
-          { brandNames: { some: { name: { in: drugIds } } } }
-        ]
-      }
+          { brandNames: { some: { name: { in: drugIds } } } },
+        ],
+      },
     });
 
     const resolvedDrugIds = resolvedDrugs.map((d) => d.id);
@@ -114,8 +123,8 @@ export async function findInteractionsDB(drugIds: string[]): Promise<CheckResult
     const dbInteractions = await prisma.drugInteraction.findMany({
       where: {
         drug1Id: { in: resolvedDrugIds },
-        drug2Id: { in: resolvedDrugIds }
-      }
+        drug2Id: { in: resolvedDrugIds },
+      },
     });
 
     const results: CheckResult[] = [];
@@ -141,18 +150,23 @@ export async function findInteractionsDB(drugIds: string[]): Promise<CheckResult
             summary: match.summary,
             source: match.source,
             sourceLabel: match.sourceLabel,
-            verificationStatus: match.verificationStatus.toLowerCase()
+            verificationStatus: match.verificationStatus.toLowerCase(),
           },
           drug1Name: drugA.name,
-          drug2Name: drugB.name
+          drug2Name: drugB.name,
         });
       }
     }
 
-    console.info(`[PillMind CMIO Engine] Veritabanı sorgusu başarılı (1 roundtrip). ${results.length} etkileşim bulundu.`);
+    console.info(
+      `[PillMind CMIO Engine] Veritabanı sorgusu başarılı (1 roundtrip). ${results.length} etkileşim bulundu.`,
+    );
     return results;
   } catch (error) {
-    console.error("[PillMind CMIO Engine] Veritabanı sorgusu başarısız oldu! Lokal yedek kontrol devreye alınıyor:", error);
+    console.error(
+      "[PillMind CMIO Engine] Veritabanı sorgusu başarısız oldu! Lokal yedek kontrol devreye alınıyor:",
+      error,
+    );
     // Güvenlik fallback katmanı: Hata durumunda sistem çökmez, lokal mock veriye döner
     return findInteractions(drugIds);
   }

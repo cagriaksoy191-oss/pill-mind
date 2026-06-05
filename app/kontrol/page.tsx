@@ -18,7 +18,15 @@ export default function KontrolPage() {
   const [checkingError, setCheckingError] = useState<string | null>(null);
 
   // Individual interaction explanation states
-  const [explanations, setExplanations] = useState<Record<string, any>>({});
+  interface ExplanationData {
+  explanation?: string;
+  source?: string;
+  generatedAt?: string;
+  reason?: string;
+  error?: string;
+}
+
+  const [explanations, setExplanations] = useState<Record<string, ExplanationData>>({});
   const [loadingExplanations, setLoadingExplanations] = useState<Record<string, boolean>>({});
 
   // Global combination analysis states (Coverage)
@@ -87,6 +95,7 @@ export default function KontrolPage() {
 
         const data = await res.json();
         setInteractions(data.interactions || []);
+      // 🧹 Code Health: Catch clause binding type is typed as 'unknown' instead of 'any' to enforce runtime type safety and guard checks.
       } catch (err: unknown) {
         const errorMessage = err instanceof Error ? err.message : String(err);
         console.warn("[PillMind Check Engine] Sunucu API hatası veya ağ kaybı, çevrimdışı yerel tarama çekirdeği devreye alınıyor:", errorMessage);
@@ -95,7 +104,7 @@ export default function KontrolPage() {
           const localResults = findInteractions(selectedDrugIds);
           setInteractions(localResults);
           setCheckingError(null);
-        } catch (localErr) {
+        } catch {
           setCheckingError("Bağlantı hatası: Yerel çevrimdışı tarama motoru yüklenemedi.");
         }
       } finally {
@@ -107,7 +116,7 @@ export default function KontrolPage() {
   }, [selectedDrugIds]);
 
   // Request detailed explanation for a single interaction card
-  const handleExplainRequested = useCallback(async (interactionId: string, force: boolean) => {
+  const handleExplainRequested = useCallback(async (interactionId: string, _force: boolean) => {
     // Avoid double fetching
     if (loadingExplanations[interactionId]) return;
 

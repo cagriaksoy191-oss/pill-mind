@@ -2,7 +2,8 @@
 import { NextRequest } from "next/server";
 import crypto from "crypto";
 
-const JWT_SECRET = process.env.JWT_SECRET || "pillmind-ultimate-32-chars-fallback-secret!";
+const JWT_SECRET =
+  process.env.JWT_SECRET || "pillmind-ultimate-32-chars-fallback-secret!";
 
 export interface SessionData {
   userId: string;
@@ -16,28 +17,41 @@ export interface VerificationData {
   expires: number;
 }
 
-
 /**
  * AES-256-CBC algoritmasıyla oturum verisini şifreler
  */
 export function encryptSession(data: SessionData | VerificationData): string {
   const key = crypto.scryptSync(JWT_SECRET, "salt", 32);
-  const iv = Buffer.alloc(16, 0); // Sabit IV (Basit serverless oturumu için)
+  const iv = crypto.randomBytes(16);
   const cipher = crypto.createCipheriv("aes-256-cbc", key, iv);
   let encrypted = cipher.update(JSON.stringify(data), "utf8", "hex");
   encrypted += cipher.final("hex");
-  return encrypted;
+  return iv.toString("hex") + ":" + encrypted;
 }
 
 /**
  * Oturum şifresini çözerek doğrular
  */
-export function decryptSession(token: string): SessionData | VerificationData | null {
+export function decryptSession(
+  token: string,
+): SessionData | VerificationData | null {
   try {
     const key = crypto.scryptSync(JWT_SECRET, "salt", 32);
-    const iv = Buffer.alloc(16, 0);
+
+    let iv;
+    let encryptedData;
+
+    if (token.includes(":")) {
+      const parts = token.split(":");
+      iv = Buffer.from(parts[0], "hex");
+      encryptedData = parts[1];
+    } else {
+      iv = Buffer.alloc(16, 0); // Backward compatibility
+      encryptedData = token;
+    }
+
     const decipher = crypto.createDecipheriv("aes-256-cbc", key, iv);
-    let decrypted = decipher.update(token, "hex", "utf8");
+    let decrypted = decipher.update(encryptedData, "hex", "utf8");
     decrypted += decipher.final("utf8");
     const data = JSON.parse(decrypted) as SessionData | VerificationData;
     return data;

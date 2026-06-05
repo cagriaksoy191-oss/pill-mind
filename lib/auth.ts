@@ -2,8 +2,13 @@
 import { NextRequest } from "next/server";
 import crypto from "crypto";
 
-const JWT_SECRET =
-  process.env.JWT_SECRET || "pillmind-ultimate-32-chars-fallback-secret!";
+function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error("JWT_SECRET environment variable is not set.");
+  }
+  return secret;
+}
 
 export interface SessionData {
   userId: string;
@@ -21,7 +26,7 @@ export interface VerificationData {
  * AES-256-CBC algoritmasıyla oturum verisini şifreler
  */
 export function encryptSession(data: SessionData | VerificationData): string {
-  const key = crypto.scryptSync(JWT_SECRET, "salt", 32);
+  const key = crypto.scryptSync(getJwtSecret(), "salt", 32);
   const iv = crypto.randomBytes(16);
   const cipher = crypto.createCipheriv("aes-256-cbc", key, iv);
   let encrypted = cipher.update(JSON.stringify(data), "utf8", "hex");
@@ -36,7 +41,7 @@ export function decryptSession(
   token: string,
 ): SessionData | VerificationData | null {
   try {
-    const key = crypto.scryptSync(JWT_SECRET, "salt", 32);
+    const key = crypto.scryptSync(getJwtSecret(), "salt", 32);
 
     let iv;
     let encryptedData;

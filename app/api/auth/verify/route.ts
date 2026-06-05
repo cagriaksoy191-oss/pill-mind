@@ -58,15 +58,11 @@ export async function POST(request: Request) {
     }
 
     // Doğrulama başarılı! Kullanıcıyı bul veya oluştur.
-    let user = await prisma.user.findUnique({
+    const user = await prisma.user.upsert({
       where: { email: cleanEmail },
+      update: {},
+      create: { email: cleanEmail },
     });
-
-    if (!user) {
-      user = await prisma.user.create({
-        data: { email: cleanEmail },
-      });
-    }
 
     // 7 Günlük oturum süresi belirlenir
     const expiresAt = Date.now() + 1000 * 60 * 60 * 24 * 7;

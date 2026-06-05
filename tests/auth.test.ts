@@ -1,5 +1,12 @@
 // tests/auth.test.ts
-import { encryptSession, decryptSession, SessionData, VerificationData } from "../lib/auth";
+import {
+  encryptSession,
+  decryptSession,
+  SessionData,
+  VerificationData,
+  getSession,
+} from "../lib/auth";
+import { NextRequest } from "next/server";
 
 describe("AES-256 Oturum Güvenliği Birim Testleri (Session Cryptography Unit Tests)", () => {
   const testSession: SessionData = {
@@ -75,5 +82,65 @@ describe("AES-256 Oturum Doğrulama Güvenliği (OTP Verification Token Tests)",
     expect(decrypted.email).toBe(testVerification.email);
     expect(decrypted.otp).toBe(testVerification.otp);
     expect(decrypted.expires).toBe(testVerification.expires);
+  });
+});
+
+describe("getSession Unit Tests", () => {
+  const mockSession: SessionData = {
+    userId: "test-user",
+    email: "test@example.com",
+    expires: Date.now() + 1000 * 60 * 60,
+  };
+
+  test("returns session data for valid cookie", () => {
+    const token = encryptSession(mockSession);
+    const req = {
+      cookies: {
+        get: jest.fn().mockReturnValue({ value: token }),
+      },
+    } as unknown as NextRequest;
+
+    const result = getSession(req);
+    expect(result).not.toBeNull();
+    expect(result?.userId).toBe(mockSession.userId);
+  });
+
+  test("returns null when no cookie is present", () => {
+    const req = {
+      cookies: {
+        get: jest.fn().mockReturnValue(undefined),
+      },
+    } as unknown as NextRequest;
+
+    const result = getSession(req);
+    expect(result).toBeNull();
+  });
+
+  test("returns null for invalid cookie value", () => {
+    const req = {
+      cookies: {
+        get: jest.fn().mockReturnValue({ value: "invalid-token" }),
+      },
+    } as unknown as NextRequest;
+
+    const result = getSession(req);
+    expect(result).toBeNull();
+  });
+
+  test("returns null for expired session", () => {
+    const expiredSession: SessionData = {
+      userId: "expired-user",
+      email: "expired@example.com",
+      expires: Date.now() - 1000 * 60, // 1 minute ago
+    };
+    const token = encryptSession(expiredSession);
+    const req = {
+      cookies: {
+        get: jest.fn().mockReturnValue({ value: token }),
+      },
+    } as unknown as NextRequest;
+
+    const result = getSession(req);
+    expect(result).toBeNull();
   });
 });

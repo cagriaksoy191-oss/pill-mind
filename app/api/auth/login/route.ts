@@ -26,15 +26,6 @@ export async function POST(request: Request) {
       expires: expiresAt,
     });
 
-    // SADECE GELİŞTİRME/TEST ORTAMINDA: Konsola şifreyi bas
-    if (process.env.NODE_ENV !== "production") {
-      console.log(`[Mock Email] ${cleanEmail} adresi için giriş kodu: ${otp}`);
-    } else {
-      // Prod'da da test için görünür bırakıyoruz ki test aracı OTP'yi görebilsin
-      // (Gerçek hayatta bu kısım sadece mail atar ve konsola yazmaz)
-      console.log(`[Mock Email] ${cleanEmail} adresi için giriş kodu: ${otp}`);
-    }
-
     const response = NextResponse.json({
       success: true,
       message:

@@ -1,7 +1,7 @@
 // components/UserPanel.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 interface SavedPillbox {
   id: string;
@@ -41,8 +41,24 @@ export default function UserPanel({
   const [saveLoading, setSaveLoading] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
 
+  // Kayıtlı ilaç kutularını buluttan çek
+  const fetchSavedBoxes = useCallback(async () => {
+    setListBoxesLoading(true);
+    try {
+      const res = await fetch("/api/pillbox/list");
+      if (res.ok) {
+        const data = await res.json();
+        setSavedBoxes(data.pillboxes || []);
+      }
+    } catch (err) {
+      console.error("[Pillbox List] Çekilirken hata:", err);
+    } finally {
+      setListBoxesLoading(false);
+    }
+  }, []);
+
   // Oturum durumunu sunucudan sorgula
-  const checkSession = async () => {
+  const checkSession = useCallback(async () => {
     try {
       const res = await fetch("/api/auth/me");
       if (res.ok) {
@@ -57,28 +73,11 @@ export default function UserPanel({
     } finally {
       setLoading(false);
     }
-  };
-
-  // Kayıtlı ilaç kutularını buluttan çek
-  const fetchSavedBoxes = async () => {
-    setListBoxesLoading(true);
-    try {
-      const res = await fetch("/api/pillbox/list");
-      if (res.ok) {
-        const data = await res.json();
-        setSavedBoxes(data.pillboxes || []);
-      }
-    } catch (err) {
-      console.error("[Pillbox List] Çekilirken hata:", err);
-    } finally {
-      setListBoxesLoading(false);
-    }
-  };
+  }, [fetchSavedBoxes]);
 
   useEffect(() => {
     checkSession();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [checkSession]);
 
   // Giriş Yap / Kayıt Ol Akışı
   const handleAuthSubmit = async (e: React.FormEvent) => {

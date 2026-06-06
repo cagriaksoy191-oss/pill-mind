@@ -1,6 +1,7 @@
 // lib/interactions.ts
 import drugsData from "@/data/drugs.json";
 import interactionsData from "@/data/interactions.json";
+import { redis } from "@/lib/redis";
 
 export interface Drug {
   id: string;
@@ -112,6 +113,20 @@ export async function findInteractionsDB(
     return findInteractions(drugIds);
   }
 
+  const cacheKey = `interactions_db:${[...drugIds].sort().join(",")}`;
+
+  // Check Redis cache if available
+  if (redis) {
+    try {
+      const cached = await redis.get<CheckResult[]>(cacheKey);
+      if (cached) {
+        return cached;
+      }
+    } catch (err) {
+      console.warn("[PillMind CMIO Engine] Redis cache read error:", err);
+    }
+  }
+
   try {
     const { prisma } = await import("@/lib/prisma");
 
@@ -164,6 +179,16 @@ export async function findInteractionsDB(
           drug1Name: drugA.name,
           drug2Name: drugB.name,
         });
+      }
+    }
+
+    // Cache the results in Redis
+    if (redis) {
+      try {
+        // Cache for 24 hours (86400 seconds)
+        await redis.setex(cacheKey, 86400, results);
+      } catch (err) {
+        console.warn("[PillMind CMIO Engine] Redis cache write error:", err);
       }
     }
 

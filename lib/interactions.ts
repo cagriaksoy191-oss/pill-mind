@@ -20,6 +20,15 @@ export interface Interaction {
   verificationStatus?: string;
 }
 
+
+export interface ExplanationData {
+  explanation?: string;
+  source?: string;
+  generatedAt?: string;
+  reason?: string;
+  error?: string;
+}
+
 export interface CheckResult {
   interaction: Interaction;
   drug1Name: string;

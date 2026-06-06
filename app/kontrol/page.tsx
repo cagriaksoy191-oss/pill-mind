@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { getAllDrugs, Drug, CheckResult } from "@/lib/interactions";
+import { getAllDrugs, Drug, CheckResult, ExplanationData } from "@/lib/interactions";
 import DrugSelector from "@/components/DrugSelector";
 import VirtualPillbox from "@/components/VirtualPillbox";
 import Disclaimer from "@/components/Disclaimer";
@@ -18,13 +18,6 @@ export default function KontrolPage() {
   const [checkingError, setCheckingError] = useState<string | null>(null);
 
   // Individual interaction explanation states
-  interface ExplanationData {
-  explanation?: string;
-  source?: string;
-  generatedAt?: string;
-  reason?: string;
-  error?: string;
-}
 
   const [explanations, setExplanations] = useState<Record<string, ExplanationData>>({});
   const [loadingExplanations, setLoadingExplanations] = useState<Record<string, boolean>>({});

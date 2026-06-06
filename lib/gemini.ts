@@ -80,6 +80,9 @@ for (const int of interactionsData as InteractionRecord[]) {
   interactionsMap.set(int.id, int);
 }
 
+// Memory cache for database lookups to prevent duplicate DB hits
+const dbCache = new Map<string, InteractionRecord>();
+
 // Gemini Structured Outputs JSON Şeması
 const EXPLANATION_SCHEMA = {
   type: "OBJECT",
@@ -114,8 +117,12 @@ export async function getInteractionContext(interactionId: string): Promise<Inte
   let interaction: InteractionRecord | null = null;
 
   const staticInt = interactionsMap.get(interactionId);
+  const cachedDbInt = dbCache.get(interactionId);
+
   if (staticInt) {
     interaction = staticInt;
+  } else if (cachedDbInt) {
+    interaction = cachedDbInt;
   } else {
     // If not in static JSON, look up the database UUID
     if (process.env.DATABASE_URL && !process.env.DATABASE_URL.includes("[SIFRE]")) {
@@ -133,6 +140,9 @@ export async function getInteractionContext(interactionId: string): Promise<Inte
             summary: dbMatch.summary,
             source: dbMatch.source
           };
+
+          if (dbCache.size > 1000) dbCache.clear();
+          dbCache.set(interactionId, interaction);
         }
       } catch (err) {
         console.warn("[getInteractionContext] Database lookup failed:", err);

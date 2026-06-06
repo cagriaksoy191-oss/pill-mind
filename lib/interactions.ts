@@ -21,7 +21,6 @@ export interface Interaction {
   verificationStatus?: string;
 }
 
-
 export interface ExplanationData {
   explanation?: string;
   source?: string;
@@ -69,14 +68,17 @@ export function findInteractions(drugIds: string[]): CheckResult[] {
   }
   const results: CheckResult[] = [];
 
-  for (let i = 0; i < drugIds.length; i++) {
-    const a = drugIds[i];
+  // Remove duplicates to prevent redundant O(N^2) checks
+  const uniqueDrugIds = Array.from(new Set(drugIds));
+
+  for (let i = 0; i < uniqueDrugIds.length; i++) {
+    const a = uniqueDrugIds[i];
     const mapA = interactionsMap.get(a);
 
     if (!mapA) continue;
 
-    for (let j = i + 1; j < drugIds.length; j++) {
-      const b = drugIds[j];
+    for (let j = i + 1; j < uniqueDrugIds.length; j++) {
+      const b = uniqueDrugIds[j];
 
       const match = mapA.get(b);
 

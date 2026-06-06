@@ -23,13 +23,7 @@ export default function KontrolPage() {
   const [loadingExplanations, setLoadingExplanations] = useState<Record<string, boolean>>({});
 
   // Global combination analysis states (Coverage)
-  const [coverageExplanation, setCoverageExplanation] = useState<{
-    explanation?: string;
-    source?: string;
-    generatedAt?: string;
-    error?: string;
-    reason?: string;
-  } | null>(null);
+  const [coverageExplanation, setCoverageExplanation] = useState<ExplanationData | null>(null);
   const [isCoverageLoading, setIsCoverageLoading] = useState(false);
   const [showCoveragePanel, setShowCoveragePanel] = useState(false);
   const [isOffline, setIsOffline] = useState(false);

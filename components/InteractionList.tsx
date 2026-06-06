@@ -1,14 +1,5 @@
 import ResultCard from "@/components/ResultCard";
-import { CheckResult } from "@/lib/interactions";
-
-
-interface ExplanationData {
-  explanation?: string;
-  source?: string;
-  generatedAt?: string;
-  reason?: string;
-  error?: string;
-}
+import { CheckResult, ExplanationData } from "@/lib/interactions";
 
 interface InteractionListProps {
   interactions: CheckResult[];

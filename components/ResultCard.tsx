@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { getSeverityLabel } from "@/lib/interactions";
 import ExplanationDrawer from "./ExplanationDrawer";
+import { ExplanationData } from "@/lib/interactions";
 
 interface ResultCardProps {
   drug1Name: string;
@@ -13,13 +14,7 @@ interface ResultCardProps {
   sourceLabel?: string;
   verificationStatus?: string;
   source?: string;
-  explanationData?: {
-    explanation?: string;
-    source?: string;
-    generatedAt?: string;
-    reason?: string;
-    error?: string;
-  };
+  explanationData?: ExplanationData;
   isExplanationLoading?: boolean;
   onExplainRequested: (id: string, force: boolean) => void;
 }

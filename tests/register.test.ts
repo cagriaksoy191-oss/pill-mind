@@ -38,7 +38,7 @@ describe("Register route test", () => {
   });
 
   it("should fail when user already exists", async () => {
-    const error: any = new Error();
+    const error = new Error() as Error & { code?: string };
     error.code = "P2002";
     (prisma.user.create as jest.Mock).mockRejectedValue(error);
 

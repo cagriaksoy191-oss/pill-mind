@@ -26,12 +26,13 @@ export interface VerificationData {
  * AES-256-CBC algoritmasıyla oturum verisini şifreler
  */
 export function encryptSession(data: SessionData | VerificationData): string {
-  const key = crypto.scryptSync(getJwtSecret(), "salt", 32);
+  const salt = crypto.randomBytes(16);
+  const key = crypto.scryptSync(getJwtSecret(), salt, 32);
   const iv = crypto.randomBytes(16);
   const cipher = crypto.createCipheriv("aes-256-cbc", key, iv);
   let encrypted = cipher.update(JSON.stringify(data), "utf8", "hex");
   encrypted += cipher.final("hex");
-  return iv.toString("hex") + ":" + encrypted;
+  return salt.toString("hex") + ":" + iv.toString("hex") + ":" + encrypted;
 }
 
 /**
@@ -41,19 +42,24 @@ export function decryptSession(
   token: string,
 ): SessionData | VerificationData | null {
   try {
-    const key = crypto.scryptSync(getJwtSecret(), "salt", 32);
+    let salt: Buffer | string = "salt";
+    let iv: Buffer;
+    let encryptedData: string;
 
-    let iv;
-    let encryptedData;
-
-    if (token.includes(":")) {
-      const parts = token.split(":");
+    const parts = token.split(":");
+    if (parts.length === 3) {
+      salt = Buffer.from(parts[0], "hex");
+      iv = Buffer.from(parts[1], "hex");
+      encryptedData = parts[2];
+    } else if (parts.length === 2) {
       iv = Buffer.from(parts[0], "hex");
       encryptedData = parts[1];
     } else {
       iv = Buffer.alloc(16, 0); // Backward compatibility
       encryptedData = token;
     }
+
+    const key = crypto.scryptSync(getJwtSecret(), salt, 32);
 
     const decipher = crypto.createDecipheriv("aes-256-cbc", key, iv);
     let decrypted = decipher.update(encryptedData, "hex", "utf8");

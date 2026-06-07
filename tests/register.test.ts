@@ -55,4 +55,25 @@ describe("Register route test", () => {
       "Bu e-posta adresiyle kayıtlı bir kullanıcı zaten mevcut.",
     );
   });
+
+  it("should return 500 when a system error occurs during registration", async () => {
+    const consoleSpy = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const error = new Error("Generic database error");
+    (prisma.user.create as jest.Mock).mockRejectedValue(error);
+
+    const request = new Request("http://localhost", {
+      method: "POST",
+      body: JSON.stringify({ email: "error@example.com" }),
+    });
+
+    const res = await POST(request);
+    const data = await res.json();
+
+    expect(res.status).toBe(500);
+    expect(data.error).toBe("Kayıt sırasında sistemsel bir hata oluştu.");
+
+    consoleSpy.mockRestore();
+  });
 });

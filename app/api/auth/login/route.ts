@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import { NextResponse } from "next/server";
 import { encryptSession } from "@/lib/auth";
 
@@ -16,7 +17,7 @@ export async function POST(request: Request) {
     const cleanEmail = email.toLowerCase().trim();
 
     // OTP Doğrulama kodu oluştur (6 haneli)
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otp = crypto.randomInt(100000, 1000000).toString();
 
     // 10 Dakikalık OTP süresi belirlenir
     const expiresAt = Date.now() + 1000 * 60 * 10;

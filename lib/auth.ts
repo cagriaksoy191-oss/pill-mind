@@ -42,7 +42,8 @@ export function decryptSession(
   token: string,
 ): SessionData | VerificationData | null {
   try {
-    let salt: Buffer | string = "salt";
+    const legacySalt = Buffer.from("73616c74", "hex");
+    let salt: Buffer = legacySalt;
     let iv: Buffer;
     let encryptedData: string;
 

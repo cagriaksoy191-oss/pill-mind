@@ -20,9 +20,9 @@ export async function POST(request: Request) {
       user = await prisma.user.create({
         data: { email: email.toLowerCase().trim() },
       });
-    } catch (e: any) {
+    } catch (e: unknown) {
       // Prisma Unique Constraint Violation
-      if (e.code === "P2002") {
+      if (typeof e === 'object' && e !== null && 'code' in e && (e as Record<string, unknown>).code === "P2002") {
         return NextResponse.json(
           { error: "Bu e-posta adresiyle kayıtlı bir kullanıcı zaten mevcut." },
           { status: 400 },

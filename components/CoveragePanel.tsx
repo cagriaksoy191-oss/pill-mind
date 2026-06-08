@@ -2,7 +2,12 @@ interface CoveragePanelProps {
   showCoveragePanel: boolean;
   setShowCoveragePanel: (show: boolean) => void;
   isCoverageLoading: boolean;
-  coverageExplanation: any;
+  coverageExplanation: {
+    source?: string;
+    explanation?: string;
+    generatedAt?: string;
+    error?: string;
+  } | null;
   handleRequestCoverageExplanation: () => Promise<void>;
 }
 

@@ -29,13 +29,15 @@ export default function VirtualPillbox({
     if (selectedDrugs.length > prevCountRef.current) {
       const added = selectedDrugs[selectedDrugs.length - 1];
       if (added) {
-        // Since we cannot call setState directly in useEffect without triggering warning,
-        // we can wrap it in setTimeout. However, another way is just disabling the eslint rule since it was already there.
-        // Actually wrapping it in a setTimeout is safe for this animation.
-        setTimeout(() => setNewlyAddedId(added.id), 0);
+        // Schedule state update right before next paint to avoid synchronous cascading render warning
+        const raf = requestAnimationFrame(() => {
+          setNewlyAddedId(added.id);
+        });
         const timer = setTimeout(() => setNewlyAddedId(null), 1000);
+
         prevCountRef.current = selectedDrugs.length;
         return () => {
+           cancelAnimationFrame(raf);
            clearTimeout(timer);
         };
       }

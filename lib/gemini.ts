@@ -80,9 +80,6 @@ for (const int of interactionsData as InteractionRecord[]) {
   interactionsMap.set(int.id, int);
 }
 
-// Memory cache for database lookups to prevent duplicate DB hits
-const dbCache = new Map<string, InteractionRecord>();
-
 // Gemini Structured Outputs JSON Şeması
 const EXPLANATION_SCHEMA = {
   type: "OBJECT",
@@ -117,12 +114,8 @@ export async function getInteractionContext(interactionId: string): Promise<Inte
   let interaction: InteractionRecord | null = null;
 
   const staticInt = interactionsMap.get(interactionId);
-  const cachedDbInt = dbCache.get(interactionId);
-
   if (staticInt) {
     interaction = staticInt;
-  } else if (cachedDbInt) {
-    interaction = cachedDbInt;
   } else {
     // If not in static JSON, look up the database UUID
     if (process.env.DATABASE_URL && !process.env.DATABASE_URL.includes("[SIFRE]")) {
@@ -140,9 +133,6 @@ export async function getInteractionContext(interactionId: string): Promise<Inte
             summary: dbMatch.summary,
             source: dbMatch.source
           };
-
-          if (dbCache.size > 1000) dbCache.clear();
-          dbCache.set(interactionId, interaction);
         }
       } catch (err) {
         console.warn("[getInteractionContext] Database lookup failed:", err);
@@ -365,7 +355,7 @@ async function executeGeminiRequest(model: string, payload: string): Promise<str
   return rawText;
 }
 
-function parseGeminiResponse(rawText: string): Record<string, unknown> | unknown[] | string {
+function parseGeminiResponse(rawText: string): any {
   let cleanText = rawText.trim();
 
   // Strip markdown json blocks if returned by the model under any edge conditions
@@ -380,20 +370,12 @@ function parseGeminiResponse(rawText: string): Record<string, unknown> | unknown
   }
 }
 
-interface GeminiResponseShape {
-  girisCumlesi?: string;
-  klinikEtkiAciklamasi?: string;
-  hastalaraOneriler?: string | string[];
-  hekimYonlendirmesi?: string;
-}
-
-export function formatExplanation(parsedJSON: Record<string, unknown>): string {
-  const data = parsedJSON as unknown as GeminiResponseShape;
-  const giris = normalizeExplanation(data.girisCumlesi || "");
-  const klinik = normalizeExplanation(data.klinikEtkiAciklamasi || "");
+export function formatExplanation(parsedJSON: any): string {
+  const giris = normalizeExplanation(parsedJSON.girisCumlesi || "");
+  const klinik = normalizeExplanation(parsedJSON.klinikEtkiAciklamasi || "");
 
   // Resilient parsing for patient advice list to avoid type crashes if model outputs non-array values
-  let rawOneriler = data.hastalaraOneriler;
+  let rawOneriler = parsedJSON.hastalaraOneriler;
   if (!Array.isArray(rawOneriler)) {
     if (typeof rawOneriler === "string") {
       rawOneriler = [rawOneriler];
@@ -402,10 +384,10 @@ export function formatExplanation(parsedJSON: Record<string, unknown>): string {
     }
   }
   const oneriler: string[] = rawOneriler
-    .map((o: unknown) => normalizeExplanation(String(o || "")))
+    .map((o: any) => normalizeExplanation(String(o || "")))
     .filter(Boolean);
 
-  const hekim = normalizeExplanation(data.hekimYonlendirmesi || "");
+  const hekim = normalizeExplanation(parsedJSON.hekimYonlendirmesi || "");
 
   return `
 ${giris}
@@ -430,7 +412,7 @@ function createTimeoutReject(ms: number, message: string): { promise: Promise<ne
 
 async function executeGeminiChainTask(model: string, payload: string): Promise<GeminiResult> {
   const rawText = await executeGeminiRequest(model, payload);
-  const parsedJSON = parseGeminiResponse(rawText) as Record<string, unknown>;
+  const parsedJSON = parseGeminiResponse(rawText);
   const compiledExplanation = formatExplanation(parsedJSON);
 
   if (!isOutputSafe(compiledExplanation)) {

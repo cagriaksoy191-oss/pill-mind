@@ -1,5 +1,6 @@
-import crypto from "crypto";
+// app/api/auth/login/route.ts
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
 import { encryptSession } from "@/lib/auth";
 
 export async function POST(request: Request) {
@@ -10,31 +11,41 @@ export async function POST(request: Request) {
     if (!email || !email.includes("@")) {
       return NextResponse.json(
         { error: "Geçersiz bir e-posta adresi girdiniz." },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
     const cleanEmail = email.toLowerCase().trim();
 
-    // OTP Doğrulama kodu oluştur (6 haneli)
-    const otp = crypto.randomInt(100000, 1000000).toString();
+    // Kullanıcıyı veritabanında ara veya otomatik oluştur (Magic Link simülasyonu)
+    let user = await prisma.user.findUnique({
+      where: { email: cleanEmail },
+    });
 
-    // 10 Dakikalık OTP süresi belirlenir
-    const expiresAt = Date.now() + 1000 * 60 * 10;
-    const verificationToken = encryptSession({
-      email: cleanEmail,
-      otp,
+    if (!user) {
+      user = await prisma.user.create({
+        data: { email: cleanEmail },
+      });
+    }
+
+    // 7 Günlük oturum süresi belirlenir
+    const expiresAt = Date.now() + 1000 * 60 * 60 * 24 * 7;
+    const sessionToken = encryptSession({
+      userId: user.id,
+      email: user.email,
       expires: expiresAt,
     });
 
     const response = NextResponse.json({
       success: true,
-      message:
-        "Giriş bağlantısı / doğrulama kodu e-posta adresinize gönderildi.",
+      user: {
+        id: user.id,
+        email: user.email,
+      },
     });
 
-    // Verification token çerezini yazıyoruz
-    response.cookies.set("verification_token", verificationToken, {
+    // Oturum çerezini yazıyoruz (HttpOnly, Secure ve SameSite korumalı)
+    response.cookies.set("session", sessionToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
@@ -47,7 +58,7 @@ export async function POST(request: Request) {
     console.error("[PillMind Login Endpoint Error]:", error);
     return NextResponse.json(
       { error: "Giriş yapılırken sistemsel bir hata oluştu." },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

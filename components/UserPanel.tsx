@@ -1,7 +1,7 @@
 // components/UserPanel.tsx
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 
 interface SavedPillbox {
   id: string;
@@ -28,8 +28,6 @@ export default function UserPanel({
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [emailInput, setEmailInput] = useState("");
-  const [otpStep, setOtpStep] = useState(false);
-  const [otpInput, setOtpInput] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [authLoading, setAuthLoading] = useState(false);
 
@@ -41,24 +39,8 @@ export default function UserPanel({
   const [saveLoading, setSaveLoading] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
 
-  // Kayıtlı ilaç kutularını buluttan çek
-  const fetchSavedBoxes = useCallback(async () => {
-    setListBoxesLoading(true);
-    try {
-      const res = await fetch("/api/pillbox/list");
-      if (res.ok) {
-        const data = await res.json();
-        setSavedBoxes(data.pillboxes || []);
-      }
-    } catch (err) {
-      console.error("[Pillbox List] Çekilirken hata:", err);
-    } finally {
-      setListBoxesLoading(false);
-    }
-  }, []);
-
   // Oturum durumunu sunucudan sorgula
-  const checkSession = useCallback(async () => {
+  const checkSession = async () => {
     try {
       const res = await fetch("/api/auth/me");
       if (res.ok) {
@@ -73,11 +55,27 @@ export default function UserPanel({
     } finally {
       setLoading(false);
     }
-  }, [fetchSavedBoxes]);
+  };
+
+  // Kayıtlı ilaç kutularını buluttan çek
+  const fetchSavedBoxes = async () => {
+    setListBoxesLoading(true);
+    try {
+      const res = await fetch("/api/pillbox/list");
+      if (res.ok) {
+        const data = await res.json();
+        setSavedBoxes(data.pillboxes || []);
+      }
+    } catch (err) {
+      console.error("[Pillbox List] Çekilirken hata:", err);
+    } finally {
+      setListBoxesLoading(false);
+    }
+  };
 
   useEffect(() => {
     checkSession();
-  }, [checkSession]);
+  }, []);
 
   // Giriş Yap / Kayıt Ol Akışı
   const handleAuthSubmit = async (e: React.FormEvent) => {
@@ -102,47 +100,11 @@ export default function UserPanel({
         throw new Error(data.error || "Giriş başarısız.");
       }
 
-      // Instead of logging in, we move to OTP step
-      setOtpStep(true);
-      setErrorMsg(null);
-    } catch (err: unknown) {
-      const error = err instanceof Error ? err : new Error(String(err));
-      setErrorMsg(error.message);
-    } finally {
-      setAuthLoading(false);
-    }
-  };
-
-  const handleOtpSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!otpInput || otpInput.length < 6) {
-      setErrorMsg("Lütfen 6 haneli kodu girin.");
-      return;
-    }
-
-    setAuthLoading(true);
-    setErrorMsg(null);
-
-    try {
-      const res = await fetch("/api/auth/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: emailInput, otp: otpInput }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || "Kod doğrulama başarısız.");
-      }
-
       setUser(data.user);
       setShowModal(false);
       setEmailInput("");
-      setOtpStep(false);
-      setOtpInput("");
       fetchSavedBoxes();
-    } catch (error) {
-      const err = error instanceof Error ? error : new Error(String(error));
+    } catch (err: any) {
       setErrorMsg(err.message || "Giriş yaparken bir hata oluştu.");
     } finally {
       setAuthLoading(false);
@@ -184,8 +146,7 @@ export default function UserPanel({
       setSaveName("");
       setShowSavePrompt(false);
       fetchSavedBoxes();
-    } catch (error) {
-      const err = error instanceof Error ? error : new Error(String(error));
+    } catch (err: any) {
       alert(err.message || "Kutu kaydedilirken bir hata oluştu.");
     } finally {
       setSaveLoading(false);
@@ -194,8 +155,7 @@ export default function UserPanel({
 
   // Kutu Silme Akışı
   const handleDeleteBox = async (id: string) => {
-    if (!confirm("Bu kayıtlı ilaç kutusunu silmek istediğinize emin misiniz?"))
-      return;
+    if (!confirm("Bu kayıtlı ilaç kutusunu silmek istediğinize emin misiniz?")) return;
 
     try {
       const res = await fetch("/api/pillbox/delete", {
@@ -257,27 +217,17 @@ export default function UserPanel({
             {showDropdown && (
               <div className="absolute right-0 mt-2 w-72 backdrop-blur-2xl bg-slate-900/95 border border-white/10 rounded-2xl p-4 shadow-2xl z-50 animate-slide-down">
                 <div className="pb-3 border-b border-white/5">
-                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
-                    Aktif Oturum
-                  </p>
-                  <p className="text-xs font-semibold text-white truncate mt-0.5">
-                    {user.email}
-                  </p>
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Aktif Oturum</p>
+                  <p className="text-xs font-semibold text-white truncate mt-0.5">{user.email}</p>
                 </div>
 
                 <div className="py-3">
-                  <h4 className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-2">
-                    💾 Kayıtlı Kutularım
-                  </h4>
+                  <h4 className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-2">💾 Kayıtlı Kutularım</h4>
 
                   {listBoxesLoading ? (
-                    <div className="py-3 text-center text-xs text-slate-500">
-                      Yükleniyor...
-                    </div>
+                    <div className="py-3 text-center text-xs text-slate-500">Yükleniyor...</div>
                   ) : savedBoxes.length === 0 ? (
-                    <p className="text-[11px] text-slate-500 italic py-2">
-                      Bulutta kayıtlı kutunuz bulunmuyor.
-                    </p>
+                    <p className="text-[11px] text-slate-500 italic py-2">Bulutta kayıtlı kutunuz bulunmuyor.</p>
                   ) : (
                     <ul className="space-y-2 max-h-48 overflow-y-auto pr-1">
                       {savedBoxes.map((box) => (
@@ -286,15 +236,8 @@ export default function UserPanel({
                           className="flex items-center justify-between p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 transition-all text-left"
                         >
                           <div className="min-w-0 flex-1 pr-2">
-                            <p className="text-xs font-bold text-white truncate">
-                              {box.name}
-                            </p>
-                            <p className="text-[9px] text-slate-400 mt-0.5">
-                              {box.drugIds.length} İlaç •{" "}
-                              {new Date(box.createdAt).toLocaleDateString(
-                                "tr-TR",
-                              )}
-                            </p>
+                            <p className="text-xs font-bold text-white truncate">{box.name}</p>
+                            <p className="text-[9px] text-slate-400 mt-0.5">{box.drugIds.length} İlaç • {new Date(box.createdAt).toLocaleDateString("tr-TR")}</p>
                           </div>
 
                           <div className="flex items-center gap-1.5 shrink-0">
@@ -342,8 +285,6 @@ export default function UserPanel({
                 setShowModal(false);
                 setErrorMsg(null);
                 setEmailInput("");
-                setOtpStep(false);
-                setOtpInput("");
               }}
               className="absolute top-4 right-4 w-7 h-7 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 hover:text-white text-xs cursor-pointer transition-colors"
             >
@@ -354,88 +295,43 @@ export default function UserPanel({
               <div className="w-12 h-12 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-2xl mx-auto mb-3 shadow-inner">
                 🩺
               </div>
-              <h3 className="text-xl font-extrabold text-white">
-                PillMind Hesabınıza Giriş Yapın
-              </h3>
+              <h3 className="text-xl font-extrabold text-white">PillMind Hesabınıza Giriş Yapın</h3>
               <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                İlaç kutularınızı buluta kaydetmek ve dilediğiniz an erişmek
-                için e-posta adresinizle anında şifresiz giriş yapın.
+                İlaç kutularınızı buluta kaydetmek ve dilediğiniz an erişmek için e-posta adresinizle anında şifresiz giriş yapın.
               </p>
             </div>
 
-            {!otpStep ? (
-              <form onSubmit={handleAuthSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
-                    E-POSTA ADRESİ
-                  </label>
-                  <input
-                    type="email"
-                    placeholder="isim@örnek.com"
-                    value={emailInput}
-                    onChange={(e) => setEmailInput(e.target.value)}
-                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all font-medium text-sm"
-                    required
-                  />
+            <form onSubmit={handleAuthSubmit} className="space-y-4">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">E-POSTA ADRESİ</label>
+                <input
+                  type="email"
+                  placeholder="isim@örnek.com"
+                  value={emailInput}
+                  onChange={(e) => setEmailInput(e.target.value)}
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all font-medium text-sm"
+                  required
+                />
+              </div>
+
+              {errorMsg && (
+                <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-300 font-medium">
+                  ⚠️ {errorMsg}
                 </div>
+              )}
 
-                {errorMsg && (
-                  <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-300 font-medium">
-                    ⚠️ {errorMsg}
-                  </div>
+              <button
+                type="submit"
+                disabled={authLoading}
+                className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-sm rounded-xl shadow-lg hover:shadow-indigo-500/20 transition-all duration-200 cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {authLoading ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  "Giriş Yap / Kaydol"
                 )}
-
-                <button
-                  type="submit"
-                  disabled={authLoading}
-                  className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-sm rounded-xl shadow-lg hover:shadow-indigo-500/20 transition-all duration-200 cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  {authLoading ? (
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  ) : (
-                    "Giriş Yap / Kaydol"
-                  )}
-                </button>
-              </form>
-            ) : (
-              <form onSubmit={handleOtpSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
-                    DOĞRULAMA KODU
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="6 Haneli Kod (Örn: 123456)"
-                    value={otpInput}
-                    onChange={(e) => setOtpInput(e.target.value)}
-                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all font-medium text-sm text-center tracking-widest"
-                    maxLength={6}
-                    required
-                  />
-                  <p className="text-[10px] text-emerald-400 mt-2 text-center">
-                    E-posta adresinize gönderilen kodu girin.
-                  </p>
-                </div>
-
-                {errorMsg && (
-                  <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-300 font-medium">
-                    ⚠️ {errorMsg}
-                  </div>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={authLoading}
-                  className="w-full py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-sm rounded-xl shadow-lg hover:shadow-emerald-500/20 transition-all duration-200 cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  {authLoading ? (
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  ) : (
-                    "Doğrula ve Giriş Yap"
-                  )}
-                </button>
-              </form>
-            )}
+              </button>
+            </form>
           </div>
         </div>
       )}
@@ -458,20 +354,15 @@ export default function UserPanel({
               <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-2xl mx-auto mb-3 shadow-inner">
                 💾
               </div>
-              <h3 className="text-xl font-extrabold text-white">
-                İlaç Kutunuzu Kaydedin
-              </h3>
+              <h3 className="text-xl font-extrabold text-white">İlaç Kutunuzu Kaydedin</h3>
               <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                Şu an sanal kutunuzda bulunan {selectedDrugIds.length} ilacı
-                daha sonra kolayca yüklemek için isimlendirip buluta kaydedin.
+                Şu an sanal kutunuzda bulunan {selectedDrugIds.length} ilacı daha sonra kolayca yüklemek için isimlendirip buluta kaydedin.
               </p>
             </div>
 
             <form onSubmit={handleSavePillbox} className="space-y-4">
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
-                  KUTU ADI / ETİKETİ
-                </label>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">KUTU ADI / ETİKETİ</label>
                 <input
                   type="text"
                   placeholder="Örn: Sabah İlaçlarım, Tansiyon Tedavim"

@@ -5,7 +5,7 @@ import { fuzzySearchDrugs } from "@/lib/fuzzySearch";
 import { Drug } from "@/lib/interactions";
 import DrugList from "./DrugList";
 
-export interface DrugSelectorProps {
+interface DrugSelectorProps {
   drugs: Drug[];
   selected: string[];
   onSelect: (drugIds: string[]) => void;
@@ -23,8 +23,7 @@ export default function DrugSelector({
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Exclude already selected drugs, then fuzzy search
-  const selectedSet = new Set(selected);
-  const availableDrugs = drugs.filter((d) => !selectedSet.has(d.id));
+  const availableDrugs = drugs.filter((d) => !selected.includes(d.id));
   const filtered = query.trim()
     ? fuzzySearchDrugs(query, availableDrugs).map((r) => r.item)
     : availableDrugs;
@@ -93,13 +92,16 @@ export default function DrugSelector({
     }
   };
 
-  const selectedDrugs = drugs.filter((d) => selectedSet.has(d.id));
+  const selectedDrugs = drugs.filter((d) => selected.includes(d.id));
 
   return (
     <div ref={wrapperRef} className="w-full relative z-30">
       {/* Selected drug chips - premium responsive design */}
       {selectedDrugs.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-4" aria-live="polite">
+        <div
+          className="flex flex-wrap gap-2 mb-4"
+          aria-live="polite"
+        >
           {selectedDrugs.map((drug) => (
             <span
               key={drug.id}
@@ -143,7 +145,7 @@ export default function DrugSelector({
           aria-label="İlaç Arama ve Ekleme Kutusu"
         />
 
-        {/* Dropdown - Premium Glassmorphism with transitions */}
+                {/* Dropdown - Premium Glassmorphism with transitions */}
         {isOpen && (
           <DrugList
             filtered={filtered}
@@ -156,14 +158,8 @@ export default function DrugSelector({
 
       <style jsx global>{`
         @keyframes fadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(-5px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
+          from { opacity: 0; transform: translateY(-5px); }
+          to { opacity: 1; transform: translateY(0); }
         }
         .animate-fade-in {
           animation: fadeIn 0.15s ease-out forwards;

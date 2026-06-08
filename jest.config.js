@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-require-imports */
 // jest.config.js
 const nextJest = require("next/jest");
 

@@ -1,6 +1,13 @@
 
 import React from "react";
-import { ExplanationData } from "@/lib/interactions";
+
+interface ExplanationData {
+  explanation?: string;
+  source?: string;
+  generatedAt?: string;
+  reason?: string;
+  error?: string;
+}
 
 interface ExplanationDrawerProps {
   isOpen: boolean;

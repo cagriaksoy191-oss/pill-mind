@@ -2,13 +2,7 @@
 import { NextRequest } from "next/server";
 import crypto from "crypto";
 
-function getJwtSecret(): string {
-  const secret = process.env.JWT_SECRET;
-  if (!secret) {
-    throw new Error("JWT_SECRET environment variable is not set.");
-  }
-  return secret;
-}
+const JWT_SECRET = process.env.JWT_SECRET || "pillmind-ultimate-32-chars-fallback-secret!";
 
 export interface SessionData {
   userId: string;
@@ -16,56 +10,29 @@ export interface SessionData {
   expires: number;
 }
 
-export interface VerificationData {
-  email: string;
-  otp: string;
-  expires: number;
-}
-
 /**
  * AES-256-CBC algoritmasıyla oturum verisini şifreler
  */
-export function encryptSession(data: SessionData | VerificationData): string {
-  const salt = crypto.randomBytes(16);
-  const key = crypto.scryptSync(getJwtSecret(), salt, 32);
-  const iv = crypto.randomBytes(16);
+export function encryptSession(data: SessionData): string {
+  const key = crypto.scryptSync(JWT_SECRET, "salt", 32);
+  const iv = Buffer.alloc(16, 0); // Sabit IV (Basit serverless oturumu için)
   const cipher = crypto.createCipheriv("aes-256-cbc", key, iv);
   let encrypted = cipher.update(JSON.stringify(data), "utf8", "hex");
   encrypted += cipher.final("hex");
-  return salt.toString("hex") + ":" + iv.toString("hex") + ":" + encrypted;
+  return encrypted;
 }
 
 /**
  * Oturum şifresini çözerek doğrular
  */
-export function decryptSession(
-  token: string,
-): SessionData | VerificationData | null {
+export function decryptSession(token: string): SessionData | null {
   try {
-    const legacySalt = Buffer.from("73616c74", "hex");
-    let salt: Buffer = legacySalt;
-    let iv: Buffer;
-    let encryptedData: string;
-
-    const parts = token.split(":");
-    if (parts.length === 3) {
-      salt = Buffer.from(parts[0], "hex");
-      iv = Buffer.from(parts[1], "hex");
-      encryptedData = parts[2];
-    } else if (parts.length === 2) {
-      iv = Buffer.from(parts[0], "hex");
-      encryptedData = parts[1];
-    } else {
-      iv = Buffer.alloc(16, 0); // Backward compatibility
-      encryptedData = token;
-    }
-
-    const key = crypto.scryptSync(getJwtSecret(), salt, 32);
-
+    const key = crypto.scryptSync(JWT_SECRET, "salt", 32);
+    const iv = Buffer.alloc(16, 0);
     const decipher = crypto.createDecipheriv("aes-256-cbc", key, iv);
-    let decrypted = decipher.update(encryptedData, "hex", "utf8");
+    let decrypted = decipher.update(token, "hex", "utf8");
     decrypted += decipher.final("utf8");
-    const data = JSON.parse(decrypted) as SessionData | VerificationData;
+    const data = JSON.parse(decrypted) as SessionData;
     return data;
   } catch {
     return null;
@@ -78,7 +45,7 @@ export function decryptSession(
 export function getSession(req: NextRequest): SessionData | null {
   const cookie = req.cookies.get("session");
   if (!cookie) return null;
-  const session = decryptSession(cookie.value) as SessionData | null;
+  const session = decryptSession(cookie.value);
   if (!session) return null;
 
   // Zaman aşımı kontrolü

@@ -1,14 +1,18 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { getAllDrugs, Drug, CheckResult, ExplanationData } from "@/lib/interactions";
+import {
+  getAllDrugs,
+  Drug,
+  CheckResult,
+  ExplanationData,
+} from "@/lib/interactions";
 import DrugSelector from "@/components/DrugSelector";
 import VirtualPillbox from "@/components/VirtualPillbox";
 import Disclaimer from "@/components/Disclaimer";
 import StatusHeader from "@/components/StatusHeader";
 import InteractionList from "@/components/InteractionList";
 import CoveragePanel from "@/components/CoveragePanel";
-
 
 export default function KontrolPage() {
   const [drugs, setDrugs] = useState<Drug[]>([]);
@@ -19,11 +23,16 @@ export default function KontrolPage() {
 
   // Individual interaction explanation states
 
-  const [explanations, setExplanations] = useState<Record<string, ExplanationData>>({});
-  const [loadingExplanations, setLoadingExplanations] = useState<Record<string, boolean>>({});
+  const [explanations, setExplanations] = useState<
+    Record<string, ExplanationData>
+  >({});
+  const [loadingExplanations, setLoadingExplanations] = useState<
+    Record<string, boolean>
+  >({});
 
   // Global combination analysis states (Coverage)
-  const [coverageExplanation, setCoverageExplanation] = useState<ExplanationData | null>(null);
+  const [coverageExplanation, setCoverageExplanation] =
+    useState<ExplanationData | null>(null);
   const [isCoverageLoading, setIsCoverageLoading] = useState(false);
   const [showCoveragePanel, setShowCoveragePanel] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
@@ -43,8 +52,15 @@ export default function KontrolPage() {
       if ("serviceWorker" in navigator) {
         navigator.serviceWorker
           .register("/sw.js")
-          .then((reg) => console.info("[PillMind SW] Servis İşçisi kaydı başarılı:", reg.scope))
-          .catch((err) => console.warn("[PillMind SW] Servis İşçisi kaydı başarısız:", err));
+          .then((reg) =>
+            console.info(
+              "[PillMind SW] Servis İşçisi kaydı başarılı:",
+              reg.scope,
+            ),
+          )
+          .catch((err) =>
+            console.warn("[PillMind SW] Servis İşçisi kaydı başarısız:", err),
+          );
       }
 
       return () => {
@@ -77,22 +93,29 @@ export default function KontrolPage() {
         });
 
         if (!res.ok) {
-          throw new Error("Etkileşim taraması yapılırken sunucu hatası oluştu.");
+          throw new Error(
+            "Etkileşim taraması yapılırken sunucu hatası oluştu.",
+          );
         }
 
         const data = await res.json();
         setInteractions(data.interactions || []);
-      // 🧹 Code Health: Catch clause binding type is typed as 'unknown' instead of 'any' to enforce runtime type safety and guard checks.
+        // 🧹 Code Health: Catch clause binding type is typed as 'unknown' instead of 'any' to enforce runtime type safety and guard checks.
       } catch (err: unknown) {
         const errorMessage = err instanceof Error ? err.message : String(err);
-        console.warn("[PillMind Check Engine] Sunucu API hatası veya ağ kaybı, çevrimdışı yerel tarama çekirdeği devreye alınıyor:", errorMessage);
+        console.warn(
+          "[PillMind Check Engine] Sunucu API hatası veya ağ kaybı, çevrimdışı yerel tarama çekirdeği devreye alınıyor:",
+          errorMessage,
+        );
         try {
           const { findInteractions } = await import("@/lib/interactions");
           const localResults = findInteractions(selectedDrugIds);
           setInteractions(localResults);
           setCheckingError(null);
         } catch {
-          setCheckingError("Bağlantı hatası: Yerel çevrimdışı tarama motoru yüklenemedi.");
+          setCheckingError(
+            "Bağlantı hatası: Yerel çevrimdışı tarama motoru yüklenemedi.",
+          );
         }
       } finally {
         setIsChecking(false);
@@ -103,37 +126,41 @@ export default function KontrolPage() {
   }, [selectedDrugIds]);
 
   // Request detailed explanation for a single interaction card
-  const handleExplainRequested = useCallback(async (interactionId: string, _force: boolean) => {
-    // Avoid double fetching
-    if (loadingExplanations[interactionId]) return;
+  const handleExplainRequested = useCallback(
+    async (interactionId: string, _force: boolean) => {
+      // Avoid double fetching
+      if (loadingExplanations[interactionId]) return;
 
-    setLoadingExplanations((prev) => ({ ...prev, [interactionId]: true }));
-    try {
-      const res = await fetch("/api/explain", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ interactionId }),
-      });
+      setLoadingExplanations((prev) => ({ ...prev, [interactionId]: true }));
+      try {
+        const res = await fetch("/api/explain", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ interactionId }),
+        });
 
-      const data = await res.json();
-      setExplanations((prev) => ({ ...prev, [interactionId]: data }));
-    } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      console.error("[PillMind Explain Engine] Error:", errorMessage);
-      setExplanations((prev) => ({
-        ...prev,
-        [interactionId]: {
-          source: "error",
-          error: "Canlı AI açıklaması şu anda alınamadı. Lütfen tekrar deneyin.",
-          reason: "api_error",
-        },
-      }));
-    } finally {
-      setLoadingExplanations((prev) => ({ ...prev, [interactionId]: false }));
-    }
-  }, [loadingExplanations]);
+        const data = await res.json();
+        setExplanations((prev) => ({ ...prev, [interactionId]: data }));
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        console.error("[PillMind Explain Engine] Error:", errorMessage);
+        setExplanations((prev) => ({
+          ...prev,
+          [interactionId]: {
+            source: "error",
+            error:
+              "Canlı AI açıklaması şu anda alınamadı. Lütfen tekrar deneyin.",
+            reason: "api_error",
+          },
+        }));
+      } finally {
+        setLoadingExplanations((prev) => ({ ...prev, [interactionId]: false }));
+      }
+    },
+    [loadingExplanations],
+  );
 
   // Request comprehensive combination analysis (Coverage)
   const handleRequestCoverageExplanation = async () => {
@@ -159,7 +186,8 @@ export default function KontrolPage() {
       console.error("[PillMind Coverage Engine] Error:", errorMessage);
       setCoverageExplanation({
         source: "error",
-        error: "Canlı AI kombinasyon analizi şu anda oluşturulamadı. Lütfen daha sonra tekrar deneyin.",
+        error:
+          "Canlı AI kombinasyon analizi şu anda oluşturulamadı. Lütfen daha sonra tekrar deneyin.",
         reason: "api_error",
       });
     } finally {
@@ -168,11 +196,8 @@ export default function KontrolPage() {
   };
 
   // Convert selected drug IDs to complete Drug object array
-  const selectedDrugs = drugs.filter((d) => selectedDrugIds.includes(d.id));
-
-
-
-
+  const selectedDrugIdsSet = new Set(selectedDrugIds);
+  const selectedDrugs = drugs.filter((d) => selectedDrugIdsSet.has(d.id));
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-indigo-500/30 selection:text-indigo-200 relative overflow-hidden flex flex-col justify-between">
@@ -191,9 +216,11 @@ export default function KontrolPage() {
 
       {/* Main Workspace */}
       <main className="flex-1 max-w-6xl mx-auto w-full px-6 pt-10 pb-16 relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8">
-
         {/* Left Side: Interaksiyon Arama ve Kutu Yönetimi */}
-        <section className="lg:col-span-7 flex flex-col gap-6" aria-label="İlaç Seçim ve Ekleme Paneli">
+        <section
+          className="lg:col-span-7 flex flex-col gap-6"
+          aria-label="İlaç Seçim ve Ekleme Paneli"
+        >
           <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl relative z-20 group">
             <div className="absolute inset-0 rounded-3xl overflow-hidden pointer-events-none">
               <div className="absolute top-0 right-0 p-32 bg-gradient-to-bl from-indigo-500/10 to-transparent rounded-full -mr-20 -mt-20" />
@@ -207,7 +234,9 @@ export default function KontrolPage() {
                 </span>
               </h2>
               <p className="text-xs sm:text-sm text-slate-400 mt-2 leading-relaxed max-w-lg">
-                Fuzzy Search teknolojisi ile Türkçe karakter veya yazım hatası fark etmeksizin ilaçlarınızı arayın, sanal kutunuza ekleyerek etkileşimleri anında denetleyin.
+                Fuzzy Search teknolojisi ile Türkçe karakter veya yazım hatası
+                fark etmeksizin ilaçlarınızı arayın, sanal kutunuza ekleyerek
+                etkileşimleri anında denetleyin.
               </p>
 
               <div className="mt-8">
@@ -227,14 +256,18 @@ export default function KontrolPage() {
           <div className="w-full relative z-10">
             <VirtualPillbox
               selectedDrugs={selectedDrugs}
-              onRemove={(id) => setSelectedDrugIds((prev) => prev.filter((x) => x !== id))}
+              onRemove={(id) =>
+                setSelectedDrugIds((prev) => prev.filter((x) => x !== id))
+              }
             />
           </div>
         </section>
 
         {/* Right Side: Raporlar ve Klinik Analiz Sonuçları */}
-        <section className="lg:col-span-5 flex flex-col gap-6" aria-label="Klinik Tarama Raporları">
-
+        <section
+          className="lg:col-span-5 flex flex-col gap-6"
+          aria-label="Klinik Tarama Raporları"
+        >
           {/* Header for Results */}
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
@@ -270,9 +303,13 @@ export default function KontrolPage() {
                 <div className="w-16 h-16 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-3xl mb-4 animate-pulse-slow">
                   🩺
                 </div>
-                <h4 className="font-bold text-white text-base">Tarama Başlatmak İçin İlaç Ekleyin</h4>
+                <h4 className="font-bold text-white text-base">
+                  Tarama Başlatmak İçin İlaç Ekleyin
+                </h4>
                 <p className="text-xs text-slate-400 max-w-sm mt-2 leading-relaxed">
-                  İlaç-ilaç etkileşim denetimini başlatmak için sol panelden en az iki ilaç aratıp Sanal İlaç Kutusu&apos;na eklemeniz gerekmektedir.
+                  İlaç-ilaç etkileşim denetimini başlatmak için sol panelden en
+                  az iki ilaç aratıp Sanal İlaç Kutusu&apos;na eklemeniz
+                  gerekmektedir.
                 </p>
                 <div className="mt-6 flex flex-wrap gap-2 justify-center">
                   <span className="text-[10px] font-bold text-slate-500 bg-white/5 border border-white/5 px-2.5 py-1 rounded-md">
@@ -290,7 +327,10 @@ export default function KontrolPage() {
               // Loading Shimmer State
               <div className="flex flex-col gap-4">
                 {[1, 2].map((i) => (
-                  <div key={i} className="bg-white/5 border border-white/5 rounded-2xl p-5 animate-pulse flex flex-col gap-3">
+                  <div
+                    key={i}
+                    className="bg-white/5 border border-white/5 rounded-2xl p-5 animate-pulse flex flex-col gap-3"
+                  >
                     <div className="flex items-center gap-2">
                       <div className="w-4 h-4 bg-slate-800 rounded-full"></div>
                       <div className="w-24 h-4 bg-slate-800 rounded"></div>
@@ -305,7 +345,9 @@ export default function KontrolPage() {
               // API Error State
               <div className="backdrop-blur-md bg-red-500/5 border border-red-500/20 rounded-3xl p-6 text-center">
                 <span className="text-3xl mb-3 inline-block">⚠️</span>
-                <h4 className="font-bold text-red-200 text-sm">Klinik Servis Bağlantı Hatası</h4>
+                <h4 className="font-bold text-red-200 text-sm">
+                  Klinik Servis Bağlantı Hatası
+                </h4>
                 <p className="text-xs text-red-400/80 mt-1 max-w-sm mx-auto leading-relaxed">
                   {checkingError}
                 </p>
@@ -321,7 +363,9 @@ export default function KontrolPage() {
               <div className="flex flex-col gap-6">
                 <div
                   className="backdrop-blur-xl bg-emerald-500/5 border border-emerald-500/20 rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden"
-                  style={{ boxShadow: "inset 0 1px 0 0 rgba(255, 255, 255, 0.05)" }}
+                  style={{
+                    boxShadow: "inset 0 1px 0 0 rgba(255, 255, 255, 0.05)",
+                  }}
                 >
                   <div className="absolute top-0 right-0 p-16 bg-gradient-to-bl from-emerald-500/10 to-transparent rounded-full pointer-events-none" />
 
@@ -333,9 +377,17 @@ export default function KontrolPage() {
                       <div className="text-[10px] font-bold text-emerald-400 tracking-wider uppercase bg-emerald-500/10 border border-emerald-500/20 rounded px-2 py-0.5 inline-block mb-2.5">
                         Klinik Temiz Rapor
                       </div>
-                      <h4 className="font-bold text-white text-base sm:text-lg">Bilinen Etkileşim Saptanmadı</h4>
+                      <h4 className="font-bold text-white text-base sm:text-lg">
+                        Bilinen Etkileşim Saptanmadı
+                      </h4>
                       <p className="text-xs text-emerald-300/80 mt-1.5 leading-relaxed font-medium">
-                        Kürate edilmiş demo veri tabanımızda, eklediğiniz ilaçlar (<span className="text-white">{selectedDrugs.map(d => d.name).join(", ")}</span>) arasında eşleşen riskli bir etkileşim kaydı bulunamadı.
+                        Kürate edilmiş demo veri tabanımızda, eklediğiniz
+                        ilaçlar (
+                        <span className="text-white">
+                          {selectedDrugs.map((d) => d.name).join(", ")}
+                        </span>
+                        ) arasında eşleşen riskli bir etkileşim kaydı
+                        bulunamadı.
                       </p>
                     </div>
                   </div>
@@ -344,9 +396,12 @@ export default function KontrolPage() {
                 {/* AI general coverage deep-dive assistant button */}
                 <div className="backdrop-blur-md bg-white/5 border border-white/10 rounded-3xl p-6 text-center">
                   <span className="text-2xl mb-2 inline-block">🤖</span>
-                  <h4 className="font-bold text-white text-sm">Yapay Zeka ile Kombinasyon Analizi</h4>
+                  <h4 className="font-bold text-white text-sm">
+                    Yapay Zeka ile Kombinasyon Analizi
+                  </h4>
                   <p className="text-[11px] text-slate-400 mt-1.5 leading-relaxed max-w-xs mx-auto">
-                    Kayıtlı veri tabanında bulunmasa dahi bu kombinasyonun olası etkilerini Google Gemini Canlı AI katmanından sorgulayın.
+                    Kayıtlı veri tabanında bulunmasa dahi bu kombinasyonun olası
+                    etkilerini Google Gemini Canlı AI katmanından sorgulayın.
                   </p>
                   <button
                     onClick={handleRequestCoverageExplanation}
@@ -355,9 +410,24 @@ export default function KontrolPage() {
                   >
                     {isCoverageLoading ? (
                       <>
-                        <svg className="animate-spin h-4 w-4 text-white" viewBox="0 0 24 24" fill="none">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        <svg
+                          className="animate-spin h-4 w-4 text-white"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          />
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                          />
                         </svg>
                         Analiz Hazırlanıyor...
                       </>
@@ -374,7 +444,9 @@ export default function KontrolPage() {
                 explanations={explanations}
                 loadingExplanations={loadingExplanations}
                 onExplainRequested={handleExplainRequested}
-                handleRequestCoverageExplanation={handleRequestCoverageExplanation}
+                handleRequestCoverageExplanation={
+                  handleRequestCoverageExplanation
+                }
                 isCoverageLoading={isCoverageLoading}
               />
             )}
@@ -385,9 +457,10 @@ export default function KontrolPage() {
               setShowCoveragePanel={setShowCoveragePanel}
               isCoverageLoading={isCoverageLoading}
               coverageExplanation={coverageExplanation}
-              handleRequestCoverageExplanation={handleRequestCoverageExplanation}
+              handleRequestCoverageExplanation={
+                handleRequestCoverageExplanation
+              }
             />
-
           </div>
         </section>
       </main>
@@ -400,15 +473,28 @@ export default function KontrolPage() {
       {/* Global CSS Inject for Animations & Smooth Custom Transitions */}
       <style jsx global>{`
         @keyframes pulse-slow {
-          0%, 100% { opacity: 0.8; transform: scale(1); }
-          50% { opacity: 1; transform: scale(1.03); }
+          0%,
+          100% {
+            opacity: 0.8;
+            transform: scale(1);
+          }
+          50% {
+            opacity: 1;
+            transform: scale(1.03);
+          }
         }
         .animate-pulse-slow {
           animation: pulse-slow 8s infinite ease-in-out;
         }
         @keyframes slide-down {
-          from { opacity: 0; transform: translateY(-8px); }
-          to { opacity: 1; transform: translateY(0); }
+          from {
+            opacity: 0;
+            transform: translateY(-8px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
         }
         .animate-slide-down {
           animation: slide-down 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;

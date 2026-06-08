@@ -5,7 +5,7 @@ import { fuzzySearchDrugs } from "@/lib/fuzzySearch";
 import { Drug } from "@/lib/interactions";
 import DrugList from "./DrugList";
 
-export export interface DrugSelectorProps {
+export interface DrugSelectorProps {
   drugs: Drug[];
   selected: string[];
   onSelect: (drugIds: string[]) => void;

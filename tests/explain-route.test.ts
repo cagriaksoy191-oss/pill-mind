@@ -99,7 +99,7 @@ describe("POST /api/explain", () => {
 
     const req = new Request("http://localhost/api/explain", {
       method: "POST",
-      body: JSON.stringify({ interactionId: "test-interaction-fallback" }),
+      body: JSON.stringify({ interactionId: "test-interaction" }),
       headers: {
         "Content-Type": "application/json",
       }
@@ -124,7 +124,7 @@ describe("POST /api/explain", () => {
 
     // Verify it attempted to write the result back to cache
     expect(redis!.set).toHaveBeenCalledWith(
-      "explanation:v1:interaction:test-interaction-fallback",
+      "explanation:v1:interaction:test-interaction",
       {
         explanation: "Live AI explanation generated after cache fail.",
         generatedAt: "2024-05-20T12:00:00.000Z"
@@ -147,7 +147,7 @@ describe("POST /api/explain", () => {
 
     const req = new Request("http://localhost/api/explain", {
       method: "POST",
-      body: JSON.stringify({ interactionId: "test-interaction-503" }),
+      body: JSON.stringify({ interactionId: "test-interaction" }),
       headers: {
         "Content-Type": "application/json",
       }
@@ -170,7 +170,7 @@ describe("POST /api/explain", () => {
 
     const req = new Request("http://localhost/api/explain", {
       method: "POST",
-      body: JSON.stringify({ interactionId: "test-interaction-429" }),
+      body: JSON.stringify({ interactionId: "test-interaction" }),
       headers: {
         "Content-Type": "application/json",
         "x-vercel-forwarded-for": "192.168.1.1"
@@ -239,6 +239,44 @@ describe("POST /api/explain", () => {
         generatedAt: "2024-05-20T12:00:00.000Z"
       },
       { ex: 604800 }
+    );
+  });
+
+  it("should bypass rate limiter and continue when Redis throws an error", async () => {
+    const fakeRedisError = new Error("Redis connection failed");
+    (redis!.incr as jest.Mock).mockRejectedValueOnce(fakeRedisError);
+
+    (getInteractionContext as jest.Mock).mockReturnValue({
+      interaction: { id: "test", severity: "high" },
+      drug1Name: "DrugA",
+      drug2Name: "DrugB",
+      drug1Ingredient: "IngA",
+      drug2Ingredient: "IngB"
+    });
+
+    (callGeminiForInteraction as jest.Mock).mockResolvedValue({
+      explanation: "Live AI explanation generated after rate limiter fail.",
+      generatedAt: "2024-05-20T12:00:00.000Z"
+    });
+
+    const req = new Request("http://localhost/api/explain", {
+      method: "POST",
+      body: JSON.stringify({ interactionId: "test-interaction-ratelimit-bypass" }),
+      headers: {
+        "Content-Type": "application/json",
+        "x-forwarded-for": "192.168.1.2"
+      }
+    });
+
+    const res = await POST(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(data.explanation).toBe("Live AI explanation generated after rate limiter fail.");
+
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      "[Redis Rate Limiter] Resilient Fallback - Bypass due to Redis error:",
+      fakeRedisError
     );
   });
 });

@@ -1,7 +1,6 @@
 // lib/interactions.ts
 import drugsData from "@/data/drugs.json";
 import interactionsData from "@/data/interactions.json";
-import { redis } from "@/lib/redis";
 
 export interface Drug {
   id: string;
@@ -19,14 +18,6 @@ export interface Interaction {
   source: string;
   sourceLabel?: string;
   verificationStatus?: string;
-}
-
-export interface ExplanationData {
-  explanation?: string;
-  source?: string;
-  generatedAt?: string;
-  reason?: string;
-  error?: string;
 }
 
 export interface CheckResult {
@@ -50,12 +41,10 @@ for (const d of drugsData as Drug[]) {
 
 const interactionsMap = new Map<string, Map<string, Interaction>>();
 for (const int of interactionsData as Interaction[]) {
-  if (!interactionsMap.has(int.drug1))
-    interactionsMap.set(int.drug1, new Map<string, Interaction>());
+  if (!interactionsMap.has(int.drug1)) interactionsMap.set(int.drug1, new Map<string, Interaction>());
   interactionsMap.get(int.drug1)!.set(int.drug2, int);
 
-  if (!interactionsMap.has(int.drug2))
-    interactionsMap.set(int.drug2, new Map<string, Interaction>());
+  if (!interactionsMap.has(int.drug2)) interactionsMap.set(int.drug2, new Map<string, Interaction>());
   interactionsMap.get(int.drug2)!.set(int.drug1, int);
 }
 
@@ -68,17 +57,14 @@ export function findInteractions(drugIds: string[]): CheckResult[] {
   }
   const results: CheckResult[] = [];
 
-  // Remove duplicates to prevent redundant O(N^2) checks
-  const uniqueDrugIds = Array.from(new Set(drugIds));
-
-  for (let i = 0; i < uniqueDrugIds.length; i++) {
-    const a = uniqueDrugIds[i];
+  for (let i = 0; i < drugIds.length; i++) {
+    const a = drugIds[i];
     const mapA = interactionsMap.get(a);
 
     if (!mapA) continue;
 
-    for (let j = i + 1; j < uniqueDrugIds.length; j++) {
-      const b = uniqueDrugIds[j];
+    for (let j = i + 1; j < drugIds.length; j++) {
+      const b = drugIds[j];
 
       const match = mapA.get(b);
 
@@ -101,32 +87,11 @@ export function findInteractions(drugIds: string[]): CheckResult[] {
  * Production-ready asynchronous N-Drug check using PostgreSQL database via Prisma.
  * Falls back to local JSON if the database URL is not configured or fails.
  */
-export async function findInteractionsDB(
-  drugIds: string[],
-): Promise<CheckResult[]> {
+export async function findInteractionsDB(drugIds: string[]): Promise<CheckResult[]> {
   // Eğer veritabanı bağlantısı yoksa doğrudan lokal kontrole yönlendir
-  if (
-    !process.env.DATABASE_URL ||
-    process.env.DATABASE_URL.includes("[SIFRE]")
-  ) {
-    console.info(
-      "[PillMind CMIO Engine] DATABASE_URL tanımlı değil veya şablon halinde. Lokal JSON kontrolü yapılıyor.",
-    );
+  if (!process.env.DATABASE_URL || process.env.DATABASE_URL.includes("[SIFRE]")) {
+    console.info("[PillMind CMIO Engine] DATABASE_URL tanımlı değil veya şablon halinde. Lokal JSON kontrolü yapılıyor.");
     return findInteractions(drugIds);
-  }
-
-  const cacheKey = `interactions_db:${[...drugIds].sort().join(",")}`;
-
-  // Check Redis cache if available
-  if (redis) {
-    try {
-      const cached = await redis.get<CheckResult[]>(cacheKey);
-      if (cached) {
-        return cached;
-      }
-    } catch (err) {
-      console.warn("[PillMind CMIO Engine] Redis cache read error:", err);
-    }
   }
 
   try {
@@ -138,9 +103,9 @@ export async function findInteractionsDB(
         OR: [
           { id: { in: drugIds } },
           { name: { in: drugIds } },
-          { brandNames: { some: { name: { in: drugIds } } } },
-        ],
-      },
+          { brandNames: { some: { name: { in: drugIds } } } }
+        ]
+      }
     });
 
     const resolvedDrugIds = resolvedDrugs.map((d) => d.id);
@@ -149,8 +114,8 @@ export async function findInteractionsDB(
     const dbInteractions = await prisma.drugInteraction.findMany({
       where: {
         drug1Id: { in: resolvedDrugIds },
-        drug2Id: { in: resolvedDrugIds },
-      },
+        drug2Id: { in: resolvedDrugIds }
+      }
     });
 
     const results: CheckResult[] = [];
@@ -176,33 +141,18 @@ export async function findInteractionsDB(
             summary: match.summary,
             source: match.source,
             sourceLabel: match.sourceLabel,
-            verificationStatus: match.verificationStatus.toLowerCase(),
+            verificationStatus: match.verificationStatus.toLowerCase()
           },
           drug1Name: drugA.name,
-          drug2Name: drugB.name,
+          drug2Name: drugB.name
         });
       }
     }
 
-    // Cache the results in Redis
-    if (redis) {
-      try {
-        // Cache for 24 hours (86400 seconds)
-        await redis.setex(cacheKey, 86400, results);
-      } catch (err) {
-        console.warn("[PillMind CMIO Engine] Redis cache write error:", err);
-      }
-    }
-
-    console.info(
-      `[PillMind CMIO Engine] Veritabanı sorgusu başarılı (1 roundtrip). ${results.length} etkileşim bulundu.`,
-    );
+    console.info(`[PillMind CMIO Engine] Veritabanı sorgusu başarılı (1 roundtrip). ${results.length} etkileşim bulundu.`);
     return results;
   } catch (error) {
-    console.error(
-      "[PillMind CMIO Engine] Veritabanı sorgusu başarısız oldu! Lokal yedek kontrol devreye alınıyor:",
-      error,
-    );
+    console.error("[PillMind CMIO Engine] Veritabanı sorgusu başarısız oldu! Lokal yedek kontrol devreye alınıyor:", error);
     // Güvenlik fallback katmanı: Hata durumunda sistem çökmez, lokal mock veriye döner
     return findInteractions(drugIds);
   }

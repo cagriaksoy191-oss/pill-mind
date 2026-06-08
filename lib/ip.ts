@@ -25,14 +25,11 @@ export function getClientIp(request: Request): string {
   // against IP spoofing.
   const forwardedFor = request.headers.get("x-forwarded-for");
   if (forwardedFor) {
-    const ips = forwardedFor.split(",");
-    for (let i = ips.length - 1; i >= 0; i--) {
-      const trimmed = ips[i].trim();
-      if (trimmed.length > 0) {
-        // In a reverse proxy setup, the client can spoof the left side,
-        // but the immediate proxy connecting to our server appends the real IP to the right.
-        return trimmed;
-      }
+    const ips = forwardedFor.split(",").map(i => i.trim()).filter(i => i.length > 0);
+    if (ips.length > 0) {
+      // In a reverse proxy setup, the client can spoof the left side,
+      // but the immediate proxy connecting to our server appends the real IP to the right.
+      return ips[ips.length - 1];
     }
   }
 

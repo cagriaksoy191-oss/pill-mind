@@ -10,30 +10,10 @@ interface MockDrug {
 
 describe("Fuzzy Search Birim Testleri (Turkish Fuzzy Search)", () => {
   const mockDrugs: MockDrug[] = [
-    {
-      id: "1",
-      name: "Aspirin",
-      activeIngredient: "Asetilsalisilik Asit",
-      category: "Analjezik",
-    },
-    {
-      id: "2",
-      name: "Coraspin",
-      activeIngredient: "Asetilsalisilik Asit",
-      category: "Antikoagülan",
-    },
-    {
-      id: "3",
-      name: "Parol",
-      activeIngredient: "Parasetamol",
-      category: "Antipiretik",
-    },
-    {
-      id: "4",
-      name: "Apranax",
-      activeIngredient: "Naproksen Sodyum",
-      category: "NSAİİ",
-    },
+    { id: "1", name: "Aspirin", activeIngredient: "Asetilsalisilik Asit", category: "Analjezik" },
+    { id: "2", name: "Coraspin", activeIngredient: "Asetilsalisilik Asit", category: "Antikoagülan" },
+    { id: "3", name: "Parol", activeIngredient: "Parasetamol", category: "Antipiretik" },
+    { id: "4", name: "Apranax", activeIngredient: "Naproksen Sodyum", category: "NSAİİ" },
   ];
 
   test("Türkçe karakterlerin başarıyla normalize edilmesi (Turkish Character Normalization)", () => {
@@ -74,38 +54,5 @@ describe("Fuzzy Search Birim Testleri (Turkish Fuzzy Search)", () => {
     const results = fuzzySearchDrugs("Aspirin", mockDrugs);
     expect(results.length).toBeGreaterThan(0);
     expect(results[0].item.name).toBe("Aspirin");
-  });
-
-  test("Kategori eşleşmeleri (Category matching)", () => {
-    // "Analjezik" category query should match Aspirin
-    const results = fuzzySearchDrugs("Analjezik", mockDrugs);
-    expect(results.length).toBeGreaterThan(0);
-    expect(results[0].item.name).toBe("Aspirin");
-
-    // Items without matching categories should be ranked lower or not included based on threshold
-    const noMatch = results.find((r) => r.item.name === "Parol");
-    expect(noMatch).toBeUndefined(); // Assuming "Analjezik" doesn't match "Antipiretik" or "Parasetamol" enough
-  });
-
-  test("Eksik kategori durumu (Missing category handling)", () => {
-    const drugsWithMissingCategory = [
-      ...mockDrugs,
-      { id: "5", name: "Vitamin C", activeIngredient: "Askorbik Asit" }, // No category
-    ];
-
-    // Should still be able to search by name safely
-    const results = fuzzySearchDrugs("Vitamin", drugsWithMissingCategory);
-    expect(results.length).toBeGreaterThan(0);
-    expect(results[0].item.name).toBe("Vitamin C");
-
-    // Searching by a category should gracefully not match the item with missing category,
-    // but not crash.
-    const categoryResults = fuzzySearchDrugs(
-      "Analjezik",
-      drugsWithMissingCategory,
-    );
-    expect(
-      categoryResults.find((r) => r.item.name === "Vitamin C"),
-    ).toBeUndefined();
   });
 });

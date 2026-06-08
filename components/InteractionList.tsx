@@ -1,9 +1,9 @@
 import ResultCard from "@/components/ResultCard";
-import { CheckResult, ExplanationData } from "@/lib/interactions";
+import { CheckResult } from "@/lib/interactions";
 
 interface InteractionListProps {
   interactions: CheckResult[];
-  explanations: Record<string, ExplanationData>;
+  explanations: Record<string, any>;
   loadingExplanations: Record<string, boolean>;
   onExplainRequested: (interactionId: string, force: boolean) => Promise<void>;
   handleRequestCoverageExplanation: () => Promise<void>;

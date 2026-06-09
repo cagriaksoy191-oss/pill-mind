@@ -101,4 +101,27 @@ test.describe("PillMind Faz 4 & 5 E2E ve WCAG Erişilebilirlik Testleri", () => 
     // (Arama alanında focus-visible tetiklendiğinde ring-indigo-500 sınırları belirginleşmelidir)
     await expect(searchInput).toHaveClass(/focus:ring-indigo-500/);
   });
+
+  test("Çevrimdışı / Hata Durumu Yedekleme Kontrolü (Offline Fallback for API Error)", async ({ page }) => {
+    // Intercept the /api/check route and force a failure to trigger the offline fallback
+    await page.route('**/api/check', route => route.abort('failed'));
+
+    const searchInput = page.locator("input[aria-label='İlaç Arama ve Ekleme Kutusu']");
+
+    // 1. İlacı Ekle (Aspirin)
+    await searchInput.fill("Aspirin");
+    await page.locator("role=option", { hasText: "Aspirin" }).click();
+
+    // 2. İlacı Ekle (Coumadin)
+    await searchInput.fill("Coumadin");
+    await page.locator("role=option", { hasText: "Coumadin" }).first().click();
+
+    // The system should catch the fetch error and use findInteractions locally
+    // Verify that the interaction is still displayed
+    const statusBadge = page.locator("text=Potansiyel Ciddi Etkileşim!");
+    await expect(statusBadge).toBeVisible();
+
+    const resultCard = page.locator("text=Potansiyel Önemli Etkileşim");
+    await expect(resultCard).toBeVisible();
+  });
 });

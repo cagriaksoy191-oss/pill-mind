@@ -29,6 +29,20 @@ export default function RootLayout({
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: `
+          try {
+            const saved = localStorage.getItem("pillmind_theme");
+            const system = window.matchMedia("(prefers-color-scheme: dark)").matches;
+            const isDark = saved === "dark" || (!saved && system);
+            if (isDark) {
+              document.documentElement.classList.add("dark");
+            } else {
+              document.documentElement.classList.remove("dark");
+            }
+          } catch (_) {}
+        ` }} />
+      </head>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );

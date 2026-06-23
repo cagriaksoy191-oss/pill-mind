@@ -71,7 +71,7 @@ describe('ResultCard', () => {
   it('shows loading state correctly', () => {
     render(<ResultCard {...defaultProps} isExplanationLoading={true} />);
 
-    const button = screen.getByRole('button');
+    const button = screen.getByRole('button', { name: /Klinik Canlı AI Açıklamasını Gör|Açıklama Detayını Gizle/i });
     fireEvent.click(button);
 
     expect(screen.getByText('Klinik Canlı AI Açıklaması Hazırlanıyor...')).toBeInTheDocument();
@@ -88,7 +88,7 @@ describe('ResultCard', () => {
     };
     render(<ResultCard {...propsWithCache} />);
 
-    const button = screen.getByRole('button');
+    const button = screen.getByRole('button', { name: /Klinik Canlı AI Açıklamasını Gör|Açıklama Detayını Gizle/i });
     fireEvent.click(button);
 
     expect(screen.getByText('Güvenli Önbellek Yanıtı')).toBeInTheDocument();
@@ -107,7 +107,7 @@ describe('ResultCard', () => {
     };
     render(<ResultCard {...propsWithLive} />);
 
-    const button = screen.getByRole('button');
+    const button = screen.getByRole('button', { name: /Klinik Canlı AI Açıklamasını Gör|Açıklama Detayını Gizle/i });
     fireEvent.click(button);
 
     expect(screen.getByText('Canlı AI Açıklaması')).toBeInTheDocument();
@@ -125,7 +125,7 @@ describe('ResultCard', () => {
     };
     render(<ResultCard {...propsWithError} />);
 
-    const button = screen.getByRole('button');
+    const button = screen.getByRole('button', { name: /Klinik Canlı AI Açıklamasını Gör|Açıklama Detayını Gizle/i });
     fireEvent.click(button);
 
     expect(screen.getByText('Canlı AI Şu Anda Kullanılamıyor')).toBeInTheDocument();
@@ -139,7 +139,7 @@ describe('ResultCard', () => {
   it('displays deterministic verification badge', () => {
     render(<ResultCard {...defaultProps} verificationStatus="verified" />);
 
-    const button = screen.getByRole('button');
+    const button = screen.getByRole('button', { name: /Klinik Canlı AI Açıklamasını Gör|Açıklama Detayını Gizle/i });
     fireEvent.click(button);
 
     expect(screen.getByText('Deterministik Klinik Kanıtı')).toBeInTheDocument();
@@ -148,7 +148,7 @@ describe('ResultCard', () => {
   it('displays source label when provided', () => {
     render(<ResultCard {...defaultProps} sourceLabel="Drugs.com" source="https://drugs.com" />);
 
-    const button = screen.getByRole('button');
+    const button = screen.getByRole('button', { name: /Klinik Canlı AI Açıklamasını Gör|Açıklama Detayını Gizle/i });
     fireEvent.click(button);
 
     expect(screen.getByText('📖 Kaynak: Drugs.com')).toBeInTheDocument();

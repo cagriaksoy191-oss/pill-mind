@@ -1,5 +1,5 @@
 // prisma/seed.ts
-import { PrismaClient, Severity, Status } from "@prisma/client";
+import { PrismaClient, Severity, Status, EvidenceLevel } from "@prisma/client";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -11,6 +11,7 @@ interface DrugMock {
   activeIngredient: string;
   category: string;
   notes?: string;
+  pharmacologicalGroup?: string;
 }
 
 interface InteractionMock {
@@ -21,6 +22,7 @@ interface InteractionMock {
   summary: string;
   source: string;
   sourceLabel: string;
+  evidenceLevel?: string;
 }
 
 async function main() {
@@ -55,6 +57,7 @@ async function main() {
       category: item.category,
       description: item.notes || "",
       status: Status.VERIFIED,
+      pharmacologicalGroup: item.pharmacologicalGroup || null,
     });
 
     drugIdMap[item.id] = item.id;
@@ -128,6 +131,15 @@ async function main() {
     if (item.severity === "high") severityEnum = Severity.HIGH;
     else if (item.severity === "medium") severityEnum = Severity.MEDIUM;
 
+    let evidenceLevelEnum: EvidenceLevel = EvidenceLevel.FDA_APPROVED;
+    if (item.evidenceLevel === "CLINICAL_GUIDELINE") {
+      evidenceLevelEnum = EvidenceLevel.CLINICAL_GUIDELINE;
+    } else if (item.evidenceLevel === "PUBMED_CASE") {
+      evidenceLevelEnum = EvidenceLevel.PUBMED_CASE;
+    } else if (item.evidenceLevel === "OBSERVATIONAL") {
+      evidenceLevelEnum = EvidenceLevel.OBSERVATIONAL;
+    }
+
     const drug1Name = drugNameMap[item.drug1] ?? item.drug1;
     const drug2Name = drugNameMap[item.drug2] ?? item.drug2;
 
@@ -140,6 +152,7 @@ async function main() {
       source: item.source,
       sourceLabel: item.sourceLabel,
       verificationStatus: Status.VERIFIED,
+      evidenceLevel: evidenceLevelEnum,
     });
   }
 

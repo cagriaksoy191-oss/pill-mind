@@ -5,6 +5,11 @@ import {
   getCoverageContext,
   getInteractionContext,
   shouldUseFallback,
+  streamGeminiContent,
+  buildInteractionStreamPrompt,
+  buildCoverageStreamPrompt,
+  isOutputSafe,
+  runReviewerAgent,
 } from "@/lib/gemini";
 import { redis } from "@/lib/redis";
 import { getClientIp } from "@/lib/ip";
@@ -196,6 +201,219 @@ async function handleCoverage(drugIds: unknown) {
   }
 }
 
+async function handleInteractionStream(interactionId: string) {
+  const ctx = await getInteractionContext(interactionId);
+  if (!ctx) {
+    return jsonNoStore({ error: "Bu etkileşim için canlı açıklama üretilemedi." }, 404);
+  }
+
+  const cacheKey = `explanation:v1:interaction:${interactionId}`;
+
+  // Check Redis Cache
+  if (redis) {
+    try {
+      const cached = await redis.get<{ explanation: string; generatedAt: string }>(cacheKey);
+      if (cached) {
+        return new Response(
+          new ReadableStream({
+            start(controller) {
+              const encoder = new TextEncoder();
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ chunk: cached.explanation, source: "cache", generatedAt: cached.generatedAt })}\n\n`));
+              controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
+              controller.close();
+            }
+          }),
+          {
+            headers: {
+              "Content-Type": "text/event-stream",
+              "Cache-Control": "no-cache, no-transform",
+              "Connection": "keep-alive",
+            }
+          }
+        );
+      }
+    } catch (err) {
+      console.warn("[Redis] Cache read error, continuing to live AI:", err);
+    }
+  }
+
+  const prompt = buildInteractionStreamPrompt(ctx);
+
+  return new Response(
+    new ReadableStream({
+      async start(controller) {
+        const encoder = new TextEncoder();
+        let buffer = "";
+
+        try {
+          const streamGenerator = streamGeminiContent(prompt);
+          for await (const chunk of streamGenerator) {
+            buffer += chunk;
+
+            // Chunk-level regex check
+            if (!isOutputSafe(buffer)) {
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: "AI çıktısı klinik güvenlik kurallarını (regex) ihlal ediyor.", code: "UNSAFE_ALERT" })}\n\n`));
+              controller.close();
+              return;
+            }
+
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ chunk })}\n\n`));
+          }
+
+          // Stream finished. Run Reviewer Agent
+          const isSafe = await runReviewerAgent(buffer);
+          if (!isSafe) {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: "AI çıktısı klinik güvenlik kurallarını (Reviewer Agent) ihlal ediyor.", code: "REJECTED" })}\n\n`));
+            controller.close();
+            return;
+          }
+
+          // Safe! Cache the result
+          const generatedAt = new Intl.DateTimeFormat("tr-TR", {
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+          }).format(new Date());
+
+          if (redis) {
+            try {
+              await redis.set(
+                cacheKey,
+                { explanation: buffer, generatedAt },
+                { ex: 60 * 60 * 24 * 7 }
+              );
+            } catch (err) {
+              console.warn("[Redis] Cache write error:", err);
+            }
+          }
+
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true, generatedAt })}\n\n`));
+          controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
+          controller.close();
+        } catch (error) {
+          console.error("[Stream Error]", error);
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: "Canlı AI açıklaması şu anda üretilemedi.", code: "API_ERROR" })}\n\n`));
+          controller.close();
+        }
+      }
+    }),
+    {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache, no-transform",
+        "Connection": "keep-alive",
+      }
+    }
+  );
+}
+
+async function handleCoverageStream(drugIds: string[]) {
+  const ctx = getCoverageContext(drugIds);
+  if (!ctx) {
+    return jsonNoStore({ error: "Bu kombinasyon için canlı kapsam açıklaması üretilemedi." }, 404);
+  }
+
+  const sortedIds = [...drugIds].sort().join(":");
+  const cacheKey = `explanation:v1:coverage:${sortedIds}`;
+
+  // Check Redis Cache
+  if (redis) {
+    try {
+      const cached = await redis.get<{ explanation: string; generatedAt: string }>(cacheKey);
+      if (cached) {
+        return new Response(
+          new ReadableStream({
+            start(controller) {
+              const encoder = new TextEncoder();
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ chunk: cached.explanation, source: "cache", generatedAt: cached.generatedAt })}\n\n`));
+              controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
+              controller.close();
+            }
+          }),
+          {
+            headers: {
+              "Content-Type": "text/event-stream",
+              "Cache-Control": "no-cache, no-transform",
+              "Connection": "keep-alive",
+            }
+          }
+        );
+      }
+    } catch (err) {
+      console.warn("[Redis] Cache read error, continuing to live AI:", err);
+    }
+  }
+
+  const prompt = buildCoverageStreamPrompt(ctx);
+
+  return new Response(
+    new ReadableStream({
+      async start(controller) {
+        const encoder = new TextEncoder();
+        let buffer = "";
+
+        try {
+          const streamGenerator = streamGeminiContent(prompt);
+          for await (const chunk of streamGenerator) {
+            buffer += chunk;
+
+            // Chunk-level regex check
+            if (!isOutputSafe(buffer)) {
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: "AI çıktısı klinik güvenlik kurallarını (regex) ihlal ediyor.", code: "UNSAFE_ALERT" })}\n\n`));
+              controller.close();
+              return;
+            }
+
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ chunk })}\n\n`));
+          }
+
+          // Stream finished. Run Reviewer Agent
+          const isSafe = await runReviewerAgent(buffer);
+          if (!isSafe) {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: "AI çıktısı klinik güvenlik kurallarını (Reviewer Agent) ihlal ediyor.", code: "REJECTED" })}\n\n`));
+            controller.close();
+            return;
+          }
+
+          // Safe! Cache the result
+          const generatedAt = new Intl.DateTimeFormat("tr-TR", {
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+          }).format(new Date());
+
+          if (redis) {
+            try {
+              await redis.set(
+                cacheKey,
+                { explanation: buffer, generatedAt },
+                { ex: 60 * 60 * 24 * 7 }
+              );
+            } catch (err) {
+              console.warn("[Redis] Cache write error:", err);
+            }
+          }
+
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true, generatedAt })}\n\n`));
+          controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
+          controller.close();
+        } catch (error) {
+          console.error("[Stream Error]", error);
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: "Canlı AI açıklaması şu anda üretilemedi.", code: "API_ERROR" })}\n\n`));
+          controller.close();
+        }
+      }
+    }),
+    {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache, no-transform",
+        "Connection": "keep-alive",
+      }
+    }
+  );
+}
+
 export async function POST(request: Request) {
   try {
     // 1. Safe JSON Extraction
@@ -210,7 +428,7 @@ export async function POST(request: Request) {
       return jsonNoStore({ error: "Geçersiz istek yapısı." }, 400);
     }
 
-    const { interactionId, drugIds } = body as Record<string, unknown>;
+    const { interactionId, drugIds, stream } = body as Record<string, unknown>;
 
     // 2. IP-based Fail-safe Rate Limiter via Upstash Redis
     if (redis) {
@@ -258,11 +476,28 @@ export async function POST(request: Request) {
 
     // 4. Strict Validation for interactionId
     if (interactionId !== undefined) {
+      if (stream === true) {
+        if (typeof interactionId !== "string" || interactionId.trim() === "" || interactionId.length > 100) {
+          return jsonNoStore({ error: "Geçersiz veya aşırı uzun interactionId." }, 400);
+        }
+        return await handleInteractionStream(interactionId);
+      }
       return await handleInteraction(interactionId);
     }
 
     // 5. Strict Validation for drugIds
     if (drugIds !== undefined) {
+      if (stream === true) {
+        if (
+          !Array.isArray(drugIds) ||
+          drugIds.length < 2 ||
+          drugIds.length > 10 ||
+          !drugIds.every(id => typeof id === "string" && id.trim() !== "" && id.length <= 50)
+        ) {
+          return jsonNoStore({ error: "drugIds 2 ila 10 adet geçerli kimlik içeren bir dizi olmalıdır." }, 400);
+        }
+        return await handleCoverageStream(drugIds);
+      }
       return await handleCoverage(drugIds);
     }
 

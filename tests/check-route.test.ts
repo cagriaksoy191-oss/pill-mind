@@ -4,6 +4,7 @@ import { redis } from "@/lib/redis";
 
 jest.mock("@/lib/interactions", () => ({
   findInteractionsDB: jest.fn(),
+  checkAccumulationDB: jest.fn().mockResolvedValue([]),
 }));
 
 jest.mock("@/lib/redis", () => ({
@@ -159,6 +160,7 @@ describe("POST /api/check", () => {
     expect(res.status).toBe(200);
     expect(data).toEqual({
       interactions: mockResults,
+      accumulationWarnings: [],
       checkedDrugs: ["drug-1", "drug-2"],
       totalFound: 1,
       disclaimer: "Bu sonuçlar sınırlı bir demo veri setine dayanabilir ve tıbbi tavsiye niteliği taşımaz.",

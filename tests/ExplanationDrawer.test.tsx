@@ -19,9 +19,9 @@ describe('ExplanationDrawer', () => {
     jest.clearAllMocks();
   });
 
-  it('returns null when isOpen is false', () => {
+  it('is hidden when isOpen is false', () => {
     const { container } = render(<ExplanationDrawer {...defaultProps} isOpen={false} />);
-    expect(container.firstChild).toBeNull();
+    expect(container.firstChild).toHaveClass('hidden');
   });
 
   it('displays a loading spinner when isExplanationLoading is true', () => {

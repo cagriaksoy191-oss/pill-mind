@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { findInteractionsDB } from "@/lib/interactions";
+import { findInteractionsDB, checkAccumulationDB } from "@/lib/interactions";
 import { redis } from "@/lib/redis";
 import { getClientIp } from "@/lib/ip";
 
@@ -74,9 +74,11 @@ export async function POST(request: Request) {
     }
 
     const results = await findInteractionsDB(drugIds);
+    const accumulationWarnings = await checkAccumulationDB(drugIds);
 
     return jsonNoStore({
       interactions: results,
+      accumulationWarnings,
       checkedDrugs: drugIds,
       totalFound: results.length,
       disclaimer:

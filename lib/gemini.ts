@@ -194,11 +194,7 @@ function isExplanationComplete(text: string): boolean {
   return true;
 }
 
-/**
- * Çift Ajanlı Güvenlik Modeli - Klinik Doğruluk ve Güvenlik Denetleme Ajanı (Reviewer Agent)
- * Üretilen tıbbi metinde hekim yönlendirmesini sabote edecek klinik veya kesin yönlendirmeler olup olmadığını denetler.
- */
-async function runReviewerAgent(text: string, model: string = PRIMARY_MODEL): Promise<boolean> {
+export async function runReviewerAgent(text: string, model: string = PRIMARY_MODEL): Promise<boolean> {
   const prompt = `Sen Sağlık Bilgi Sistemleri Yöneticisi ve Yapay Zeka Güvenliği Mühendisiyisin.
 Görevin, aşağıdaki Türkçe ilaç açıklamasının hastanın güvenliği için tamamen uygun olup olmadığını denetlemektir.
 
@@ -208,7 +204,25 @@ Açıklamada şunlar bulunuyorsa süreç onaylanmamalıdır (HAYIR döndürülme
 3. Teşhis, tanı veya muadil ilaç önerisi.
 4. "Kesinlikle güvenlidir", "hiçbir tehlikesi yoktur" gibi yanlış klinik güvenceler.
 
-Eğer açıklama GÜVENLİ ise yalnızca "EVET" yaz. Eğer en ufak bir klinik yönlendirme riski varsa yalnızca "HAYIR" yaz. Başka hiçbir şey yazma.
+İşte referans alabileceğin örnek kararlar (Few-Shot Examples):
+
+Örnek 1 (GÜVENLİ DEĞİL - Klinik müdahale içeriyor):
+Metin: "Bu kombinasyon risklidir. İlacı hemen bırakın ve doktorunuza danışın."
+Karar: HAYIR
+
+Örnek 2 (GÜVENLİ - Klinik müdahale içermiyor, hekime danışma öneriyor):
+Metin: "Bu iki ilaç arasında etkileşim potansiyeli vardır. İlaçlarınızı düzenli almaya devam etmeniz ve durum hakkında doktorunuza danışmanız önerilir."
+Karar: EVET
+
+Örnek 3 (GÜVENLİ DEĞİL - Dozaj önerisi içeriyor):
+Metin: "Aspirin dozunu yarıya indirerek kullanabilirsiniz. Doktorunuza haber veriniz."
+Karar: HAYIR
+
+Örnek 4 (GÜVENLİ - Klinik müdahale yok):
+Metin: "Aspirin ve Enalapril birlikte tansiyon düşürücü etkiyi azaltabilir. Lütfen tedavi planınızı değiştirmeden önce hekiminize veya eczacınıza danışın."
+Karar: EVET
+
+Eğer denetlenen metin tamamen GÜVENLİ ise yalnızca "EVET" yaz. Eğer en ufak bir klinik yönlendirme veya dozaj müdahale riski varsa yalnızca "HAYIR" yaz. Başka hiçbir şey yazma.
 
 Denetlenecek Açıklama:
 "${text}"
@@ -355,7 +369,14 @@ async function executeGeminiRequest(model: string, payload: string): Promise<str
   return rawText;
 }
 
-function parseGeminiResponse(rawText: string): any {
+export interface GeminiExplanationResponse {
+  girisCumlesi?: string;
+  klinikEtkiAciklamasi?: string;
+  hastalaraOneriler?: string | string[];
+  hekimYonlendirmesi?: string;
+}
+
+function parseGeminiResponse(rawText: string): GeminiExplanationResponse {
   let cleanText = rawText.trim();
 
   // Strip markdown json blocks if returned by the model under any edge conditions
@@ -364,13 +385,13 @@ function parseGeminiResponse(rawText: string): any {
   }
 
   try {
-    return JSON.parse(cleanText);
+    return JSON.parse(cleanText) as GeminiExplanationResponse;
   } catch {
     throw new Error("Model çıktısı geçerli bir JSON formatında değil.");
   }
 }
 
-export function formatExplanation(parsedJSON: any): string {
+export function formatExplanation(parsedJSON: GeminiExplanationResponse): string {
   const giris = normalizeExplanation(parsedJSON.girisCumlesi || "");
   const klinik = normalizeExplanation(parsedJSON.klinikEtkiAciklamasi || "");
 
@@ -384,7 +405,7 @@ export function formatExplanation(parsedJSON: any): string {
     }
   }
   const oneriler: string[] = rawOneriler
-    .map((o: any) => normalizeExplanation(String(o || "")))
+    .map((o: unknown) => normalizeExplanation(String(o || "")))
     .filter(Boolean);
 
   const hekim = normalizeExplanation(parsedJSON.hekimYonlendirmesi || "");
@@ -508,4 +529,135 @@ export async function callGeminiForCoverage(
   ctx: CoverageContext
 ): Promise<GeminiResult> {
   return callGeminiWithPrompt(buildCoveragePrompt(ctx));
+}
+
+export function buildInteractionStreamPrompt(ctx: InteractionContext): string {
+  const severityLabel =
+    ctx.interaction.severity === "high"
+      ? "yüksek"
+      : ctx.interaction.severity === "medium"
+        ? "orta"
+        : "düşük";
+
+  return `Sen Sağlık İletişim Asistanı ve Tıbbi Yapay Zeka Güvenlik Uzmanısın.
+Görevin, doğrulanmış ilaç etkileşim özetini hastanın anlayacağı sade Türkçe ile açıklamak.
+
+HAYATİ KURALLAR:
+- Asla "Merhaba" veya hitap cümlesi kullanma.
+- Tıbbi jargonu basit dille açıkla.
+- Teşhis koyma, tedavi önerme, doz önerme, muadil önerme.
+- "kesinlikle güvenli", "kullanmayın", "bırakın" gibi hekim yerine geçen kesin klinik yönlendirmeler ASLA yapma.
+- Son cümlede mutlaka doktor veya eczacıya danışılması gerektiğini belirt.
+
+İlaç 1: ${ctx.drug1Name} (Etken madde: ${ctx.drug1Ingredient})
+İlaç 2: ${ctx.drug2Name} (Etken madde: ${ctx.drug2Ingredient})
+Şiddet Derecesi: ${severityLabel}
+Doğrulanmış Tıbbi Özet: ${ctx.interaction.summary}
+
+Lütfen yukarıdaki kurallara tam olarak uyarak sade bir Türkçe ile doğrudan açıklama metnini oluştur.`;
+}
+
+export function buildCoverageStreamPrompt(ctx: CoverageContext): string {
+  return `Sen Sağlık İletişim Asistanı ve Tıbbi Yapay Zeka Güvenlik Uzmanısın.
+Görevin: Aşağıdaki ilaç kombinasyonu için doğrulanmış demo veri setimizde hazır bir etkileşim kaydı bulunmadığını kullanıcıya sade Türkçe ile açıklamak.
+
+HAYATİ KURALLAR:
+- Gerçek hayatta bu ilaçlar arasında etkileşim vardır veya yoktur diye hüküm verme.
+- Risk değerlendirmesi uydurma.
+- Teşhis, tanı veya doz önerisi yapma.
+- "kullanmayın", "bırakın" gibi hekim kararı yerine geçen kesin klinik emirler verme.
+- Şunu net olarak anlat: Bu kombinasyon mevcut sınırlı doğrulanmış demo veri setimizde kayıtlı değil, bu yüzden sistem kesin bir tıbbi yorum yapmıyor.
+- Son cümlede mutlaka hekime veya eczacıya danışılması gerektiğini belirt.
+
+Seçilen ilaçlar: ${ctx.drugNames.join(", ")}
+Etken maddeler: ${ctx.drugIngredients.join(", ")}
+
+Lütfen yukarıdaki kurallara tam olarak uyarak sade bir Türkçe ile doğrudan açıklama metnini oluştur.`;
+}
+
+export async function* streamGeminiContent(prompt: string): AsyncGenerator<string, void, unknown> {
+  const payload = JSON.stringify({
+    contents: [{ parts: [{ text: prompt }] }],
+    generationConfig: {
+      temperature: 0.75,
+      maxOutputTokens: 512,
+      topP: 0.92,
+    },
+    safetySettings: [
+      {
+        category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+        threshold: "BLOCK_MEDIUM_AND_ABOVE",
+      },
+    ],
+  });
+
+  let lastError: Error | null = null;
+
+  for (const model of MODEL_CHAIN) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?key=${GEMINI_API_KEY}`;
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: payload,
+      });
+
+      if (!response.ok) {
+        throw new Error(`API Error ${response.status}`);
+      }
+
+      if (!response.body) {
+        throw new Error("No response body");
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder("utf-8");
+      let buffer = "";
+      let braceCount = 0;
+      let startIdx = -1;
+      let scanIndex = 0;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+
+        while (scanIndex < buffer.length) {
+          const char = buffer[scanIndex];
+          if (char === "{") {
+            if (braceCount === 0) {
+              startIdx = scanIndex;
+            }
+            braceCount++;
+          } else if (char === "}") {
+            braceCount--;
+            if (braceCount === 0 && startIdx !== -1) {
+              const jsonStr = buffer.substring(startIdx, scanIndex + 1);
+              try {
+                const obj = JSON.parse(jsonStr);
+                const chunkText = obj?.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (typeof chunkText === "string" && chunkText) {
+                  yield chunkText;
+                }
+              } catch {
+                // parsing errors are silently ignored on partial chunks
+              }
+              // Remove parsed chunk from buffer
+              buffer = buffer.substring(scanIndex + 1);
+              scanIndex = -1; // Will be incremented to 0
+              startIdx = -1;
+            }
+          }
+          scanIndex++;
+        }
+      }
+      return;
+    } catch (err) {
+      console.warn(`[GEMINI STREAM] Model ${model} failed:`, err);
+      lastError = err instanceof Error ? err : new Error(String(err));
+    }
+  }
+
+  throw lastError || new Error("All models in the stream chain failed.");
 }

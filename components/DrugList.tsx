@@ -17,6 +17,7 @@ export default function DrugList({
 }: DrugListProps) {
   return (
     <div
+      id="drug-select-listbox"
       className="absolute z-40 w-full mt-2 rounded-2xl bg-white/95 dark:bg-slate-950/95 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800/80 shadow-2xl overflow-hidden max-h-72 overflow-y-auto animate-fade-in divide-y divide-slate-100 dark:divide-slate-900"
       role="listbox"
     >

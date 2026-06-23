@@ -13,6 +13,8 @@ interface ResultCardProps {
   sourceLabel?: string;
   verificationStatus?: string;
   source?: string;
+  evidenceLevel?: string;
+  clinicalDetail?: string;
   explanationData?: {
     explanation?: string;
     source?: string;
@@ -33,6 +35,8 @@ export default function ResultCard({
   sourceLabel,
   verificationStatus,
   source,
+  evidenceLevel,
+  clinicalDetail,
   explanationData,
   isExplanationLoading,
   onExplainRequested,
@@ -141,6 +145,8 @@ export default function ResultCard({
         verificationStatus={verificationStatus}
         sourceLabel={sourceLabel}
         source={source}
+        evidenceLevel={evidenceLevel}
+        clinicalDetail={clinicalDetail}
       />
     </div>
   );

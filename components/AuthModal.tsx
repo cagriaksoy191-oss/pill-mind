@@ -40,8 +40,9 @@ export default function AuthModal({ onClose, onSuccess }: AuthModalProps) {
       }
 
       onSuccess(data.user);
-    } catch (err: any) {
-      setErrorMsg(err.message || "Giriş yaparken bir hata oluştu.");
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : "Giriş yaparken bir hata oluştu.";
+      setErrorMsg(errMsg);
     } finally {
       setAuthLoading(false);
     }

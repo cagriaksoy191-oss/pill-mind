@@ -1,13 +1,14 @@
 import { useState, useEffect, useCallback } from "react";
-import { CheckResult } from "@/lib/interactions";
+import { CheckResult, AccumulationWarning, ExplanationData } from "@/lib/interactions";
 
 export function useInteractions(selectedDrugIds: string[]) {
   const [interactions, setInteractions] = useState<CheckResult[]>([]);
+  const [accumulationWarnings, setAccumulationWarnings] = useState<AccumulationWarning[]>([]);
   const [isChecking, setIsChecking] = useState(false);
   const [checkingError, setCheckingError] = useState<string | null>(null);
 
   // Individual interaction explanation states
-  const [explanations, setExplanations] = useState<Record<string, any>>({});
+  const [explanations, setExplanations] = useState<Record<string, ExplanationData>>({});
   const [loadingExplanations, setLoadingExplanations] = useState<Record<string, boolean>>({});
 
   // Global combination analysis states (Coverage)
@@ -51,6 +52,7 @@ export function useInteractions(selectedDrugIds: string[]) {
     const checkInteractions = async () => {
       if (selectedDrugIds.length < 2) {
         setInteractions([]);
+        setAccumulationWarnings([]);
         setCoverageExplanation(null);
         setShowCoveragePanel(false);
         setCheckingError(null);
@@ -74,14 +76,17 @@ export function useInteractions(selectedDrugIds: string[]) {
 
         const data = await res.json();
         setInteractions(data.interactions || []);
-      } catch (err: any) {
+        setAccumulationWarnings(data.accumulationWarnings || []);
+      } catch (err) {
         console.warn("[PillMind Check Engine] Sunucu API hatası veya ağ kaybı, çevrimdışı yerel tarama çekirdeği devreye alınıyor:", err);
         try {
-          const { findInteractions } = await import("@/lib/interactions");
+          const { findInteractions, checkAccumulation } = await import("@/lib/interactions");
           const localResults = findInteractions(selectedDrugIds);
+          const localAccumulation = checkAccumulation(selectedDrugIds);
           setInteractions(localResults);
+          setAccumulationWarnings(localAccumulation);
           setCheckingError(null);
-        } catch (localErr) {
+        } catch {
           setCheckingError("Bağlantı hatası: Yerel çevrimdışı tarama motoru yüklenemedi.");
         }
       } finally {
@@ -92,10 +97,13 @@ export function useInteractions(selectedDrugIds: string[]) {
     checkInteractions();
   }, [selectedDrugIds]);
 
-  // Request detailed explanation for a single interaction card
-  const handleExplainRequested = useCallback(async (interactionId: string, force: boolean) => {
-    // Avoid double fetching
+  // Request detailed explanation for a single interaction card using SSE stream
+  const handleExplainRequested = useCallback(async (interactionId: string, _force: boolean) => {
     if (loadingExplanations[interactionId]) return;
+
+    if (_force) {
+      console.info(`[PillMind Explain Engine] Force explanation requested for: ${interactionId}`);
+    }
 
     setLoadingExplanations((prev) => ({ ...prev, [interactionId]: true }));
     try {
@@ -104,12 +112,84 @@ export function useInteractions(selectedDrugIds: string[]) {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ interactionId }),
+        body: JSON.stringify({ interactionId, stream: true }),
       });
 
-      const data = await res.json();
-      setExplanations((prev) => ({ ...prev, [interactionId]: data }));
-    } catch (err: any) {
+      if (!res.ok) {
+        throw new Error("Canlı AI açıklaması şu anda üretilemedi.");
+      }
+
+      const contentType = res.headers.get("Content-Type") || "";
+      if (contentType.includes("text/event-stream")) {
+        const reader = res.body?.getReader();
+        const decoder = new TextDecoder("utf-8");
+        let explanationText = "";
+
+        setExplanations((prev) => ({
+          ...prev,
+          [interactionId]: { source: "gemini_live", explanation: "" },
+        }));
+
+        while (reader) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value);
+          const lines = chunk.split("\n");
+
+          for (const line of lines) {
+            if (line.startsWith("data: ")) {
+              const dataStr = line.slice(6).trim();
+              if (dataStr === "[DONE]") {
+                break;
+              }
+              try {
+                const dataObj = JSON.parse(dataStr);
+                if (dataObj.error) {
+                  setExplanations((prev) => ({
+                    ...prev,
+                    [interactionId]: {
+                      source: "error",
+                      error: dataObj.error,
+                      reason: dataObj.code === "UNSAFE_ALERT" || dataObj.code === "REJECTED" ? "safety_block" : "api_error",
+                    },
+                  }));
+                  return;
+                }
+
+                if (dataObj.chunk) {
+                  explanationText += dataObj.chunk;
+                  setExplanations((prev) => ({
+                    ...prev,
+                    [interactionId]: {
+                      source: "gemini_live",
+                      explanation: explanationText,
+                      generatedAt: dataObj.generatedAt,
+                    },
+                  }));
+                }
+
+                if (dataObj.done) {
+                  setExplanations((prev) => ({
+                    ...prev,
+                    [interactionId]: {
+                      source: "gemini_live",
+                      explanation: explanationText,
+                      generatedAt: dataObj.generatedAt,
+                    },
+                  }));
+                }
+              } catch {
+                // Ignore parsing errors on split chunks
+              }
+            }
+          }
+        }
+      } else {
+        const data = await res.json();
+        setExplanations((prev) => ({ ...prev, [interactionId]: data }));
+      }
+    } catch (err) {
       console.error("[PillMind Explain Engine] Error:", err);
       setExplanations((prev) => ({
         ...prev,
@@ -124,7 +204,7 @@ export function useInteractions(selectedDrugIds: string[]) {
     }
   }, [loadingExplanations]);
 
-  // Request comprehensive combination analysis (Coverage)
+  // Request comprehensive combination analysis (Coverage) using SSE stream
   const handleRequestCoverageExplanation = async () => {
     if (selectedDrugIds.length < 2 || isCoverageLoading) return;
 
@@ -138,12 +218,72 @@ export function useInteractions(selectedDrugIds: string[]) {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ drugIds: selectedDrugIds }),
+        body: JSON.stringify({ drugIds: selectedDrugIds, stream: true }),
       });
 
-      const data = await res.json();
-      setCoverageExplanation(data);
-    } catch (err: any) {
+      if (!res.ok) {
+        throw new Error("Canlı AI kombinasyon analizi şu anda oluşturulamadı.");
+      }
+
+      const contentType = res.headers.get("Content-Type") || "";
+      if (contentType.includes("text/event-stream")) {
+        const reader = res.body?.getReader();
+        const decoder = new TextDecoder("utf-8");
+        let explanationText = "";
+
+        setCoverageExplanation({ source: "gemini_live", explanation: "" });
+
+        while (reader) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value);
+          const lines = chunk.split("\n");
+
+          for (const line of lines) {
+            if (line.startsWith("data: ")) {
+              const dataStr = line.slice(6).trim();
+              if (dataStr === "[DONE]") {
+                break;
+              }
+              try {
+                const dataObj = JSON.parse(dataStr);
+                if (dataObj.error) {
+                  setCoverageExplanation({
+                    source: "error",
+                    error: dataObj.error,
+                    reason: dataObj.code === "UNSAFE_ALERT" || dataObj.code === "REJECTED" ? "safety_block" : "api_error",
+                  });
+                  return;
+                }
+
+                if (dataObj.chunk) {
+                  explanationText += dataObj.chunk;
+                  setCoverageExplanation({
+                    source: "gemini_live",
+                    explanation: explanationText,
+                    generatedAt: dataObj.generatedAt,
+                  });
+                }
+
+                if (dataObj.done) {
+                  setCoverageExplanation({
+                    source: "gemini_live",
+                    explanation: explanationText,
+                    generatedAt: dataObj.generatedAt,
+                  });
+                }
+              } catch {
+                // Ignore parsing errors on split chunks
+              }
+            }
+          }
+        }
+      } else {
+        const data = await res.json();
+        setCoverageExplanation(data);
+      }
+    } catch (err) {
       console.error("[PillMind Coverage Engine] Error:", err);
       setCoverageExplanation({
         source: "error",
@@ -158,6 +298,7 @@ export function useInteractions(selectedDrugIds: string[]) {
   return {
     interactions,
     setInteractions,
+    accumulationWarnings,
     isChecking,
     checkingError,
     explanations,

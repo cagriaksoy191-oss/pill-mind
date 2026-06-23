@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { fuzzySearchDrugs } from "@/lib/fuzzySearch";
 import { Drug } from "@/lib/interactions";
 import DrugList from "./DrugList";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 
 interface DrugSelectorProps {
   drugs: Drug[];
@@ -19,8 +20,12 @@ export default function DrugSelector({
   const [query, setQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [announcement, setAnnouncement] = useState("");
   const wrapperRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Trap focus inside dropdown when open
+  useFocusTrap(wrapperRef, isOpen);
 
   // Exclude already selected drugs, then fuzzy search
   const availableDrugs = drugs.filter((d) => !selected.includes(d.id));
@@ -43,6 +48,10 @@ export default function DrugSelector({
   }, []);
 
   function addDrug(drugId: string) {
+    const drug = drugs.find((d) => d.id === drugId);
+    if (drug) {
+      setAnnouncement(`${drug.name} ilacı kutuya eklendi.`);
+    }
     onSelect([...selected, drugId]);
     setQuery("");
     setIsOpen(false);
@@ -51,6 +60,10 @@ export default function DrugSelector({
   }
 
   function removeDrug(drugId: string) {
+    const drug = drugs.find((d) => d.id === drugId);
+    if (drug) {
+      setAnnouncement(`${drug.name} ilacı kutudan kaldırıldı.`);
+    }
     onSelect(selected.filter((id) => id !== drugId));
   }
 
@@ -96,6 +109,11 @@ export default function DrugSelector({
 
   return (
     <div ref={wrapperRef} className="w-full relative z-30">
+      {/* Screen reader live announcer */}
+      <div className="sr-only" aria-live="assertive" aria-atomic="true">
+        {announcement}
+      </div>
+
       {/* Selected drug chips - premium responsive design */}
       {selectedDrugs.length > 0 && (
         <div
@@ -143,6 +161,8 @@ export default function DrugSelector({
           aria-autocomplete="list"
           aria-haspopup="listbox"
           aria-label="İlaç Arama ve Ekleme Kutusu"
+          role="combobox"
+          aria-controls={isOpen ? "drug-select-listbox" : undefined}
         />
 
                 {/* Dropdown - Premium Glassmorphism with transitions */}

@@ -93,3 +93,118 @@ describe('Redis Initialization', () => {
     jest.dontMock('@upstash/redis');
   });
 });
+
+describe('Redis API Resilience Tests', () => {
+  let consoleWarnSpy: jest.SpiedFunction<typeof console.warn>;
+  let consoleErrorSpy: jest.SpiedFunction<typeof console.error>;
+  const originalEnv = process.env;
+
+  beforeEach(() => {
+    jest.resetModules();
+    consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    process.env = { ...originalEnv };
+    process.env.UPSTASH_REDIS_REST_URL = 'http://test-url.com';
+    process.env.UPSTASH_REDIS_REST_TOKEN = 'test-token';
+  });
+
+  afterEach(() => {
+    process.env = originalEnv;
+    consoleWarnSpy.mockRestore();
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('should bypass rate limiter and succeed in /api/check when Redis throws a connection timeout', async () => {
+    // Mock Upstash Redis to throw on incr (connection timeout / offline)
+    jest.doMock('@upstash/redis', () => {
+      return {
+        Redis: jest.fn().mockImplementation(() => ({
+          incr: jest.fn().mockRejectedValue(new Error('Redis connection timeout')),
+          expire: jest.fn().mockResolvedValue(true),
+        }))
+      };
+    });
+
+    // Mock interactions DB calls
+    jest.doMock('../lib/interactions', () => ({
+      findInteractionsDB: jest.fn().mockResolvedValue([{
+        interaction: { id: 'test', severity: 'high', summary: 'Test summary' },
+        drug1Name: 'Drug A',
+        drug2Name: 'Drug B',
+      }]),
+      checkAccumulationDB: jest.fn().mockResolvedValue([]),
+    }));
+
+    // Dynamically import check route
+    const { POST } = await import('../app/api/check/route');
+
+    const req = new Request('http://localhost/api/check', {
+      method: 'POST',
+      body: JSON.stringify({ drugIds: ['drug-1', 'drug-2'] }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    const res = await POST(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(data.interactions).toHaveLength(1);
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      '[Redis Rate Limiter] Resilient Fallback - Bypass due to Redis error:',
+      expect.any(Error)
+    );
+
+    jest.dontMock('@upstash/redis');
+    jest.dontMock('../lib/interactions');
+  });
+
+  it('should bypass cache and call Gemini in /api/explain when Redis throws a read timeout', async () => {
+    // Mock Upstash Redis to throw on get/incr
+    jest.doMock('@upstash/redis', () => {
+      return {
+        Redis: jest.fn().mockImplementation(() => ({
+          incr: jest.fn().mockResolvedValue(1),
+          expire: jest.fn().mockResolvedValue(true),
+          get: jest.fn().mockRejectedValue(new Error('Redis read timeout')),
+          set: jest.fn().mockRejectedValue(new Error('Redis write timeout')),
+        }))
+      };
+    });
+
+    // Mock Gemini call
+    jest.doMock('../lib/gemini', () => ({
+      getInteractionContext: jest.fn().mockResolvedValue({
+        interaction: { id: 'test', severity: 'high' },
+        drug1Name: 'Drug A',
+        drug2Name: 'Drug B',
+      }),
+      callGeminiForInteraction: jest.fn().mockResolvedValue({
+        explanation: 'Resilient explanation directly from Gemini.',
+        generatedAt: '12:00:00',
+      }),
+      shouldUseFallback: jest.fn().mockReturnValue(false),
+    }));
+
+    const { POST } = await import('../app/api/explain/route');
+
+    const req = new Request('http://localhost/api/explain', {
+      method: 'POST',
+      body: JSON.stringify({ interactionId: 'test' }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    const res = await POST(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(data.explanation).toBe('Resilient explanation directly from Gemini.');
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      '[Redis] Cache read error, continuing to live AI:',
+      expect.any(Error)
+    );
+
+    jest.dontMock('@upstash/redis');
+    jest.dontMock('../lib/gemini');
+  });
+});

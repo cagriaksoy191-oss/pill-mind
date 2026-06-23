@@ -1,9 +1,17 @@
 import ResultCard from "@/components/ResultCard";
 import { CheckResult } from "@/lib/interactions";
 
+interface ExplanationData {
+  explanation?: string;
+  source?: string;
+  generatedAt?: string;
+  reason?: string;
+  error?: string;
+}
+
 interface InteractionListProps {
   interactions: CheckResult[];
-  explanations: Record<string, any>;
+  explanations: Record<string, ExplanationData>;
   loadingExplanations: Record<string, boolean>;
   onExplainRequested: (interactionId: string, force: boolean) => Promise<void>;
   handleRequestCoverageExplanation: () => Promise<void>;
@@ -32,6 +40,8 @@ export default function InteractionList({
             source={res.interaction.source}
             sourceLabel={res.interaction.sourceLabel}
             verificationStatus={res.interaction.verificationStatus}
+            evidenceLevel={res.interaction.evidenceLevel}
+            clinicalDetail={res.interaction.clinicalDetail}
             explanationData={explanations[res.interaction.id]}
             isExplanationLoading={loadingExplanations[res.interaction.id]}
             onExplainRequested={onExplainRequested}

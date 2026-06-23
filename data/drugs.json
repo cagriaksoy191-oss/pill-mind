@@ -5,7 +5,8 @@
     "activeIngredient": "Asetilsalisilik Asit",
     "category": "Ağrı Kesici / Antitrombosit",
     "verificationStatus": "verified",
-    "notes": "COX inhibitörü; düşük dozda antitrombosit, yüksek dozda analjezik etki"
+    "notes": "COX inhibitörü; düşük dozda antitrombosit, yüksek dozda analjezik etki",
+    "pharmacologicalGroup": "NSAID"
   },
   {
     "id": "warfarin",
@@ -13,7 +14,8 @@
     "activeIngredient": "Warfarin Sodyum",
     "category": "Antikoagülan",
     "verificationStatus": "verified",
-    "notes": "K vitamini antagonisti; INR takibi gerektirir"
+    "notes": "K vitamini antagonisti; INR takibi gerektirir",
+    "pharmacologicalGroup": "Antikoagülan"
   },
   {
     "id": "metformin",
@@ -21,7 +23,8 @@
     "activeIngredient": "Metformin HCl",
     "category": "Antidiyabetik",
     "verificationStatus": "verified",
-    "notes": "Böbreklerden atılır; böbrek fonksiyonu takibi önemlidir"
+    "notes": "Böbreklerden atılır; böbrek fonksiyonu takibi önemlidir",
+    "pharmacologicalGroup": "Biguanid"
   },
   {
     "id": "enalapril",
@@ -29,7 +32,8 @@
     "activeIngredient": "Enalapril Maleat",
     "category": "ACE İnhibitörü (Tansiyon İlacı)",
     "verificationStatus": "verified",
-    "notes": "Anjiyotensin dönüştürücü enzim inhibitörü"
+    "notes": "Anjiyotensin dönüştürücü enzim inhibitörü",
+    "pharmacologicalGroup": "ACE Inhibitörü"
   },
   {
     "id": "amoksisilin",
@@ -37,7 +41,8 @@
     "activeIngredient": "Amoksisilin Trihidrat",
     "category": "Antibiyotik (Penisilin grubu)",
     "verificationStatus": "verified",
-    "notes": "Geniş spektrumlu beta-laktam antibiyotik"
+    "notes": "Geniş spektrumlu beta-laktam antibiyotik",
+    "pharmacologicalGroup": "Penisilin Antibiyotik"
   },
   {
     "id": "omeprazol",
@@ -45,7 +50,8 @@
     "activeIngredient": "Omeprazol",
     "category": "Proton Pompası İnhibitörü (Mide İlacı)",
     "verificationStatus": "verified",
-    "notes": "CYP2C19 inhibitörü; diğer ilaçların metabolizmasını etkileyebilir"
+    "notes": "CYP2C19 inhibitörü; diğer ilaçların metabolizmasını etkileyebilir",
+    "pharmacologicalGroup": "Proton Pompası Inhibitörü"
   },
   {
     "id": "ibuprofen",
@@ -53,7 +59,8 @@
     "activeIngredient": "İbuprofen",
     "category": "NSAID (Nonsteroid Antienflamatuar)",
     "verificationStatus": "verified",
-    "notes": "COX-1 ve COX-2 inhibitörü; GI ve renal yan etkiler mümkün"
+    "notes": "COX-1 ve COX-2 inhibitörü; GI ve renal yan etkiler mümkün",
+    "pharmacologicalGroup": "NSAID"
   },
   {
     "id": "diklofenak",
@@ -61,7 +68,8 @@
     "activeIngredient": "Diklofenak Sodyum",
     "category": "NSAID (Nonsteroid Antienflamatuar)",
     "verificationStatus": "verified",
-    "notes": "Güçlü COX inhibitörü; GI ve kardiyovasküler risk profili mevcut"
+    "notes": "Güçlü COX inhibitörü; GI ve kardiyovasküler risk profili mevcut",
+    "pharmacologicalGroup": "NSAID"
   },
   {
     "id": "metoprolol",
@@ -69,7 +77,8 @@
     "activeIngredient": "Metoprolol Tartarat",
     "category": "Beta Bloker (Kalp / Tansiyon İlacı)",
     "verificationStatus": "verified",
-    "notes": "Selektif beta-1 adrenerjik reseptör blokeri"
+    "notes": "Selektif beta-1 adrenerjik reseptör blokeri",
+    "pharmacologicalGroup": "Beta Bloker"
   },
   {
     "id": "parasetamol",
@@ -77,6 +86,7 @@
     "activeIngredient": "Parasetamol (Asetaminofen)",
     "category": "Analjezik / Antipiretik",
     "verificationStatus": "verified",
-    "notes": "NSAID değildir; GI ve renal yan etki profili düşüktür"
+    "notes": "NSAID değildir; GI ve renal yan etki profili düşüktür",
+    "pharmacologicalGroup": "Analjezik"
   }
 ]

@@ -30,8 +30,9 @@ export default function SavePillboxModal({ selectedDrugIds, onClose, onSuccess }
       }
 
       onSuccess();
-    } catch (err: any) {
-      alert(err.message || "Kutu kaydedilirken bir hata oluştu.");
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : "Kutu kaydedilirken bir hata oluştu.";
+      alert(errMsg);
     } finally {
       setSaveLoading(false);
     }

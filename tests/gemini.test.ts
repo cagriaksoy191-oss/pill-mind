@@ -413,8 +413,8 @@ Bu bir hekim yönlendirmesidir.`;
   });
 
   it("should handle hastalaraOneriler as null or undefined", () => {
-    const input1 = { hastalaraOneriler: null };
-    const input2 = { hastalaraOneriler: undefined };
+    const input1 = { hastalaraOneriler: null } as any;
+    const input2 = { hastalaraOneriler: undefined } as any;
     const input3 = {};
 
     const expected = `**Önemli Belirtiler ve Öneriler:**`;
@@ -427,7 +427,7 @@ Bu bir hekim yönlendirmesidir.`;
   it("should handle hastalaraOneriler as an object (invalid type)", () => {
     const input = {
       hastalaraOneriler: { someKey: "someValue" }
-    };
+    } as any;
 
     const expected = `**Önemli Belirtiler ve Öneriler:**`;
 
@@ -435,8 +435,8 @@ Bu bir hekim yönlendirmesidir.`;
   });
 
   it("should handle hastalaraOneriler as a number or boolean", () => {
-    const input1 = { hastalaraOneriler: 123 };
-    const input2 = { hastalaraOneriler: true };
+    const input1 = { hastalaraOneriler: 123 } as any;
+    const input2 = { hastalaraOneriler: true } as any;
 
     const expected = `**Önemli Belirtiler ve Öneriler:**`;
 
@@ -447,7 +447,7 @@ Bu bir hekim yönlendirmesidir.`;
   it("should handle hastalaraOneriler as an array with invalid elements gracefully", () => {
     const input = {
       hastalaraOneriler: ["Valid", null, undefined, 456, false, "Another valid"]
-    };
+    } as any;
 
     const expected = `**Önemli Belirtiler ve Öneriler:**
 • Valid

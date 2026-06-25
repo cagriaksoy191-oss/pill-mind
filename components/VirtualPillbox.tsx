@@ -14,11 +14,15 @@ interface Drug {
 interface VirtualPillboxProps {
   selectedDrugs: Drug[];
   onRemove: (id: string) => void;
+  interactions?: any[];
+  accumulationWarnings?: any[];
 }
 
 export default function VirtualPillbox({
   selectedDrugs,
   onRemove,
+  interactions = [],
+  accumulationWarnings = [],
 }: VirtualPillboxProps) {
   const prevCountRef = useRef(selectedDrugs.length);
   const [newlyAddedId, setNewlyAddedId] = useState<string | null>(null);
@@ -44,6 +48,31 @@ export default function VirtualPillbox({
     }
     prevCountRef.current = selectedDrugs.length;
   }, [selectedDrugs]);
+
+  // Determine border/shadow risk glow based on interactions
+  const getDrugSeverityGlow = (drugId: string) => {
+    if (!interactions || interactions.length === 0) return "";
+    
+    // Find all interactions including this drug
+    const drugInteractions = interactions.filter(
+      (int) => int.interaction.drug1 === drugId || int.interaction.drug2 === drugId
+    );
+    
+    if (drugInteractions.length === 0) return "";
+    
+    const severities = drugInteractions.map((int) => int.interaction.severity.toLowerCase());
+    
+    if (severities.includes("high")) {
+      return "shadow-[0_0_15px_rgba(239,68,68,0.4)] border-red-500/50";
+    }
+    if (severities.includes("medium")) {
+      return "shadow-[0_0_15px_rgba(245,158,11,0.4)] border-amber-500/50";
+    }
+    if (severities.includes("low")) {
+      return "shadow-[0_0_15px_rgba(16,185,129,0.4)] border-emerald-500/50";
+    }
+    return "";
+  };
 
   return (
     <div
@@ -105,6 +134,21 @@ export default function VirtualPillbox({
           )}
         </div>
 
+        {/* Duplicate/Overdose warnings list */}
+        {accumulationWarnings.length > 0 && (
+          <div
+            className="mb-4 flex flex-col gap-2 p-3.5 rounded-2xl bg-red-500/10 border border-red-500/20 text-xs text-red-200 animate-slide-down"
+            style={{ transform: "translateZ(20px)" }}
+          >
+            {accumulationWarnings.map((warn, index) => (
+              <div key={index} className="flex items-start gap-2 font-bold leading-relaxed">
+                <span className="shrink-0">🚨</span>
+                <div>{warn.message}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
         {selectedDrugs.length === 0 ? (
           <div
             className="flex flex-col items-center justify-center py-10 border border-dashed border-white/10 rounded-2xl bg-white/5 transition-all duration-300"
@@ -122,13 +166,14 @@ export default function VirtualPillbox({
           >
             {selectedDrugs.map((drug) => {
               const isNew = drug.id === newlyAddedId;
+              const severityGlow = getDrugSeverityGlow(drug.id);
               return (
                 <div
                   key={drug.id}
                   className={`relative flex items-center justify-between p-4 rounded-2xl border transition-all duration-300 ease-out group overflow-hidden ${
                     isNew
                       ? "animate-drop-pill border-emerald-500/50 bg-emerald-500/10"
-                      : "border-white/10 bg-slate-900/40 hover:border-indigo-500/30 hover:bg-slate-900/60"
+                      : `${severityGlow ? severityGlow : "border-white/10"} bg-slate-900/40 hover:border-indigo-500/30 hover:bg-slate-900/60`
                   }`}
                   style={{
                     transformStyle: "preserve-3d",
@@ -146,7 +191,7 @@ export default function VirtualPillbox({
                       <h4 className="font-bold text-white text-sm group-hover:text-indigo-300 transition-colors">
                         {drug.name}
                       </h4>
-                      <p className="text-[11px] text-slate-400 font-medium truncate max-w-[180px] mt-0.5">
+                      <p className="text-[11px] text-slate-400 font-medium truncate max-w-[150px] sm:max-w-[180px] mt-0.5">
                         {drug.activeIngredient}
                       </p>
                     </div>
@@ -154,7 +199,7 @@ export default function VirtualPillbox({
 
                   <button
                     onClick={() => onRemove(drug.id)}
-                    className="relative z-10 w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 hover:text-red-400 hover:bg-red-500/10 hover:border-red-500/20 transition-all cursor-pointer shadow-md"
+                    className="relative z-10 w-11 h-11 sm:w-8 sm:h-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 hover:text-red-400 hover:bg-red-500/10 hover:border-red-500/20 transition-all cursor-pointer shadow-md focus:outline-none focus:ring-2 focus:ring-red-500/40"
                     aria-label={`${drug.name} ilacını kutudan çıkar`}
                     style={{ transform: "translateZ(20px)" }}
                   >

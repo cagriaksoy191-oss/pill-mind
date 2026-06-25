@@ -34,7 +34,7 @@ export async function POST(request: Request) {
       return jsonNoStore({ error: "En az 2 ilaç ID'si gereklidir." }, 400); // Matches existing tests
     }
 
-    const { drugIds } = body as Record<string, unknown>;
+    const { drugIds, patientContext } = body as { drugIds: string[]; patientContext?: any };
 
     if (!drugIds || !Array.isArray(drugIds) || drugIds.length < 2) {
       return jsonNoStore({ error: "En az 2 ilaç ID'si gereklidir." }, 400); // Matches existing tests
@@ -73,12 +73,22 @@ export async function POST(request: Request) {
       }
     }
 
+    const { findFoodInteractionsDB, findContraindicationsDB, checkPolypharmacyAndBeers } = await import("@/lib/interactions");
+
     const results = await findInteractionsDB(drugIds);
     const accumulationWarnings = await checkAccumulationDB(drugIds);
+    const foodInteractions = typeof findFoodInteractionsDB === "function" ? await findFoodInteractionsDB(drugIds) : [];
+    const contraindications = typeof findContraindicationsDB === "function" ? await findContraindicationsDB(drugIds, patientContext) : [];
+    const polypharmacyReport = typeof checkPolypharmacyAndBeers === "function"
+      ? checkPolypharmacyAndBeers(drugIds, patientContext)
+      : { score: drugIds.length, level: "low" as const, message: "", beersWarnings: [] };
 
     return jsonNoStore({
       interactions: results,
       accumulationWarnings,
+      foodInteractions,
+      contraindications,
+      polypharmacyReport,
       checkedDrugs: drugIds,
       totalFound: results.length,
       disclaimer:

@@ -161,6 +161,9 @@ describe("POST /api/check", () => {
     expect(data).toEqual({
       interactions: mockResults,
       accumulationWarnings: [],
+      foodInteractions: [],
+      contraindications: [],
+      polypharmacyReport: { score: 2, level: "low", message: "", beersWarnings: [] },
       checkedDrugs: ["drug-1", "drug-2"],
       totalFound: 1,
       disclaimer: "Bu sonuçlar sınırlı bir demo veri setine dayanabilir ve tıbbi tavsiye niteliği taşımaz.",

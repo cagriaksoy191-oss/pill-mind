@@ -57,7 +57,31 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Statik içerikler için Cache-First stratejisi
+  // Statik içerikler için Cache-First, sayfa geçişleri için Network-First stratejisi
+  if (event.request.mode === "navigate") {
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const cacheCopy = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, cacheCopy);
+            });
+          }
+          return networkResponse;
+        })
+        .catch(() => {
+          return caches.match(event.request).then((cachedResponse) => {
+            if (cachedResponse) {
+              return cachedResponse;
+            }
+            return caches.match("/kontrol");
+          });
+        })
+    );
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) {
@@ -76,10 +100,7 @@ self.addEventListener("fetch", (event) => {
           return networkResponse;
         })
         .catch(() => {
-          // Ağ hatası oluştuğunda ve kullanıcı sayfa değiştirmeye çalıştığında /kontrol portalını yükle
-          if (event.request.mode === "navigate") {
-            return caches.match("/kontrol");
-          }
+          // Ağ hatası durumunda fallback
         });
     })
   );

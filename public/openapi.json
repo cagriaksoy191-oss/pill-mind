@@ -1,0 +1,555 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "PillMind API",
+    "description": "PillMind 3.0 Kurumsal Entegrasyon, HL7 FHIR Uyumlu ve Güvenli İlaç Etkileşim Analiz API Sözleşmesi",
+    "version": "3.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Lokal Geliştirme Sunucusu"
+    }
+  ],
+  "paths": {
+    "/api/auth/register": {
+      "post": {
+        "summary": "Kullanıcı Kaydı",
+        "description": "E-posta tabanlı şifresiz kayıt oluşturur.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "doktor@pillmind.com"
+                  }
+                },
+                "required": ["email"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Başarılı kayıt ve otomatik giriş işlemi. Çerez (HttpOnly session) atanır.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "user": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "string" },
+                        "email": { "type": "string" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "Geçersiz e-posta formatı veya eksik parametre" }
+        }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "summary": "Kullanıcı Girişi",
+        "description": "E-posta tabanlı şifresiz oturum açma.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "doktor@pillmind.com"
+                  }
+                },
+                "required": ["email"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Başarılı giriş. Çerez (HttpOnly session) atanır.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "user": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "string" },
+                        "email": { "type": "string" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Kullanıcı bulunamadı veya oturum açma başarısız" }
+        }
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "summary": "Kullanıcı Oturumunu Kapat",
+        "description": "Kullanıcının HttpOnly session çerezini siler.",
+        "responses": {
+          "200": {
+            "description": "Başarılı çıkış.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/me": {
+      "get": {
+        "summary": "Oturum Bilgisi Sorgulama",
+        "description": "Aktif giriş yapmış kullanıcının profilini döndürür.",
+        "responses": {
+          "200": {
+            "description": "Aktif oturum verisi.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "authenticated": { "type": "boolean", "example": true },
+                    "user": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "string" },
+                        "email": { "type": "string" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Oturum bulunamadı veya süresi dolmuş" }
+        }
+      }
+    },
+    "/api/check": {
+      "post": {
+        "summary": "Deterministik İlaç Etkileşimi Sorgulama",
+        "description": "Verilen ilaç ID listesi için veri tabanındaki veya yerel JSON fallback üzerindeki etkileşimleri, dozaşımı uyarılarını, gıda etkileşimlerini ve kontrendikasyonları hesaplar.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "drugIds": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "example": ["aspirin", "warfarin"]
+                  },
+                  "patientContext": {
+                    "type": "object",
+                    "properties": {
+                      "isPregnant": { "type": "boolean", "example": false },
+                      "isBreastfeeding": { "type": "boolean", "example": false },
+                      "ageGroup": { "type": "string", "example": "adult" },
+                      "renalRisk": { "type": "boolean", "example": false },
+                      "hepaticRisk": { "type": "boolean", "example": false },
+                      "diseases": {
+                        "type": "array",
+                        "items": { "type": "string" },
+                        "example": ["K25"]
+                      }
+                    }
+                  }
+                },
+                "required": ["drugIds"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Başarılı etkileşim analizi.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "interactions": { "type": "array", "items": { "type": "object" } },
+                    "accumulationWarnings": { "type": "array", "items": { "type": "object" } },
+                    "foodInteractions": { "type": "array", "items": { "type": "object" } },
+                    "contraindications": { "type": "array", "items": { "type": "object" } },
+                    "polypharmacyReport": { "type": "object" },
+                    "checkedDrugs": { "type": "array", "items": { "type": "string" } },
+                    "totalFound": { "type": "integer" },
+                    "disclaimer": { "type": "string" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "Eksik veya geçersiz parametre formatı" },
+          "429": { "description": "Çok fazla istek (IP tabanlı rate-limiting)" }
+        }
+      }
+    },
+    "/api/explain": {
+      "post": {
+        "summary": "Yapay Zeka Destekli Klinik Açıklama Üretimi",
+        "description": "İlaç etkileşimine dair hastaya yönelik sade Türkçe klinik açıklama ve hekim tavsiyelerini Gemini AI üzerinden üretir. Upstash Redis ile önbelleğe alınır.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "interactionId": { "type": "string", "example": "int-id-123" },
+                  "drug1": { "type": "string", "example": "aspirin" },
+                  "drug2": { "type": "string", "example": "warfarin" },
+                  "severity": { "type": "string", "example": "high" },
+                  "summary": { "type": "string", "example": "Artmış kanama riski." }
+                },
+                "required": ["interactionId", "drug1", "drug2", "severity", "summary"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Klinik açıklama nesnesi.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "girisCumlesi": { "type": "string" },
+                    "klinikEtkiAciklamasi": { "type": "string" },
+                    "hastalaraOneriler": { "type": "string" },
+                    "hekimYonlendirmesi": { "type": "string" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "Eksik parametre" }
+        }
+      }
+    },
+    "/api/pillbox/save": {
+      "post": {
+        "summary": "İlaç Kutusunu Buluta Kaydet",
+        "description": "Giriş yapmış kullanıcının seçtiği ilaç kutusu kombinasyonunu veritabanına kaydeder.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "example": "Sabah İlaçlarım" },
+                  "drugIds": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "example": ["aspirin", "warfarin"]
+                  }
+                },
+                "required": ["name", "drugIds"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Başarılı kayıt.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "pillbox": { "type": "object" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Oturum açılmamış" }
+        }
+      }
+    },
+    "/api/pillbox/list": {
+      "get": {
+        "summary": "Kayıtlı İlaç Kutularını Listele",
+        "description": "Giriş yapmış kullanıcının buluttaki tüm kayıtlı ilaç kutusu kombinasyonlarını listeler.",
+        "responses": {
+          "200": {
+            "description": "Kayıtlı kutu listesi.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "pillboxes": { "type": "array", "items": { "type": "object" } }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Oturum açılmamış" }
+        }
+      }
+    },
+    "/api/pillbox/delete": {
+      "delete": {
+        "summary": "Kayıtlı İlaç Kutusunu Sil",
+        "description": "Kullanıcının belirtilen ID'deki kayıtlı ilaç kutusunu veritabanından siler.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "pillboxId": { "type": "string", "example": "pillbox-uuid-123" }
+                },
+                "required": ["pillboxId"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Başarılı silme.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Oturum açılmamış" },
+          "404": { "description": "Bulunamadı veya yetkisiz işlem" }
+        }
+      }
+    },
+    "/api/pillbox/share": {
+      "post": {
+        "summary": "Süreli Paylaşım Bağlantısı Oluştur",
+        "description": "Kullanıcının ilaç kutusu kombinasyonunu ve risk özetini 24 saat geçerli bir paylaşım token'ı ile kaydeder.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "drugIds": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "example": ["aspirin", "warfarin"]
+                  },
+                  "summary": {
+                    "type": "object",
+                    "description": "Olası risklerin genel özeti nesnesi"
+                  }
+                },
+                "required": ["drugIds"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Başarılı token üretimi.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "token": { "type": "string" },
+                    "shareUrl": { "type": "string" },
+                    "expiresAt": { "type": "string", "format": "date-time" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Yetkisiz oturum" }
+        }
+      }
+    },
+    "/api/pillbox/share/{token}": {
+      "get": {
+        "summary": "Paylaşılan Raporu Görüntüle",
+        "description": "Token geçerli ve süresi dolmamışsa (24 saat) ilgili ilaç etkileşim raporunu salt-okunur olarak getirir.",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "description": "Benzersiz paylaşım token'ı",
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Başarılı rapor yükleme.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "token": { "type": "string" },
+                    "drugIds": { "type": "array", "items": { "type": "string" } },
+                    "drugs": { "type": "array", "items": { "type": "object" } },
+                    "interactions": { "type": "array", "items": { "type": "object" } },
+                    "accumulationWarnings": { "type": "array", "items": { "type": "object" } },
+                    "foodInteractions": { "type": "array", "items": { "type": "object" } },
+                    "createdAt": { "type": "string", "format": "date-time" },
+                    "expiresAt": { "type": "string", "format": "date-time" }
+                  }
+                }
+              }
+            }
+          },
+          "404": { "description": "Paylaşım bulunamadı" },
+          "410": { "description": "Paylaşım süresi dolmuş (Gone)" }
+        }
+      }
+    },
+    "/api/fhir/medication": {
+      "get": {
+        "summary": "HL7 FHIR Medication Listesi",
+        "description": "Sistemdeki aktif ilaçları HL7 FHIR Medication formatında listeler (RxNorm/ATC kodlama dahil).",
+        "responses": {
+          "200": {
+            "description": "FHIR Bundle nesnesi.",
+            "content": {
+              "application/fhir+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "resourceType": { "type": "string", "example": "Bundle" },
+                    "type": { "type": "string", "example": "searchset" },
+                    "total": { "type": "integer" },
+                    "entry": { "type": "array", "items": { "type": "object" } }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/fhir/medicationrequest": {
+      "post": {
+        "summary": "FHIR MedicationRequest ile Etkileşim Taraması",
+        "description": "MedicationRequest listesini veya generic Parameters şemasını alarak klinik uyarı durumlarını FHIR Parameters standardında hesaplar.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/fhir+json": {
+              "schema": {
+                "type": "object",
+                "description": "Parameters veya Bundle veya MedicationRequest FHIR Kaynağı"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "FHIR Parameters olarak döndürülen klinik analiz sonuçları.",
+            "content": {
+              "application/fhir+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "resourceType": { "type": "string", "example": "Parameters" },
+                    "parameter": { "type": "array", "items": { "type": "object" } }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "Eksik veya yetersiz ilaç parametresi" }
+        }
+      }
+    },
+    "/api/admin/review": {
+      "post": {
+        "summary": "Klinik İlaç Etkileşimi Onay Güncellemesi",
+        "description": "Reviewer/Hekim yetkisiyle bir ilaç etkileşiminin onay durumunu (VERIFIED, PENDING, DEPRECATED) günceller. Audit Log kaydı üretir.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "interactionId": { "type": "string", "example": "int-id-123" },
+                  "status": { "type": "string", "example": "VERIFIED" },
+                  "notes": { "type": "string", "example": "Klinik kılavuzlara göre doğrulandı." },
+                  "reviewerRole": { "type": "string", "example": "CLINICAL_REVIEWER" }
+                },
+                "required": ["interactionId", "status"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Başarılı onay güncellemesi.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "interaction": { "type": "object" },
+                    "review": { "type": "object" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Oturum açılmamış" },
+          "404": { "description": "İlaç etkileşimi bulunamadı" }
+        }
+      }
+    }
+  }
+}

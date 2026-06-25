@@ -1,9 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { CheckResult, AccumulationWarning, ExplanationData } from "@/lib/interactions";
 
-export function useInteractions(selectedDrugIds: string[]) {
+export function useInteractions(selectedDrugIds: string[], patientContext?: any) {
   const [interactions, setInteractions] = useState<CheckResult[]>([]);
   const [accumulationWarnings, setAccumulationWarnings] = useState<AccumulationWarning[]>([]);
+  const [foodInteractions, setFoodInteractions] = useState<any[]>([]);
+  const [contraindications, setContraindications] = useState<any[]>([]);
+  const [polypharmacyReport, setPolypharmacyReport] = useState<any | null>(null);
   const [isChecking, setIsChecking] = useState(false);
   const [checkingError, setCheckingError] = useState<string | null>(null);
 
@@ -47,12 +50,17 @@ export function useInteractions(selectedDrugIds: string[]) {
     }
   }, []);
 
+  const serializedContext = JSON.stringify(patientContext);
+
   // Automatically check interactions when selected drugs change
   useEffect(() => {
     const checkInteractions = async () => {
       if (selectedDrugIds.length < 2) {
         setInteractions([]);
         setAccumulationWarnings([]);
+        setFoodInteractions([]);
+        setContraindications([]);
+        setPolypharmacyReport(null);
         setCoverageExplanation(null);
         setShowCoveragePanel(false);
         setCheckingError(null);
@@ -67,7 +75,7 @@ export function useInteractions(selectedDrugIds: string[]) {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ drugIds: selectedDrugIds }),
+          body: JSON.stringify({ drugIds: selectedDrugIds, patientContext }),
         });
 
         if (!res.ok) {
@@ -77,16 +85,27 @@ export function useInteractions(selectedDrugIds: string[]) {
         const data = await res.json();
         setInteractions(data.interactions || []);
         setAccumulationWarnings(data.accumulationWarnings || []);
+        setFoodInteractions(data.foodInteractions || []);
+        setContraindications(data.contraindications || []);
+        setPolypharmacyReport(data.polypharmacyReport || null);
       } catch (err) {
         console.warn("[PillMind Check Engine] Sunucu API hatası veya ağ kaybı, çevrimdışı yerel tarama çekirdeği devreye alınıyor:", err);
         try {
-          const { findInteractions, checkAccumulation } = await import("@/lib/interactions");
+          const { findInteractions, checkAccumulation, findFoodInteractions, findContraindications, checkPolypharmacyAndBeers } = await import("@/lib/interactions");
           const localResults = findInteractions(selectedDrugIds);
           const localAccumulation = checkAccumulation(selectedDrugIds);
+          const localFood = findFoodInteractions(selectedDrugIds);
+          const localContra = findContraindications(selectedDrugIds, patientContext);
+          const localPoly = checkPolypharmacyAndBeers(selectedDrugIds, patientContext);
+
           setInteractions(localResults);
           setAccumulationWarnings(localAccumulation);
+          setFoodInteractions(localFood);
+          setContraindications(localContra);
+          setPolypharmacyReport(localPoly);
           setCheckingError(null);
-        } catch {
+        } catch (localErr) {
+          console.error("Local fallback failed:", localErr);
           setCheckingError("Bağlantı hatası: Yerel çevrimdışı tarama motoru yüklenemedi.");
         }
       } finally {
@@ -95,7 +114,7 @@ export function useInteractions(selectedDrugIds: string[]) {
     };
 
     checkInteractions();
-  }, [selectedDrugIds]);
+  }, [selectedDrugIds, serializedContext]);
 
   // Request detailed explanation for a single interaction card using SSE stream
   const handleExplainRequested = useCallback(async (interactionId: string, _force: boolean) => {
@@ -299,6 +318,12 @@ export function useInteractions(selectedDrugIds: string[]) {
     interactions,
     setInteractions,
     accumulationWarnings,
+    foodInteractions,
+    setFoodInteractions,
+    contraindications,
+    setContraindications,
+    polypharmacyReport,
+    setPolypharmacyReport,
     isChecking,
     checkingError,
     explanations,

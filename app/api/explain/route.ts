@@ -17,6 +17,9 @@ import { getClientIp } from "@/lib/ip";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+const SNAPSHOT_VERSION = "2026.06.26";
+const SCHEMA_VERSION = "3.0.0";
+
 const DISCLAIMER =
   "Bu açıklama bilgilendirme amaçlıdır ve tıbbi tavsiye niteliği taşımaz.";
 
@@ -65,12 +68,22 @@ async function handleInteraction(interactionId: unknown) {
     );
   }
 
-  const cacheKey = `explanation:v1:interaction:${interactionId}`;
+  const isHighSeverity = ctx.interaction.severity === "high" || ctx.interaction.severity === "HIGH";
+  const cacheKey = `explanation:v3:interaction:${interactionId}:data:${SNAPSHOT_VERSION}:schema:${SCHEMA_VERSION}:locale:tr`;
 
   // Redis Cache Check (with fail-safe wrapper)
   if (redis) {
     try {
-      const cached = await redis.get<{ explanation: string; generatedAt: string }>(cacheKey);
+      const cached = await redis.get<{
+        explanation: string;
+        generatedAt: string;
+        kaynakOzeti?: string;
+        belirsizlikNotu?: string;
+        hastaDiliRiskEtiketi?: string;
+        hekimModuKisaMekanizma?: string;
+        yasakliEylemKontrolu?: string;
+        sourceIds?: string[];
+      }>(cacheKey);
       if (cached) {
         console.info(`[Redis] Cache HIT for interaction: ${interactionId}`);
         return jsonNoStore({
@@ -78,6 +91,12 @@ async function handleInteraction(interactionId: unknown) {
           source: "cache" as const,
           generatedAt: cached.generatedAt,
           disclaimer: DISCLAIMER,
+          kaynakOzeti: cached.kaynakOzeti,
+          belirsizlikNotu: cached.belirsizlikNotu,
+          hastaDiliRiskEtiketi: cached.hastaDiliRiskEtiketi,
+          hekimModuKisaMekanizma: cached.hekimModuKisaMekanizma,
+          yasakliEylemKontrolu: cached.yasakliEylemKontrolu,
+          sourceIds: cached.sourceIds,
         });
       }
     } catch (err) {
@@ -88,12 +107,22 @@ async function handleInteraction(interactionId: unknown) {
   // Gemini Execution
   try {
     const result = await callGeminiForInteraction(ctx);
+    const parsedJSON = result.parsedJSON || {};
 
     if (redis) {
       try {
         await redis.set(
           cacheKey,
-          { explanation: result.explanation, generatedAt: result.generatedAt },
+          {
+            explanation: result.explanation,
+            generatedAt: result.generatedAt,
+            kaynakOzeti: parsedJSON.kaynakOzeti,
+            belirsizlikNotu: parsedJSON.belirsizlikNotu,
+            hastaDiliRiskEtiketi: parsedJSON.hastaDiliRiskEtiketi,
+            hekimModuKisaMekanizma: parsedJSON.hekimModuKisaMekanizma,
+            yasakliEylemKontrolu: parsedJSON.yasakliEylemKontrolu,
+            sourceIds: parsedJSON.sourceIds,
+          },
           { ex: 60 * 60 * 24 * 7 } // 7-day TTL
         );
         console.info(`[Redis] Cache WRITE for interaction: ${interactionId}`);
@@ -107,8 +136,28 @@ async function handleInteraction(interactionId: unknown) {
       source: "gemini_live" as const,
       generatedAt: result.generatedAt,
       disclaimer: DISCLAIMER,
+      kaynakOzeti: parsedJSON.kaynakOzeti,
+      belirsizlikNotu: parsedJSON.belirsizlikNotu,
+      hastaDiliRiskEtiketi: parsedJSON.hastaDiliRiskEtiketi,
+      hekimModuKisaMekanizma: parsedJSON.hekimModuKisaMekanizma,
+      yasakliEylemKontrolu: parsedJSON.yasakliEylemKontrolu,
+      sourceIds: parsedJSON.sourceIds,
     });
   } catch (error) {
+    // Fail-closed for High Severity
+    if (isHighSeverity) {
+      console.warn(`[Severe Security Action] High severity interaction ${interactionId} blocked. Fail-closed activated.`);
+      return jsonNoStore(
+        {
+          error: "Güvenlik nedeniyle canlı AI açıklaması engellendi.",
+          source: "error" as const,
+          reason: "safety_block",
+          disclaimer: DISCLAIMER,
+        },
+        503
+      );
+    }
+
     return jsonNoStore(
       {
         error: "Canlı AI açıklaması şu anda üretilemedi.",
@@ -145,12 +194,21 @@ async function handleCoverage(drugIds: unknown) {
   }
 
   const sortedIds = [...drugIds].sort().join(":");
-  const cacheKey = `explanation:v1:coverage:${sortedIds}`;
+  const cacheKey = `explanation:v3:coverage:${sortedIds}:data:${SNAPSHOT_VERSION}:schema:${SCHEMA_VERSION}:locale:tr`;
 
   // Redis Cache Check (with fail-safe wrapper)
   if (redis) {
     try {
-      const cached = await redis.get<{ explanation: string; generatedAt: string }>(cacheKey);
+      const cached = await redis.get<{
+        explanation: string;
+        generatedAt: string;
+        kaynakOzeti?: string;
+        belirsizlikNotu?: string;
+        hastaDiliRiskEtiketi?: string;
+        hekimModuKisaMekanizma?: string;
+        yasakliEylemKontrolu?: string;
+        sourceIds?: string[];
+      }>(cacheKey);
       if (cached) {
         console.info(`[Redis] Cache HIT for coverage: ${sortedIds}`);
         return jsonNoStore({
@@ -158,6 +216,12 @@ async function handleCoverage(drugIds: unknown) {
           source: "cache" as const,
           generatedAt: cached.generatedAt,
           disclaimer: DISCLAIMER,
+          kaynakOzeti: cached.kaynakOzeti,
+          belirsizlikNotu: cached.belirsizlikNotu,
+          hastaDiliRiskEtiketi: cached.hastaDiliRiskEtiketi,
+          hekimModuKisaMekanizma: cached.hekimModuKisaMekanizma,
+          yasakliEylemKontrolu: cached.yasakliEylemKontrolu,
+          sourceIds: cached.sourceIds,
         });
       }
     } catch (err) {
@@ -168,12 +232,22 @@ async function handleCoverage(drugIds: unknown) {
   // Gemini Execution
   try {
     const result = await callGeminiForCoverage(ctx);
+    const parsedJSON = result.parsedJSON || {};
 
     if (redis) {
       try {
         await redis.set(
           cacheKey,
-          { explanation: result.explanation, generatedAt: result.generatedAt },
+          {
+            explanation: result.explanation,
+            generatedAt: result.generatedAt,
+            kaynakOzeti: parsedJSON.kaynakOzeti,
+            belirsizlikNotu: parsedJSON.belirsizlikNotu,
+            hastaDiliRiskEtiketi: parsedJSON.hastaDiliRiskEtiketi,
+            hekimModuKisaMekanizma: parsedJSON.hekimModuKisaMekanizma,
+            yasakliEylemKontrolu: parsedJSON.yasakliEylemKontrolu,
+            sourceIds: parsedJSON.sourceIds,
+          },
           { ex: 60 * 60 * 24 * 7 } // 7-day TTL
         );
         console.info(`[Redis] Cache WRITE for coverage: ${sortedIds}`);
@@ -187,6 +261,12 @@ async function handleCoverage(drugIds: unknown) {
       source: "gemini_live" as const,
       generatedAt: result.generatedAt,
       disclaimer: DISCLAIMER,
+      kaynakOzeti: parsedJSON.kaynakOzeti,
+      belirsizlikNotu: parsedJSON.belirsizlikNotu,
+      hastaDiliRiskEtiketi: parsedJSON.hastaDiliRiskEtiketi,
+      hekimModuKisaMekanizma: parsedJSON.hekimModuKisaMekanizma,
+      yasakliEylemKontrolu: parsedJSON.yasakliEylemKontrolu,
+      sourceIds: parsedJSON.sourceIds,
     });
   } catch (error) {
     return jsonNoStore(
@@ -207,7 +287,8 @@ async function handleInteractionStream(interactionId: string) {
     return jsonNoStore({ error: "Bu etkileşim için canlı açıklama üretilemedi." }, 404);
   }
 
-  const cacheKey = `explanation:v1:interaction:${interactionId}`;
+  const isHighSeverity = ctx.interaction.severity === "high" || ctx.interaction.severity === "HIGH";
+  const cacheKey = `explanation:v3:interaction:${interactionId}:data:${SNAPSHOT_VERSION}:schema:${SCHEMA_VERSION}:locale:tr`;
 
   // Check Redis Cache
   if (redis) {
@@ -252,7 +333,11 @@ async function handleInteractionStream(interactionId: string) {
 
             // Chunk-level regex check
             if (!isOutputSafe(buffer)) {
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: "AI çıktısı klinik güvenlik kurallarını (regex) ihlal ediyor.", code: "UNSAFE_ALERT" })}\n\n`));
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+                error: "AI çıktısı klinik güvenlik kurallarını (regex) ihlal ediyor.",
+                code: "UNSAFE_ALERT",
+                reason: isHighSeverity ? "safety_block" : undefined
+              })}\n\n`));
               controller.close();
               return;
             }
@@ -263,7 +348,11 @@ async function handleInteractionStream(interactionId: string) {
           // Stream finished. Run Reviewer Agent
           const isSafe = await runReviewerAgent(buffer);
           if (!isSafe) {
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: "AI çıktısı klinik güvenlik kurallarını (Reviewer Agent) ihlal ediyor.", code: "REJECTED" })}\n\n`));
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+              error: "AI çıktısı klinik güvenlik kurallarını (Reviewer Agent) ihlal ediyor.",
+              code: "REJECTED",
+              reason: isHighSeverity ? "safety_block" : undefined
+            })}\n\n`));
             controller.close();
             return;
           }
@@ -292,7 +381,11 @@ async function handleInteractionStream(interactionId: string) {
           controller.close();
         } catch (error) {
           console.error("[Stream Error]", error);
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: "Canlı AI açıklaması şu anda üretilemedi.", code: "API_ERROR" })}\n\n`));
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+            error: "Canlı AI açıklaması şu anda üretilemedi.",
+            code: "API_ERROR",
+            reason: isHighSeverity ? "safety_block" : undefined
+          })}\n\n`));
           controller.close();
         }
       }
@@ -314,7 +407,7 @@ async function handleCoverageStream(drugIds: string[]) {
   }
 
   const sortedIds = [...drugIds].sort().join(":");
-  const cacheKey = `explanation:v1:coverage:${sortedIds}`;
+  const cacheKey = `explanation:v3:coverage:${sortedIds}:data:${SNAPSHOT_VERSION}:schema:${SCHEMA_VERSION}:locale:tr`;
 
   // Check Redis Cache
   if (redis) {

@@ -1,0 +1,42 @@
+[
+  {
+    "id": "contra-1",
+    "drugId": "aspirin",
+    "diseaseIcd": "K25",
+    "diseaseName": "Peptik Ülser",
+    "severity": "HIGH",
+    "effect": "Aspirin mide mukozasını tahriş ederek mide kanaması riskini son derece artırır; peptik ülseri olanlarda kontrendikedir."
+  },
+  {
+    "id": "contra-2",
+    "drugId": "ibuprofen",
+    "diseaseIcd": "K25",
+    "diseaseName": "Peptik Ülser",
+    "severity": "HIGH",
+    "effect": "İbuprofen (NSAID), mide mukozasında hasara ve kanamaya yol açabilir; peptik ülseri olanlarda kullanılmamalıdır."
+  },
+  {
+    "id": "contra-3",
+    "drugId": "diklofenak",
+    "diseaseIcd": "K25",
+    "diseaseName": "Peptik Ülser",
+    "severity": "HIGH",
+    "effect": "Diklofenak gastrointestinal kanama riskini ciddi oranda tetikler; peptik ülser hastalarında kontrendikedir."
+  },
+  {
+    "id": "contra-4",
+    "drugId": "metformin",
+    "diseaseIcd": "N18",
+    "diseaseName": "Kronik Böbrek Yetmezliği",
+    "severity": "HIGH",
+    "effect": "Metformin böbrek yetmezliği durumunda laktik asidoz riski oluşturduğundan kontrendikedir."
+  },
+  {
+    "id": "contra-5",
+    "drugId": "warfarin",
+    "diseaseIcd": "K25",
+    "diseaseName": "Peptik Ülser",
+    "severity": "HIGH",
+    "effect": "Aktif kanaması veya peptik ülser öyküsü olanlarda warfarin ciddi iç kanama riskini artırır."
+  }
+]

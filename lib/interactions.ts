@@ -1,6 +1,8 @@
 // lib/interactions.ts
 import drugsData from "@/data/drugs.json";
 import interactionsData from "@/data/interactions.json";
+import foodInteractionsData from "@/data/foodInteractions.json";
+import contraindicationsData from "@/data/contraindications.json";
 
 export interface Drug {
   id: string;
@@ -34,6 +36,8 @@ export interface Interaction {
   verificationStatus?: string;
   evidenceLevel?: string;
   clinicalDetail?: string;
+  evidences?: any[];
+  mechanisms?: any[];
 }
 
 export interface CheckResult {
@@ -207,13 +211,15 @@ export async function findInteractionsDB(drugIds: string[]): Promise<CheckResult
   try {
     const { prisma } = await import("@/lib/prisma");
 
-    // 1. İlaçları ve Marka adlarını çöz
+    // 1. İlaçları ve Marka/Alias adlarını çöz
     const resolvedDrugs = await prisma.drug.findMany({
       where: {
         OR: [
           { id: { in: drugIds } },
           { name: { in: drugIds } },
-          { brandNames: { some: { name: { in: drugIds } } } }
+          { brandNames: { some: { name: { in: drugIds } } } },
+          { aliases: { some: { alias: { in: drugIds } } } },
+          { aliases: { some: { normalizedAlias: { in: drugIds } } } }
         ]
       }
     });
@@ -225,6 +231,14 @@ export async function findInteractionsDB(drugIds: string[]): Promise<CheckResult
       where: {
         drug1Id: { in: resolvedDrugIds },
         drug2Id: { in: resolvedDrugIds }
+      },
+      include: {
+        evidences: {
+          include: {
+            source: true
+          }
+        },
+        mechanisms: true
       }
     });
 
@@ -253,7 +267,9 @@ export async function findInteractionsDB(drugIds: string[]): Promise<CheckResult
             source: match.source,
             sourceLabel: match.sourceLabel,
             verificationStatus: match.verificationStatus.toLowerCase(),
-            evidenceLevel: match.evidenceLevel ? match.evidenceLevel.toLowerCase() : "fda_approved"
+            evidenceLevel: match.evidenceLevel ? match.evidenceLevel.toLowerCase() : "fda_approved",
+            evidences: match.evidences,
+            mechanisms: match.mechanisms
           },
           drug1Name: drugA.name,
           drug2Name: drugB.name
@@ -403,4 +419,561 @@ export function getSeverityColor(severity: string): {
         text: "text-gray-700",
       };
   }
+}
+
+export interface DrugClinicalMetadata {
+  pregnancyCategory: string;
+  pregnancyNote: string;
+  breastfeedingNote: string;
+  renalNote: string;
+  hepaticNote: string;
+}
+
+export function getDrugClinicalMetadata(drugId: string): DrugClinicalMetadata {
+  const defaultMeta: DrugClinicalMetadata = {
+    pregnancyCategory: "C",
+    pregnancyNote: "Yeterli insan çalışması yoktur, potansiyel yarar risklerden fazlaysa kullanılabilir.",
+    breastfeedingNote: "Emzirme döneminde kullanırken dikkatli olunmalı, bebek izlenmelidir.",
+    renalNote: "Böbrek yetmezliğinde doz ayarlaması veya takip önerilebilir.",
+    hepaticNote: "Karaciğer yetmezliğinde dikkatli kullanılmalı, fonksiyonlar izlenmelidir."
+  };
+
+  switch (drugId.toLowerCase().trim()) {
+    case "aspirin":
+      return {
+        pregnancyCategory: "D",
+        pregnancyNote: "3. trimesterde kontrendikedir (Kategori D/X). Kanama riskini artırır ve duktus arteriozusun erken kapanmasına yol açabilir.",
+        breastfeedingNote: "Salisilatlar süte geçer. Emziren annelerde kullanımı önerilmez.",
+        renalNote: "Ciddi böbrek yetmezliğinde kontrendikedir. Böbrek fonksiyonlarını bozabilir.",
+        hepaticNote: "Karaciğer yetmezliğinde kanama riski nedeniyle dikkatli kullanılmalıdır."
+      };
+    case "warfarin":
+      return {
+        pregnancyCategory: "X",
+        pregnancyNote: "Gebelikte kesinlikle kontrendikedir (Kategori X). Teratojenik etki ve fetal kanama riski vardır.",
+        breastfeedingNote: "Çok az miktarda süte geçer, genellikle güvenli kabul edilse de bebek izlenmelidir.",
+        renalNote: "Renal eliminasyonu düşüktür ancak renal hasarda kanama riski takibi gerektirir.",
+        hepaticNote: "Karaciğer yetmezliğinde pıhtılaşma faktörleri azaldığı için kanama riski aşırı artar."
+      };
+    case "metformin":
+      return {
+        pregnancyCategory: "B",
+        pregnancyNote: "Gebelikte genellikle güvenli kabul edilir (Kategori B). Ancak insülin tercih edilebilir.",
+        breastfeedingNote: "Az miktarda süte geçer, emzirme döneminde kullanılabilir.",
+        renalNote: "GFR < 30 mL/dk olan şiddetli renal yetmezlikte kesinlikle kontrendikedir (Laktik asidoz riski).",
+        hepaticNote: "Karaciğer yetmezliğinde laktik asidoz riski nedeniyle kullanımı önerilmez."
+      };
+    case "enalapril":
+      return {
+        pregnancyCategory: "D",
+        pregnancyNote: "Gebelikte kesinlikle kontrendikedir (Kategori D). Fetal böbrek hasarı, oligohidramniyos ve kafatası kemik anomalilerine yol açabilir.",
+        breastfeedingNote: "Az miktarda süte geçer, dikkatle kullanılabilir.",
+        renalNote: "Böbrek yetmezliğinde doz azaltımı gerekir. Hiperkalemi riskini artırır.",
+        hepaticNote: "Karaciğer yetmezliğinde ön ilaç olan enalaprilin aktif forma dönüşümü azalabilir."
+      };
+    case "amoksisilin":
+      return {
+        pregnancyCategory: "B",
+        pregnancyNote: "Gebelikte güvenlidir (Kategori B). Yaygın olarak kullanılır.",
+        breastfeedingNote: "Süte geçer, bebekte ishal veya mantar riski takip edilerek kullanılabilir.",
+        renalNote: "GFR < 30 mL/dk ise doz aralığı uzatılmalıdır.",
+        hepaticNote: "Karaciğer yetmezliğinde doz ayarlamasına gerek yoktur."
+      };
+    case "omeprazol":
+      return {
+        pregnancyCategory: "C",
+        pregnancyNote: "Potansiyel yarar risklerden fazlaysa kullanılabilir (Kategori C).",
+        breastfeedingNote: "Süte geçer, dikkatle kullanılmalıdır.",
+        renalNote: "Doz ayarlamasına gerek yoktur.",
+        hepaticNote: "Şiddetli karaciğer yetmezliğinde doz kısıtlaması (günlük maks 20mg) önerilir."
+      };
+    case "ibuprofen":
+      return {
+        pregnancyCategory: "C",
+        pregnancyNote: "3. trimesterde kesinlikle kontrendikedir (Kategori D/X). Doğum sancısını geciktirebilir ve fetal kanamaya yol açabilir.",
+        breastfeedingNote: "Çok az miktarda süte geçer, emzirme döneminde kısa süreli kullanılabilir.",
+        renalNote: "Ciddi böbrek yetmezliğinde kontrendikedir. Akut böbrek hasarını tetikleyebilir.",
+        hepaticNote: "Karaciğer yetmezliğinde dikkatle kullanılmalıdır."
+      };
+    case "diklofenak":
+      return {
+        pregnancyCategory: "C",
+        pregnancyNote: "3. trimesterde kesinlikle kontrendikedir (Kategori D/X). Fetal duktus arteriozusun erken kapanmasına neden olur.",
+        breastfeedingNote: "Süte çok az miktarda geçer, kısa süreli kullanılabilir.",
+        renalNote: "Ciddi renal yetmezlikte kontrendikedir. Böbrek yetmezliğini kötüleştirebilir.",
+        hepaticNote: "Hepatotoksisite riski vardır, karaciğer fonksiyonları izlenmelidir."
+      };
+    case "metoprolol":
+      return {
+        pregnancyCategory: "C",
+        pregnancyNote: "Fetal perfüzyonu azaltabilir. Yeni doğanda bradikardi ve hipoglisemi riski nedeniyle takip gerektirir.",
+        breastfeedingNote: "Süte geçer, bebek bradikardi açısından izlenmelidir.",
+        renalNote: "Doz ayarlamasına gerek yoktur.",
+        hepaticNote: "Karaciğerde yoğun metabolize olur, hepatik yetmezlikte doz azaltılmalıdır."
+      };
+    case "parasetamol":
+      return {
+        pregnancyCategory: "B",
+        pregnancyNote: "Gebelikte en güvenli ağrı kesicidir (Kategori B).",
+        breastfeedingNote: "Süte geçer, terapötik dozlarda güvenli kabul edilir.",
+        renalNote: "Şiddetli renal yetmezlikte (GFR < 10 mL/dk) doz aralığı uzatılmalıdır (en az 6-8 saat).",
+        hepaticNote: "Şiddetli karaciğer yetmezliğinde veya aktif alkolizmde günlük doz sınırlandırılmalıdır (maks 2g); hepatotoksisite riski vardır."
+      };
+    default:
+      return defaultMeta;
+  }
+}
+
+export interface FoodInteractionResult {
+  id: string;
+  drugId: string;
+  drugName: string;
+  substance: string;
+  effect: string;
+  severity: "high" | "medium" | "low";
+}
+
+export function findFoodInteractions(drugIds: string[]): FoodInteractionResult[] {
+  const resolvedIds = new Set<string>();
+  for (const idOrName of drugIds) {
+    if (drugsMap.has(idOrName)) {
+      resolvedIds.add(idOrName);
+      continue;
+    }
+    const lower = idOrName.toLowerCase().trim();
+    if (lower === "coraspin" || lower === "ecopirin" || lower === "aspirin") {
+      resolvedIds.add("aspirin");
+    } else if (lower === "parol" || lower === "calpol" || lower === "tylol" || lower === "parasetamol") {
+      resolvedIds.add("parasetamol");
+    } else if (lower === "nurofen" || lower === "dolorex" || lower === "advil" || lower === "ibuprofen") {
+      resolvedIds.add("ibuprofen");
+    } else if (lower === "coumadin" || lower === "warfarin") {
+      resolvedIds.add("warfarin");
+    } else if (lower === "metformin") {
+      resolvedIds.add("metformin");
+    } else if (lower === "enalapril") {
+      resolvedIds.add("enalapril");
+    } else if (lower === "amoksisilin") {
+      resolvedIds.add("amoksisilin");
+    } else if (lower === "omeprazol") {
+      resolvedIds.add("omeprazol");
+    } else if (lower === "diklofenak") {
+      resolvedIds.add("diklofenak");
+    } else if (lower === "metoprolol") {
+      resolvedIds.add("metoprolol");
+    }
+  }
+
+  const results: FoodInteractionResult[] = [];
+  for (const foodInt of (foodInteractionsData as any[])) {
+    if (resolvedIds.has(foodInt.drugId)) {
+      const drug = drugsMap.get(foodInt.drugId);
+      results.push({
+        id: foodInt.id,
+        drugId: foodInt.drugId,
+        drugName: drug?.name ?? foodInt.drugId,
+        substance: foodInt.substance,
+        effect: foodInt.effect,
+        severity: foodInt.severity.toLowerCase() as "high" | "medium" | "low"
+      });
+    }
+  }
+  return results;
+}
+
+export async function findFoodInteractionsDB(drugIds: string[]): Promise<FoodInteractionResult[]> {
+  if (!process.env.DATABASE_URL || process.env.DATABASE_URL.includes("[SIFRE]")) {
+    return findFoodInteractions(drugIds);
+  }
+  try {
+    const { prisma } = await import("@/lib/prisma");
+    const resolvedDrugs = await prisma.drug.findMany({
+      where: {
+        OR: [
+          { id: { in: drugIds } },
+          { name: { in: drugIds } },
+          { brandNames: { some: { name: { in: drugIds } } } },
+          { aliases: { some: { alias: { in: drugIds } } } },
+          { aliases: { some: { normalizedAlias: { in: drugIds } } } }
+        ]
+      }
+    });
+    const resolvedDrugIds = resolvedDrugs.map(d => d.id);
+    const foodInts = await prisma.foodInteraction.findMany({
+      where: {
+        drugId: { in: resolvedDrugIds }
+      },
+      include: {
+        drug: true
+      }
+    });
+    return foodInts.map(f => ({
+      id: f.id,
+      drugId: f.drugId,
+      drugName: f.drug.name,
+      substance: f.substance,
+      effect: f.effect,
+      severity: f.severity.toLowerCase() as "high" | "medium" | "low"
+    }));
+  } catch (error) {
+    console.error("[PillMind CMIO Engine] Food interactions DB query failed, using local fallback:", error);
+    return findFoodInteractions(drugIds);
+  }
+}
+
+export interface ContraindicationResult {
+  id: string;
+  drugId: string;
+  drugName: string;
+  type: "disease" | "pregnancy" | "breastfeeding" | "renal" | "hepatic";
+  severity: "high" | "medium" | "low";
+  message: string;
+  diseaseIcd?: string;
+  diseaseName?: string;
+}
+
+export function findContraindications(drugIds: string[], patientContext?: any): ContraindicationResult[] {
+  if (!patientContext) return [];
+  
+  const results: ContraindicationResult[] = [];
+  
+  const resolvedIds = new Set<string>();
+  for (const idOrName of drugIds) {
+    if (drugsMap.has(idOrName)) {
+      resolvedIds.add(idOrName);
+      continue;
+    }
+    const lower = idOrName.toLowerCase().trim();
+    if (lower === "coraspin" || lower === "ecopirin" || lower === "aspirin") {
+      resolvedIds.add("aspirin");
+    } else if (lower === "parol" || lower === "calpol" || lower === "tylol" || lower === "parasetamol") {
+      resolvedIds.add("parasetamol");
+    } else if (lower === "nurofen" || lower === "dolorex" || lower === "advil" || lower === "ibuprofen") {
+      resolvedIds.add("ibuprofen");
+    } else if (lower === "coumadin" || lower === "warfarin") {
+      resolvedIds.add("warfarin");
+    } else if (lower === "metformin") {
+      resolvedIds.add("metformin");
+    } else if (lower === "enalapril") {
+      resolvedIds.add("enalapril");
+    } else if (lower === "amoksisilin") {
+      resolvedIds.add("amoksisilin");
+    } else if (lower === "omeprazol") {
+      resolvedIds.add("omeprazol");
+    } else if (lower === "diklofenak") {
+      resolvedIds.add("diklofenak");
+    } else if (lower === "metoprolol") {
+      resolvedIds.add("metoprolol");
+    }
+  }
+  
+  if (patientContext.diseases && Array.isArray(patientContext.diseases) && patientContext.diseases.length > 0) {
+    for (const contra of (contraindicationsData as any[])) {
+      if (resolvedIds.has(contra.drugId) && patientContext.diseases.includes(contra.diseaseIcd)) {
+        const drug = drugsMap.get(contra.drugId);
+        results.push({
+          id: contra.id,
+          drugId: contra.drugId,
+          drugName: drug?.name ?? contra.drugId,
+          type: "disease",
+          severity: contra.severity.toLowerCase() as "high" | "medium" | "low",
+          message: contra.effect,
+          diseaseIcd: contra.diseaseIcd,
+          diseaseName: contra.diseaseName
+        });
+      }
+    }
+  }
+  
+  for (const drugId of Array.from(resolvedIds)) {
+    const drug = drugsMap.get(drugId);
+    if (!drug) continue;
+    
+    const meta = getDrugClinicalMetadata(drugId);
+    
+    if (patientContext.isPregnant) {
+      if (meta.pregnancyCategory === "X") {
+        results.push({
+          id: `preg-contra-${drugId}`,
+          drugId,
+          drugName: drug.name,
+          type: "pregnancy",
+          severity: "high",
+          message: `Gebelik Durumu Uyarısı: ${drug.name} gebelikte kesinlikle kontrendikedir (Kategori X). ${meta.pregnancyNote}`
+        });
+      } else if (meta.pregnancyCategory === "D") {
+        results.push({
+          id: `preg-contra-${drugId}`,
+          drugId,
+          drugName: drug.name,
+          type: "pregnancy",
+          severity: "high",
+          message: `Gebelik Durumu Uyarısı: ${drug.name} gebelikte yüksek risklidir (Kategori D). ${meta.pregnancyNote}`
+        });
+      }
+    }
+    
+    if (patientContext.isBreastfeeding) {
+      if (drugId === "warfarin" || drugId === "aspirin" || drugId === "enalapril") {
+        results.push({
+          id: `lact-contra-${drugId}`,
+          drugId,
+          drugName: drug.name,
+          type: "breastfeeding",
+          severity: "medium",
+          message: `Emzirme Uyarısı: ${drug.name} emzirme döneminde dikkatle kullanılmalıdır. ${meta.breastfeedingNote}`
+        });
+      }
+    }
+    
+    if (patientContext.renalRisk) {
+      if (drugId === "metformin") {
+        results.push({
+          id: `renal-contra-${drugId}`,
+          drugId,
+          drugName: drug.name,
+          type: "renal",
+          severity: "high",
+          message: `Böbrek Yetmezliği Kontrendikasyonu: GFR < 30 ml/dk olan hastalarda Metformin birikimi laktik asidoza yol açabileceğinden kullanımı kesinlikle kontrendikedir.`
+        });
+      } else if (drugId === "ibuprofen" || drugId === "diklofenak" || drugId === "aspirin") {
+        results.push({
+          id: `renal-contra-${drugId}`,
+          drugId,
+          drugName: drug.name,
+          type: "renal",
+          severity: "high",
+          message: `Böbrek Yetmezliği Kontrendikasyonu: ${drug.name} (NSAID) böbrek kan akımını azaltarak akut renal yetmezliği tetikleyebilir.`
+        });
+      }
+    }
+    
+    if (patientContext.hepaticRisk) {
+      if (drugId === "parasetamol") {
+        results.push({
+          id: `hepatic-contra-${drugId}`,
+          drugId,
+          drugName: drug.name,
+          type: "hepatic",
+          severity: "high",
+          message: `Karaciğer Yetmezliği Uyarısı: Karaciğer yetmezliği olan hastalarda Parasetamol metabolizması yavaşlar; günlük doz 2 gramı aşmamalıdır.`
+        });
+      } else if (drugId === "warfarin") {
+        results.push({
+          id: `hepatic-contra-${drugId}`,
+          drugId,
+          drugName: drug.name,
+          type: "hepatic",
+          severity: "high",
+          message: `Karaciğer Yetmezliği Kontrendikasyonu: Karaciğer yetmezliğinde pıhtılaşma faktörleri azaldığından Coumadin (Warfarin) kullanımı kanama riskini ölümcül düzeyde artırır.`
+        });
+      }
+    }
+  }
+  
+  return results;
+}
+
+export async function findContraindicationsDB(drugIds: string[], patientContext?: any): Promise<ContraindicationResult[]> {
+  if (!patientContext) return [];
+  
+  const results: ContraindicationResult[] = [];
+  
+  try {
+    const { prisma } = await import("@/lib/prisma");
+    const resolvedDrugs = await prisma.drug.findMany({
+      where: {
+        OR: [
+          { id: { in: drugIds } },
+          { name: { in: drugIds } },
+          { brandNames: { some: { name: { in: drugIds } } } },
+          { aliases: { some: { alias: { in: drugIds } } } },
+          { aliases: { some: { normalizedAlias: { in: drugIds } } } }
+        ]
+      }
+    });
+    
+    const resolvedDrugIds = resolvedDrugs.map(d => d.id);
+    const resolvedDrugsMap = new Map(resolvedDrugs.map(d => [d.id, d]));
+    
+    if (patientContext.diseases && Array.isArray(patientContext.diseases) && patientContext.diseases.length > 0) {
+      const dbContras = await prisma.contraindication.findMany({
+        where: {
+          drugId: { in: resolvedDrugIds },
+          diseaseIcd: { in: patientContext.diseases }
+        }
+      });
+      
+      for (const c of dbContras) {
+        const drug = resolvedDrugsMap.get(c.drugId);
+        results.push({
+          id: c.id,
+          drugId: c.drugId,
+          drugName: drug?.name ?? c.drugId,
+          type: "disease",
+          severity: c.severity.toLowerCase() as "high" | "medium" | "low",
+          message: c.effect,
+          diseaseIcd: c.diseaseIcd,
+          diseaseName: c.diseaseName
+        });
+      }
+    }
+    
+    for (const drug of resolvedDrugs) {
+      const meta = getDrugClinicalMetadata(drug.id);
+      
+      if (patientContext.isPregnant) {
+        if (meta.pregnancyCategory === "X") {
+          results.push({
+            id: `preg-contra-${drug.id}`,
+            drugId: drug.id,
+            drugName: drug.name,
+            type: "pregnancy",
+            severity: "high",
+            message: `Gebelik Durumu Uyarısı: ${drug.name} gebelikte kesinlikle kontrendikedir (Kategori X). ${meta.pregnancyNote}`
+          });
+        } else if (meta.pregnancyCategory === "D") {
+          results.push({
+            id: `preg-contra-${drug.id}`,
+            drugId: drug.id,
+            drugName: drug.name,
+            type: "pregnancy",
+            severity: "high",
+            message: `Gebelik Durumu Uyarısı: ${drug.name} gebelikte yüksek risklidir (Kategori D). ${meta.pregnancyNote}`
+          });
+        }
+      }
+      
+      if (patientContext.isBreastfeeding) {
+        if (drug.id === "warfarin" || drug.id === "aspirin" || drug.id === "enalapril") {
+          results.push({
+            id: `lact-contra-${drug.id}`,
+            drugId: drug.id,
+            drugName: drug.name,
+            type: "breastfeeding",
+            severity: "medium",
+            message: `Emzirme Uyarısı: ${drug.name} emzirme döneminde dikkatle kullanılmalıdır. ${meta.breastfeedingNote}`
+          });
+        }
+      }
+      
+      if (patientContext.renalRisk) {
+        if (drug.id === "metformin") {
+          results.push({
+            id: `renal-contra-${drug.id}`,
+            drugId: drug.id,
+            drugName: drug.name,
+            type: "renal",
+            severity: "high",
+            message: `Böbrek Yetmezliği Kontrendikasyonu: GFR < 30 ml/dk olan hastalarda Metformin birikimi laktik asidoza yol açabileceğinden kullanımı kesinlikle kontrendikedir.`
+          });
+        } else if (drug.id === "ibuprofen" || drug.id === "diklofenak" || drug.id === "aspirin") {
+          results.push({
+            id: `renal-contra-${drug.id}`,
+            drugId: drug.id,
+            drugName: drug.name,
+            type: "renal",
+            severity: "high",
+            message: `Böbrek Yetmezliği Kontrendikasyonu: ${drug.name} (NSAID) böbrek kan akımını azaltarak akut renal yetmezliği tetikleyebilir.`
+          });
+        }
+      }
+      
+      if (patientContext.hepaticRisk) {
+        if (drug.id === "parasetamol") {
+          results.push({
+            id: `hepatic-contra-${drug.id}`,
+            drugId: drug.id,
+            drugName: drug.name,
+            type: "hepatic",
+            severity: "high",
+            message: `Karaciğer Yetmezliği Uyarısı: Karaciğer yetmezliği olan hastalarda Parasetamol metabolizması yavaşlar; günlük doz 2 gramı aşmamalıdır.`
+          });
+        } else if (drug.id === "warfarin") {
+          results.push({
+            id: `hepatic-contra-${drug.id}`,
+            drugId: drug.id,
+            drugName: drug.name,
+            type: "hepatic",
+            severity: "high",
+            message: `Karaciğer Yetmezliği Kontrendikasyonu: Karaciğer yetmezliğinde pıhtılaşma faktörleri azaldığından Coumadin (Warfarin) kullanımı kanama riskini ölümcül düzeyde artırır.`
+          });
+        }
+      }
+    }
+    
+    return results;
+  } catch (error) {
+    console.error("[PillMind CMIO Engine] Contraindications DB failed, falling back to local:", error);
+    return findContraindications(drugIds, patientContext);
+  }
+}
+
+export interface PolypharmacyReport {
+  score: number;
+  level: "low" | "medium" | "high";
+  message: string;
+  beersWarnings: string[];
+}
+
+export function checkPolypharmacyAndBeers(drugIds: string[], patientContext?: any): PolypharmacyReport {
+  const score = drugIds.length;
+  let level: "low" | "medium" | "high" = "low";
+  let message = "Güvenli ilaç yükü. İlaç kombinasyonunuz polifarmasi sınırının altındadır.";
+  
+  if (score >= 4 && score < 6) {
+    level = "medium";
+    message = `Hafif Polifarmasi: Kutunuzda ${score} farklı ilaç bulunmaktadır. İlaç yükünüz artmış durumdadır, yan etki olasılığı yükselebilir.`;
+  } else if (score >= 6) {
+    level = "high";
+    message = `Ciddi Polifarmasi: Kutunuzda ${score} farklı ilaç bulunmaktadır. Çoklu ilaç kullanımı nedeniyle ilaç-ilaç ve ilaç-besin etkileşim riski kritik düzeydedir. Tedavinizi hekiminizle gözden geçirin.`;
+  }
+  
+  const beersWarnings: string[] = [];
+  
+  const resolvedIds = new Set<string>();
+  for (const idOrName of drugIds) {
+    if (drugsMap.has(idOrName)) {
+      resolvedIds.add(idOrName);
+      continue;
+    }
+    const lower = idOrName.toLowerCase().trim();
+    if (lower === "coraspin" || lower === "ecopirin" || lower === "aspirin") {
+      resolvedIds.add("aspirin");
+    } else if (lower === "parol" || lower === "calpol" || lower === "tylol" || lower === "parasetamol") {
+      resolvedIds.add("parasetamol");
+    } else if (lower === "nurofen" || lower === "dolorex" || lower === "advil" || lower === "ibuprofen") {
+      resolvedIds.add("ibuprofen");
+    } else if (lower === "coumadin" || lower === "warfarin") {
+      resolvedIds.add("warfarin");
+    } else if (lower === "metformin") {
+      resolvedIds.add("metformin");
+    } else if (lower === "enalapril") {
+      resolvedIds.add("enalapril");
+    } else if (lower === "amoksisilin") {
+      resolvedIds.add("amoksisilin");
+    } else if (lower === "omeprazol") {
+      resolvedIds.add("omeprazol");
+    } else if (lower === "diklofenak") {
+      resolvedIds.add("diklofenak");
+    } else if (lower === "metoprolol") {
+      resolvedIds.add("metoprolol");
+    }
+  }
+  
+  if (patientContext?.ageGroup === "elderly") {
+    if (resolvedIds.has("aspirin") || resolvedIds.has("ibuprofen") || resolvedIds.has("diklofenak")) {
+      beersWarnings.push("Beers Kriteri Uyarısı: NSAİİ grubu ağrı kesiciler (Aspirin, İbuprofen, Diklofenak) 65 yaş üstü hastalarda gastrointestinal kanama ve akut böbrek hasarı riskini ciddi derecede artırdığı için Beers Kriterleri kapsamında kaçınılması gereken ilaçlar sınıfındadır.");
+    }
+    if (resolvedIds.has("metformin") && patientContext.renalRisk) {
+      beersWarnings.push("Beers Kriteri Uyarısı: Böbrek yetmezliği riski taşıyan 65 yaş üstü yaşlı hastalarda Metformin, laktik asidoz riskini artırdığı için çok dikkatli kullanılmalıdır.");
+    }
+  }
+  
+  return {
+    score,
+    level,
+    message,
+    beersWarnings
+  };
 }

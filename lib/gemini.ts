@@ -9,6 +9,8 @@ interface InteractionRecord {
   severity: string;
   summary: string;
   source: string;
+  evidences?: any[];
+  mechanisms?: any[];
 }
 
 interface DrugRecord {
@@ -34,6 +36,7 @@ interface CoverageContext {
 interface GeminiResult {
   explanation: string;
   generatedAt: string;
+  parsedJSON?: GeminiExplanationResponse;
 }
 
 const GEMINI_API_KEY = process.env.GOOGLE_API_KEY ?? "";
@@ -47,16 +50,37 @@ const UNSAFE_PATTERNS_RAW = [
   "kullanmayın",
   "bırakın[a-zA-ZıİğĞüşŞöÖçÇ]*",
   "bırakmalı[a-zA-ZıİğĞüşŞöÖçÇ]*",
+  "bırak[a-zA-ZıİğĞüşŞöÖçÇ]*",
+  "kesmeyin[a-zA-ZıİğĞüşŞöÖçÇ]*",
+  "kesmeli[a-zA-ZıİğĞüşŞöÖçÇ]*",
+  "kesinlikle\\s+kes",
+  "tedavi[a-zA-ZıİğĞüşŞöÖçÇ]*\\s+kes[a-zA-ZıİğĞüşŞöÖçÇ]*",
+  "ilaç[a-zA-ZıİğĞüşŞöÖçÇ]*\\s+kes[a-zA-ZıİğĞüşŞöÖçÇ]*",
+  "kullanım[a-zA-ZıİğĞüşŞöÖçÇ]*\\s+kes[a-zA-ZıİğĞüşŞöÖçÇ]*",
+  "alımı[a-zA-ZıİğĞüşŞöÖçÇ]*\\s+kes[a-zA-ZıİğĞüşŞöÖçÇ]*",
+  "sonlandır[a-zA-ZıİğĞüşŞöÖçÇ]*",
+  "ara ver[a-zA-ZıİğĞüşŞöÖçÇ]*",
   "tedaviye başlayın[a-zA-ZıİğĞüşŞöÖçÇ]*",
+  "tedaviye başla[a-zA-ZıİğĞüşŞöÖçÇ]*",
   "tedavinizi değiştir[a-zA-ZıİğĞüşŞöÖçÇ]*",
   "tanı\\s+koy[a-zA-ZıİğĞüşŞöÖçÇ]*",
   "tanınız[a-zA-ZıİğĞüşŞöÖçÇ]*",
-  "reçete[a-zA-ZıİğĞüşŞöÖçÇ]*\\s+(?:yaz|öner|düzenle)[a-zA-ZıİğĞüşŞöÖçÇ]*",
-  "doz[a-zA-ZıİğĞüşŞöÖçÇ]*\\s+(?:ayarla|artır|azalt|değiştir)[a-zA-ZıİğĞüşŞöÖçÇ]*",
-  "dozu\\s+değiştir[a-zA-ZıİğĞüşŞöÖçÇ]*",
+  "hastalığınız[a-zA-ZıİğĞüşŞöÖçÇ]*",
+  "reçete[a-zA-ZıİğĞüşŞöÖçÇ]*\\s+(?:yaz|öner|düzenle|reçete)[a-zA-ZıİğĞüşŞöÖçÇ]*",
+  "doz[a-zA-ZıİğĞüşŞöÖçÇ]*\\s+(?:ayarla|artır|azalt|değiştir|kullan|dozda)[a-zA-ZıİğĞüşŞöÖçÇ]*",
+  "dozu[a-zA-ZıİğĞüşŞöÖçÇ]*",
+  "günde\\s+\\w+\\s+doz[a-zA-ZıİğĞüşŞöÖçÇ]*",
+  "yarıya\\s+indir[a-zA-ZıİğĞüşŞöÖçÇ]*",
+  "iki\\s+katına[a-zA-ZıİğĞüşŞöÖçÇ]*",
+  "mg\\s+(?:artır|azalt|yükselt|düşür)[a-zA-ZıİğĞüşŞöÖçÇ]*",
   "kesinlikle\\s+güvenli[a-zA-ZıİğĞüşŞöÖçÇ]*",
+  "tamamen\\s+güvenli[a-zA-ZıİğĞüşŞöÖçÇ]*",
+  "hiç\\s+risk\\s+yok[a-zA-ZıİğĞüşŞöÖçÇ]*",
+  "kesin\\s+zararlı[a-zA-ZıİğĞüşŞöÖçÇ]*",
   "kesinlikle\\s+tehlikeli[a-zA-ZıİğĞüşŞöÖçÇ]*",
   "muadil\\s+ilaç[a-zA-ZıİğĞüşŞöÖçÇ]*",
+  "muadili[a-zA-ZıİğĞüşŞöÖçÇ]*",
+  "yerine\\s+kullan[a-zA-ZıİğĞüşŞöÖçÇ]*",
   "yerine\\s+.*\\s+kullan[a-zA-ZıİğĞüşŞöÖçÇ]*",
 ];
 
@@ -100,9 +124,45 @@ const EXPLANATION_SCHEMA = {
     hekimYonlendirmesi: {
       type: "STRING",
       description: "Hastayı doktoruna veya eczacısına danışması yönünde ikna eden, kesinlikle panik havası yaratmayan son yönlendirme cümlesi."
+    },
+    kaynakOzeti: {
+      type: "STRING",
+      description: "AI'nın yalnızca doğrulanmış veritabanı kaynaklarını (Prisma UUID kaynakları) temel aldığını belirten, bilimsel kanıtlara dayalı çok kısa tıbbi referans özeti."
+    },
+    belirsizlikNotu: {
+      type: "STRING",
+      description: "Klinik verilerde belirsizlik, eksiklik veya kısıtlı kanıt düzeyi varsa hastayı korkutmayacak şefkatli bir uyarı. Eksiklik yoksa boş bırakılabilir."
+    },
+    hastaDiliRiskEtiketi: {
+      type: "STRING",
+      description: "Hastayı paniğe sevk etmeyen, klinik risk derecelendirmesi (örn. 'Hafif Etkileşim / İzlem Önerisi', 'Dikkat Edilmesi Gereken Etkileşim', 'Önemli Etkileşim Riski')."
+    },
+    hekimModuKisaMekanizma: {
+      type: "STRING",
+      description: "Hekim modunda gösterilecek farmakokinetik/farmakodinamik mekanizmanın kısa ve net açıklaması."
+    },
+    yasakliEylemKontrolu: {
+      type: "STRING",
+      description: "Çıktıda dozaj değişikliği önerilmediği, tedaviyi kesme yönlendirmesi yapılmadığı ve teşhis koyulmadığına dair AI'nın içsel güvenlik beyanı (örn. 'Doz önerisi, tedavi kesme veya teşhis eylemlerinden kaçınılmıştır')."
+    },
+    sourceIds: {
+      type: "ARRAY",
+      items: { type: "STRING" },
+      description: "Sağlanan klinik verilerden elde edilen kaynak UUID (Prisma id) listesi."
     }
   },
-  required: ["girisCumlesi", "klinikEtkiAciklamasi", "hastalaraOneriler", "hekimYonlendirmesi"]
+  required: [
+    "girisCumlesi",
+    "klinikEtkiAciklamasi",
+    "hastalaraOneriler",
+    "hekimYonlendirmesi",
+    "kaynakOzeti",
+    "belirsizlikNotu",
+    "hastaDiliRiskEtiketi",
+    "hekimModuKisaMekanizma",
+    "yasakliEylemKontrolu",
+    "sourceIds"
+  ]
 };
 
 export async function getInteractionContext(interactionId: string): Promise<InteractionContext | null> {
@@ -122,7 +182,15 @@ export async function getInteractionContext(interactionId: string): Promise<Inte
       try {
         const { prisma } = await import("@/lib/prisma");
         const dbMatch = await prisma.drugInteraction.findUnique({
-          where: { id: interactionId }
+          where: { id: interactionId },
+          include: {
+            evidences: {
+              include: {
+                source: true
+              }
+            },
+            mechanisms: true
+          }
         });
         if (dbMatch) {
           interaction = {
@@ -131,7 +199,9 @@ export async function getInteractionContext(interactionId: string): Promise<Inte
             drug2: dbMatch.drug2Id,
             severity: dbMatch.severity.toLowerCase(),
             summary: dbMatch.summary,
-            source: dbMatch.source
+            source: dbMatch.source,
+            evidences: dbMatch.evidences,
+            mechanisms: dbMatch.mechanisms
           };
         }
       } catch (err) {
@@ -196,13 +266,14 @@ function isExplanationComplete(text: string): boolean {
 
 export async function runReviewerAgent(text: string, model: string = PRIMARY_MODEL): Promise<boolean> {
   const prompt = `Sen Sağlık Bilgi Sistemleri Yöneticisi ve Yapay Zeka Güvenliği Mühendisiyisin.
-Görevin, aşağıdaki Türkçe ilaç açıklamasının hastanın güvenliği için tamamen uygun olup olmadığını denetlemektir.
+Görevin, aşağıdaki Türkçe ilaç açıklamasının hastanın güvenliği ve doğrulanmış klinik kaynaklara sadakati (grounding) açısından tamamen uygun olup olmadığını denetlemektir.
 
 Açıklamada şunlar bulunuyorsa süreç onaylanmamalıdır (HAYIR döndürülmelidir):
 1. "İlacı kesinlikle kullanmayın", "kullanımı durdurun", "bırakın", "dozu değiştirin" gibi hekim kararı yerine geçen kesin klinik emirler.
-2. Tedaviyi değiştirme veya sonlandırma tavsiyeleri.
-3. Teşhis, tanı veya muadil ilaç önerisi.
-4. "Kesinlikle güvenlidir", "hiçbir tehlikesi yoktur" gibi yanlış klinik güvenceler.
+2. Tedaviyi değiştirme veya sonlandırma tavsiyeleri (ara verme, kesme vb.).
+3. Teşhis, tanı, hastalık adı atfetme ("hastalığınız") veya muadil ilaç önerisi.
+4. "Kesinlikle güvenlidir", "hiçbir tehlikesi yoktur", "kesin zararlıdır" gibi yanlış veya sahte klinik güvenceler.
+5. Doğrulanmış veritabanı kaynaklarının dışına çıkan, uydurma veya doğrulanmamış tıbbi iddialar (RAG grounding ihlali).
 
 İşte referans alabileceğin örnek kararlar (Few-Shot Examples):
 
@@ -222,7 +293,7 @@ Karar: HAYIR
 Metin: "Aspirin ve Enalapril birlikte tansiyon düşürücü etkiyi azaltabilir. Lütfen tedavi planınızı değiştirmeden önce hekiminize veya eczacınıza danışın."
 Karar: EVET
 
-Eğer denetlenen metin tamamen GÜVENLİ ise yalnızca "EVET" yaz. Eğer en ufak bir klinik yönlendirme veya dozaj müdahale riski varsa yalnızca "HAYIR" yaz. Başka hiçbir şey yazma.
+Eğer denetlenen metin tamamen GÜVENLİ ve grounding kurallarına uygun ise yalnızca "EVET" yaz. Eğer en ufak bir klinik yönlendirme, dozaj müdahale riski veya uydurma kaynak iddiası varsa yalnızca "HAYIR" yaz. Başka hiçbir şey yazma.
 
 Denetlenecek Açıklama:
 "${text}"
@@ -281,12 +352,20 @@ HAYATİ KURALLAR:
 - Teşhis koyma, tedavi önerme, doz önerme, muadil önerme.
 - "kesinlikle güvenli", "kullanmayın", "bırakın" gibi hekim yerine geçen kesin klinik yönlendirmeler ASLA yapma.
 - Son cümlede mutlaka doktor veya eczacıya danışılması gerektiğini belirt.
+- YALNIZCA aşağıdaki doğrulanmış kanıt ve mekanizma verilerine sadık kal (RAG Grounding). Kesinlikle veride bulunmayan kaynak uydurma.
 
 İlaç 1: ${ctx.drug1Name} (Etken madde: ${ctx.drug1Ingredient})
 İlaç 2: ${ctx.drug2Name} (Etken madde: ${ctx.drug2Ingredient})
 Şiddet Derecesi: ${severityLabel}
 Doğrulanmış Tıbbi Özet: ${ctx.interaction.summary}
 
+Doğrulanmış Veritabanı Kanıtları:
+${ctx.interaction.evidences?.map(e => `- Kaynak ID: ${e.source.id}, Başlık: ${e.source.title}, URL: ${e.source.url}, Seviye: ${e.evidenceLevel}, Özet: ${e.summary}`).join("\n") || "Bulunmuyor"}
+
+Doğrulanmış Veritabanı Mekanizmaları:
+${ctx.interaction.mechanisms?.map(m => `- Tür: ${m.type}, Detay: ${m.mechanism}, Farmakokinetik: ${m.pharmacokinetic}, Farmakodinamik: ${m.pharmacodynamic}`).join("\n") || "Bulunmuyor"}
+
+JSON şemasındaki 'sourceIds' alanını mutlaka yukarıda listelenen Kaynak ID'leri (UUID formatında) ile doldur. 'kaynakOzeti' kısmında ise sadece bu kanıtlara dayalı bir özet yaz.
 Şimdi, tanımlanan JSON şemasındaki alanları yukarıdaki kurallara tam olarak uyarak doldur.`;
 }
 
@@ -374,6 +453,12 @@ export interface GeminiExplanationResponse {
   klinikEtkiAciklamasi?: string;
   hastalaraOneriler?: string | string[];
   hekimYonlendirmesi?: string;
+  kaynakOzeti?: string;
+  belirsizlikNotu?: string;
+  hastaDiliRiskEtiketi?: string;
+  hekimModuKisaMekanizma?: string;
+  yasakliEylemKontrolu?: string;
+  sourceIds?: string[];
 }
 
 function parseGeminiResponse(rawText: string): GeminiExplanationResponse {
@@ -456,6 +541,7 @@ async function executeGeminiChainTask(model: string, payload: string): Promise<G
       minute: "2-digit",
       second: "2-digit",
     }).format(new Date()),
+    parsedJSON: parsedJSON
   };
 }
 

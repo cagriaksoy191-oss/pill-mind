@@ -43,7 +43,8 @@ export default function SavePillboxModal({ selectedDrugIds, onClose, onSuccess }
       <div className="backdrop-blur-2xl bg-slate-900/90 border border-white/10 p-6 sm:p-8 rounded-3xl w-full max-w-md shadow-2xl relative">
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 w-7 h-7 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 hover:text-white text-xs cursor-pointer transition-colors"
+          className="absolute top-4 right-4 w-11 h-11 sm:w-7 sm:h-7 rounded-xl sm:rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 hover:text-white text-sm sm:text-xs cursor-pointer transition-all focus:outline-none focus:ring-2 focus:ring-slate-500/40"
+          aria-label="Kapat"
         >
           ✕
         </button>

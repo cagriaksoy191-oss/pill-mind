@@ -124,10 +124,16 @@ describe("POST /api/explain", () => {
 
     // Verify it attempted to write the result back to cache
     expect(redis!.set).toHaveBeenCalledWith(
-      "explanation:v1:interaction:test-interaction",
+      "explanation:v3:interaction:test-interaction:data:2026.06.26:schema:3.0.0:locale:tr",
       {
         explanation: "Live AI explanation generated after cache fail.",
-        generatedAt: "2024-05-20T12:00:00.000Z"
+        generatedAt: "2024-05-20T12:00:00.000Z",
+        belirsizlikNotu: undefined,
+        hastaDiliRiskEtiketi: undefined,
+        hekimModuKisaMekanizma: undefined,
+        kaynakOzeti: undefined,
+        sourceIds: undefined,
+        yasakliEylemKontrolu: undefined
       },
       { ex: 604800 }
     );
@@ -135,7 +141,7 @@ describe("POST /api/explain", () => {
 
   it("should return 503 and handle Gemini AI failure gracefully", async () => {
     (getInteractionContext as jest.Mock).mockResolvedValueOnce({
-      interaction: { id: "test", severity: "high" },
+      interaction: { id: "test", severity: "medium" },
       drug1Name: "DrugA",
       drug2Name: "DrugB",
       drug1Ingredient: "IngA",
@@ -161,6 +167,38 @@ describe("POST /api/explain", () => {
       error: "Canlı AI açıklaması şu anda üretilemedi.",
       source: "error",
       reason: "timeout",
+      disclaimer: "Bu açıklama bilgilendirme amaçlıdır ve tıbbi tavsiye niteliği taşımaz.",
+    });
+  });
+
+  it("should return 503 and block explanation (fail-closed safety_block) when high severity interaction fails", async () => {
+    (getInteractionContext as jest.Mock).mockResolvedValueOnce({
+      interaction: { id: "test", severity: "high" },
+      drug1Name: "DrugA",
+      drug2Name: "DrugB",
+      drug1Ingredient: "IngA",
+      drug2Ingredient: "IngB"
+    });
+
+    const fakeError = new Error("timeout processing request");
+    (callGeminiForInteraction as jest.Mock).mockRejectedValueOnce(fakeError);
+
+    const req = new Request("http://localhost/api/explain", {
+      method: "POST",
+      body: JSON.stringify({ interactionId: "test-interaction" }),
+      headers: {
+        "Content-Type": "application/json",
+      }
+    });
+
+    const res = await POST(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(503);
+    expect(data).toEqual({
+      error: "Güvenlik nedeniyle canlı AI açıklaması engellendi.",
+      source: "error",
+      reason: "safety_block",
       disclaimer: "Bu açıklama bilgilendirme amaçlıdır ve tıbbi tavsiye niteliği taşımaz.",
     });
   });
@@ -233,10 +271,16 @@ describe("POST /api/explain", () => {
     // Verify it attempted to write the result back to cache
     // The cacheKey for drugIds uses sorted ids "drug1:drug2"
     expect(redis!.set).toHaveBeenCalledWith(
-      "explanation:v1:coverage:drug1:drug2",
+      "explanation:v3:coverage:drug1:drug2:data:2026.06.26:schema:3.0.0:locale:tr",
       {
         explanation: "Live AI coverage explanation generated after cache fail.",
-        generatedAt: "2024-05-20T12:00:00.000Z"
+        generatedAt: "2024-05-20T12:00:00.000Z",
+        belirsizlikNotu: undefined,
+        hastaDiliRiskEtiketi: undefined,
+        hekimModuKisaMekanizma: undefined,
+        kaynakOzeti: undefined,
+        sourceIds: undefined,
+        yasakliEylemKontrolu: undefined
       },
       { ex: 604800 }
     );

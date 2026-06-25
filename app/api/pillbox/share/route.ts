@@ -1,0 +1,86 @@
+// app/api/pillbox/share/route.ts
+import { NextRequest, NextResponse } from "next/server";
+import { getSession, verifyCSRF } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { writeAuditLog } from "@/lib/audit";
+import crypto from "crypto";
+
+export const dynamic = "force-dynamic";
+
+function jsonNoStore(body: unknown, status = 200) {
+  return NextResponse.json(body, {
+    status,
+    headers: {
+      "Cache-Control": "no-store, max-age=0",
+    },
+  });
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    // CSRF check
+    if (!verifyCSRF(request)) {
+      return jsonNoStore(
+        { error: "Güvenlik doğrulaması başarısız oldu (CSRF engellendi)." },
+        403
+      );
+    }
+
+    // Auth check
+    const session = getSession(request);
+    if (!session) {
+      return jsonNoStore(
+        { error: "Rapor paylaşmak için lütfen önce giriş yapın." },
+        401
+      );
+    }
+
+    const body = await request.json();
+    const { drugIds, summary } = body as { drugIds: string[]; summary?: any };
+
+    if (!drugIds || !Array.isArray(drugIds) || drugIds.length === 0) {
+      return jsonNoStore(
+        { error: "Paylaşmak için en az 1 ilaç seçilmelidir." },
+        400
+      );
+    }
+
+    // Generate unique token (secure random hash)
+    const token = crypto.randomBytes(32).toString("hex");
+
+    // Expires in 24 hours
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    // Save PillboxShare snapshot
+    const share = await prisma.pillboxShare.create({
+      data: {
+        token,
+        drugIds,
+        summary: summary ? JSON.stringify(summary) : null,
+        expiresAt,
+      },
+    });
+
+    // Write Audit Log (masking/PII checks run inside writeAuditLog)
+    await writeAuditLog({
+      eventType: "SHARE_CREATED",
+      entityType: "PillboxShare",
+      entityId: share.id,
+      userId: session.userId,
+      details: `User ${session.email} created a shareable link for ${drugIds.length} drugs: ${drugIds.join(", ")}`,
+    });
+
+    return jsonNoStore({
+      success: true,
+      token: share.token,
+      shareUrl: `/share/${share.token}`,
+      expiresAt: share.expiresAt,
+    });
+  } catch (error) {
+    console.error("[Pillbox Share Endpoint Error]:", error);
+    return jsonNoStore(
+      { error: "Paylaşım bağlantısı oluşturulurken sistemsel bir hata oluştu." },
+      500
+    );
+  }
+}

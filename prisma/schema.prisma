@@ -41,6 +41,8 @@ model Drug {
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
   pharmacologicalGroup String?       // Farmakolojik Sınıf/Grup (Örn: NSAID, Beta Bloker)
+  ingredientId     String?
+  drugClassId      String?
   
   // İlişkiler
   brandNames       BrandName[]
@@ -48,8 +50,13 @@ model Drug {
   interactions2    DrugInteraction[] @relation("Drug2Relation")
   foodInteractions FoodInteraction[]
   contraindications Contraindication[]
+  ingredient       Ingredient?       @relation(fields: [ingredientId], references: [id], onDelete: SetNull)
+  drugClass        DrugClass?        @relation(fields: [drugClassId], references: [id], onDelete: SetNull)
+  aliases          DrugAlias[]
 
   @@index([activeIngredient])
+  @@index([ingredientId])
+  @@index([drugClassId])
 }
 
 model BrandName {
@@ -76,6 +83,8 @@ model DrugInteraction {
   
   drug1              Drug     @relation("Drug1Relation", fields: [drug1Id], references: [id], onDelete: Cascade)
   drug2              Drug     @relation("Drug2Relation", fields: [drug2Id], references: [id], onDelete: Cascade)
+  evidences          InteractionEvidence[]
+  mechanisms         InteractionMechanism[]
 
   @@unique([drug1Id, drug2Id])
   @@index([drug1Id])
@@ -105,6 +114,7 @@ model User {
   email          String         @unique
   createdAt      DateTime       @default(now())
   savedPillboxes SavedPillbox[]
+  clinicalReviews ClinicalReview[]
 }
 
 model SavedPillbox {
@@ -115,3 +125,130 @@ model SavedPillbox {
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
+
+model EvidenceSource {
+  id          String   @id @default(uuid())
+  title       String
+  url         String   @unique
+  sourceType  String
+  publisher   String?
+  publishedAt DateTime?
+  retrievedAt DateTime
+  version     String?
+  licenseType String?
+  
+  evidences   InteractionEvidence[]
+  reviews     ClinicalReview[]
+}
+
+model InteractionEvidence {
+  id            String          @id @default(uuid())
+  interactionId String
+  sourceId      String
+  evidenceLevel EvidenceLevel   @default(FDA_APPROVED)
+  summary       String          @db.Text
+  quote         String?         @db.Text
+  confidence    Float?
+  reviewStatus  Status          @default(VERIFIED)
+  
+  interaction   DrugInteraction @relation(fields: [interactionId], references: [id], onDelete: Cascade)
+  source        EvidenceSource  @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  @@index([interactionId])
+  @@index([sourceId])
+}
+
+model ClinicalReview {
+  id               String          @id @default(uuid())
+  entityType       String
+  entityId         String
+  reviewerRole     String
+  reviewerId       String?
+  decision         String
+  notes            String?         @db.Text
+  reviewedAt       DateTime        @default(now())
+  evidenceSourceId String?
+  
+  reviewer         User?           @relation(fields: [reviewerId], references: [id], onDelete: SetNull)
+  evidenceSource   EvidenceSource? @relation(fields: [evidenceSourceId], references: [id], onDelete: SetNull)
+
+  @@index([entityId])
+  @@index([reviewerId])
+  @@index([evidenceSourceId])
+}
+
+model Ingredient {
+  id               String      @id @default(uuid())
+  name             String      @unique
+  normalizedName   String      @unique
+  rxcui            String?     @unique
+  atcCode          String?     @unique
+  
+  drugs            Drug[]
+  drugAliases      DrugAlias[]
+}
+
+model DrugAlias {
+  id              String      @id @default(uuid())
+  drugId          String
+  alias           String
+  normalizedAlias String
+  aliasType       String
+  locale          String      @default("tr")
+  ingredientId    String?
+  
+  drug            Drug        @relation(fields: [drugId], references: [id], onDelete: Cascade)
+  ingredient      Ingredient? @relation(fields: [ingredientId], references: [id], onDelete: SetNull)
+
+  @@unique([drugId, normalizedAlias])
+  @@index([normalizedAlias])
+  @@index([drugId])
+  @@index([ingredientId])
+}
+
+model DrugClass {
+  id        String      @id @default(uuid())
+  name      String
+  code      String      @unique
+  system    String
+  parentId  String?
+  
+  parent    DrugClass?  @relation("DrugClassHierarchy", fields: [parentId], references: [id], onDelete: Restrict)
+  children  DrugClass[] @relation("DrugClassHierarchy")
+  drugs     Drug[]
+
+  @@index([parentId])
+}
+
+model InteractionMechanism {
+  id            String          @id @default(uuid())
+  interactionId String
+  type          String
+  mechanism     String          @db.Text
+  pharmacokinetic Boolean       @default(false)
+  pharmacodynamic Boolean       @default(false)
+  
+  interaction   DrugInteraction @relation(fields: [interactionId], references: [id], onDelete: Cascade)
+
+  @@index([interactionId])
+}
+
+model PillboxShare {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  drugIds   String[]
+  summary   String?  @db.Text // JSON or text summary of risks
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  eventType String   // E.g., "CLINICAL_REVIEW_UPDATE", "SHARE_CREATED"
+  entityType String  // E.g., "ClinicalReview", "PillboxShare"
+  entityId   String?
+  userId     String?
+  details    String?  @db.Text // Masked/redacted GDPR details
+  createdAt  DateTime @default(now())
+}
+

@@ -1,10 +1,18 @@
 // app/api/pillbox/save/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { getSession, verifyCSRF } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(request: NextRequest) {
   try {
+    // CSRF & Origin Doğrulaması
+    if (!verifyCSRF(request)) {
+      return NextResponse.json(
+        { error: "Güvenlik doğrulaması başarısız oldu (CSRF engellendi)." },
+        { status: 403 }
+      );
+    }
+
     const session = getSession(request);
     if (!session) {
       return NextResponse.json(

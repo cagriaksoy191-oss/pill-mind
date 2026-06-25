@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 // Mock dependencies
 jest.mock("@/lib/auth", () => ({
   getSession: jest.fn(),
+  verifyCSRF: jest.fn().mockReturnValue(true),
 }));
 
 jest.mock("@/lib/prisma", () => ({

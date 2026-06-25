@@ -33,6 +33,8 @@ export default function InteractionList({
           <ResultCard
             key={res.interaction.id}
             interactionId={res.interaction.id}
+            drug1Id={res.interaction.drug1}
+            drug2Id={res.interaction.drug2}
             drug1Name={res.drug1Name}
             drug2Name={res.drug2Name}
             severity={res.interaction.severity}
@@ -42,6 +44,8 @@ export default function InteractionList({
             verificationStatus={res.interaction.verificationStatus}
             evidenceLevel={res.interaction.evidenceLevel}
             clinicalDetail={res.interaction.clinicalDetail}
+            evidences={res.interaction.evidences}
+            mechanisms={res.interaction.mechanisms}
             explanationData={explanations[res.interaction.id]}
             isExplanationLoading={loadingExplanations[res.interaction.id]}
             onExplainRequested={onExplainRequested}
@@ -49,8 +53,13 @@ export default function InteractionList({
         ))}
       </div>
 
+      {/* General Patient Safety Alert */}
+      <div className="backdrop-blur-md bg-amber-500/5 border border-amber-500/20 rounded-2xl p-4 text-[11px] sm:text-xs text-amber-800 dark:text-amber-300 font-semibold leading-relaxed">
+        ⚠️ **Önemli Uyarı:** Hekime göstermek için rapor oluştururken veya raporu hekiminizle paylaşırken kesinlikle tedavinizi/dozunuzu değiştirmeyin.
+      </div>
+
       {/* Additional option to run a collective full-combination coverage report */}
-      <div className="backdrop-blur-md bg-white/5 border border-white/10 rounded-3xl p-5 text-center mt-2">
+      <div className="backdrop-blur-md bg-white/5 border border-white/10 rounded-3xl p-5 text-center">
         <h4 className="font-bold text-white text-xs flex items-center justify-center gap-1.5">
           <span>🧬</span> Tüm Kombinasyonun Canlı AI Analizi
         </h4>

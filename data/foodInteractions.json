@@ -1,0 +1,51 @@
+[
+  {
+    "id": "food-int-1",
+    "drugId": "warfarin",
+    "substance": "Greyfurt Suyu",
+    "effect": "Warfarin metabolizmasını etkileyerek kanama riskini artırabilir.",
+    "severity": "HIGH"
+  },
+  {
+    "id": "food-int-2",
+    "drugId": "warfarin",
+    "substance": "K Vitamini Zengin Gıdalar (Ispanak, Brokoli)",
+    "effect": "İlacın kan sulandırıcı etkisini azaltarak pıhtılaşma riskini artırabilir.",
+    "severity": "MEDIUM"
+  },
+  {
+    "id": "food-int-3",
+    "drugId": "metformin",
+    "substance": "Alkol",
+    "effect": "Laktik asidoz riskini ciddi şekilde artırır. Alkol tüketimi ile birlikte Metformin kullanımı önerilmez.",
+    "severity": "HIGH"
+  },
+  {
+    "id": "food-int-4",
+    "drugId": "aspirin",
+    "substance": "Alkol",
+    "effect": "Mide kanaması ve gastrointestinal tahriş riskini artırır.",
+    "severity": "MEDIUM"
+  },
+  {
+    "id": "food-int-5",
+    "drugId": "ibuprofen",
+    "substance": "Alkol",
+    "effect": "Mide tahrişini ve kanama riskini artırabilir.",
+    "severity": "MEDIUM"
+  },
+  {
+    "id": "food-int-6",
+    "drugId": "diklofenak",
+    "substance": "Alkol",
+    "effect": "Mide kanaması riskini artırabilir.",
+    "severity": "MEDIUM"
+  },
+  {
+    "id": "food-int-7",
+    "drugId": "metoprolol",
+    "substance": "Alkol",
+    "effect": "Tansiyon düşürücü etkiyi artırarak baş dönmesi ve bayılma riskine yol açabilir.",
+    "severity": "MEDIUM"
+  }
+]

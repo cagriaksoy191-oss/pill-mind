@@ -1,10 +1,18 @@
 // app/api/auth/login/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { encryptSession } from "@/lib/auth";
+import { encryptSession, verifyCSRF } from "@/lib/auth";
 
 export async function POST(request: Request) {
   try {
+    // CSRF & Origin Doğrulaması
+    if (!verifyCSRF(request)) {
+      return NextResponse.json(
+        { error: "Güvenlik doğrulaması başarısız oldu (CSRF engellendi)." },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json();
     const { email } = body as { email: string };
 

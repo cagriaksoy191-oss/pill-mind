@@ -453,6 +453,12 @@ export interface GeminiExplanationResponse {
   klinikEtkiAciklamasi?: string;
   hastalaraOneriler?: string | string[];
   hekimYonlendirmesi?: string;
+  kaynakOzeti?: string;
+  belirsizlikNotu?: string;
+  hastaDiliRiskEtiketi?: string;
+  hekimModuKisaMekanizma?: string;
+  yasakliEylemKontrolu?: string;
+  sourceIds?: string[];
 }
 
 function parseGeminiResponse(rawText: string): GeminiExplanationResponse {

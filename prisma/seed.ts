@@ -378,6 +378,7 @@ async function main() {
     drugId: drugIdMap[c.drugId] || c.drugId,
     diseaseIcd: c.diseaseIcd,
     diseaseName: c.diseaseName,
+    effect: c.effect,
     severity: c.severity === "HIGH" ? Severity.HIGH : c.severity === "MEDIUM" ? Severity.MEDIUM : Severity.LOW,
   }));
   await prisma.contraindication.createMany({ data: contraToCreate });

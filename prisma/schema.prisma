@@ -105,6 +105,7 @@ model Contraindication {
   drugId      String
   diseaseIcd  String   // ICD-10 Kodu (Örn: K25 - Peptik Ülser)
   diseaseName String   // Hastalık Adı (Türkçe)
+  effect      String   @default("") @db.Text // Türkçe klinik etki açıklaması
   severity    Severity
   drug        Drug     @relation(fields: [drugId], references: [id], onDelete: Cascade)
 }

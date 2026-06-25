@@ -67,7 +67,13 @@ Sentry.init({
         }
       }
       if (event.request.cookies) {
-        event.request.cookies = "[REDACTED]";
+        if (typeof event.request.cookies === "string") {
+          (event.request as any).cookies = "[REDACTED]";
+        } else {
+          for (const key in event.request.cookies) {
+            event.request.cookies[key] = "[REDACTED]";
+          }
+        }
       }
       if (event.request.data && typeof event.request.data === "string") {
         event.request.data = event.request.data

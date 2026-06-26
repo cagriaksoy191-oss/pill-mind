@@ -12,6 +12,7 @@ This document tracks all features that are fully implemented, compiled, and test
 
 ## 🏗️ 1. Klinik Altyapı ve Deterministik Çekirdek (Coded & Verified)
 *   **PostgreSQL / Prisma Veri Katmanı**: Prisma ORM ile modellenen ve Supabase üzerinde barındırılan ilişkisel veritabanı yapısı. İlaçlar (`Drug`), etkileşimler (`DrugInteraction`) ve marka isimleri (`BrandName`) tabloları entegre edilmiştir.
+*   **Kontrendikasyon Şema Genişletmesi**: `Contraindication` modeline Türkçe klinik etki detaylarını barındıran `effect` (String) veri alanı eklenmiş, Prisma şeması güncellenmiş ve `prisma/seed.ts` üzerinde tohumlama mekanizmasına entegre edilmiştir.
 *   **Prisma Singleton İstemcisi**: `lib/prisma.ts` içinde sunucu katmanında gereksiz bağlantı birikmesini önleyen kararlı singleton yapısı kurulmuştur.
 *   **Tohumlama (Seeding) Mekanizması**: `prisma/seed.ts` dosyası aracılığıyla veri tabanına 10 temel ilaç ve 12 doğrulanmış etkileşim matrisi $O(1)$ çapraz sorgu performansı sağlayacak şekilde tohumlanmıştır.
 *   **Çift Katmanlı Arama Motoru**: `lib/interactions.ts` ve `app/api/check/route.ts` rotaları aracılığıyla çoklu etkileşim taraması deterministik olarak sunulur. PostgreSQL bağlantısı aktifken SQL sorgusu, bağlantı koptuğunda ise lokal JSON fallback katmanı otomatik olarak devreye girer.
@@ -19,6 +20,7 @@ This document tracks all features that are fully implemented, compiled, and test
 
 ## 🛡️ 2. Yapay Zeka ve Çift Ajanlı Güvenlik Kalkanı (Coded & Verified)
 *   **Structured Outputs (JSON Şeması)**: `lib/gemini.ts` içinde Gemini API ile entegre, tıp dilinden uzak, hastayı paniğe sevk etmeyen Türkçe klinik şema tanımlanmıştır (`girisCumlesi`, `klinikEtkiAciklamasi`, `hastalaraOneriler`, `hekimYonlendirmesi`).
+*   **Şema Özellikleri Genişletmesi**: Gemini model çıktı şemasına klinik doğruluğu artırmak adına `kaynakOzeti`, `belirsizlikNotu`, `hastaDiliRiskEtiketi`, `hekimModuKisaMekanizma`, `yasakliEylemKontrolu` ve `sourceIds` parametreleri eklenmiştir.
 *   **Türkçe Karakter Uyumlu Regex Güvenlik Kalkanı**: `UNSAFE_PATTERNS` regex mimarisiyle, Türkçe ekler ve hecelemeler dahil olmak üzere hekim yetkisini aşan tüm bypass girişimleri (`(?:^|[^a-zA-Z0-9ıİğĞüşŞöÖçÇ])`) lookaround sınırları ile deterministik olarak engellenir.
 *   **Klinik Doğrulama Ajanı (Reviewer Agent)**: `runReviewerAgent` metoduyla, üretilen tıbbi metin hastaya gösterilmeden önce ikinci bir uzman ajan tarafından gerçek zamanlı taranır ve "EVET/HAYIR" kararıyla doğrulanır.
 *   **Upstash Redis Önbellek Katmanı**: `lib/redis.ts` ve `/api/explain` rotası üzerinden, üretilen ve güvenlik onayından geçen açıklamalar 7 gün TTL ile önbelleğe alınarak sıfır gecikme (<50ms) ve sıfır AI maliyeti ile sunulur.
@@ -32,7 +34,7 @@ This document tracks all features that are fully implemented, compiled, and test
 *   **Katmanlama ve Taşma Kusursuzluğu (Layer & Overflow Perfection)**: Arama kutusu dropdown listesinin, 3D transform kullanan Virtual Pillbox'ın arkasında kalmasını veya üst kartın kırpılma alanı altında gizlenmesini önleyen özel `z-index` katmanlaması (`z-20` / `z-10`) ve `absolute inset-0 rounded-3xl overflow-hidden` kırpıcı ışıma katmanı entegre edilmiştir.
 *   **Klinik Mod Katmanı (`isClinicalMode`)**: Arayüzün sağ üst köşesinden veya detay pencerelerinden etkinleştirilebilen, hekimlerin klinik detaylara (kanıt düzeyi, kaynaklar, detaylı mekanizmalar) ulaşmasını sağlayan cam morfolojili panel katmanı.
 *   **PDF/A4 Baskı Şablonu (Print Layout)**: Kullanıcının eklediği ilaç kombinasyonlarını ve etkileşim analizlerini hekime sunmak üzere temiz, tıbbi ve okunaklı bir PDF/A4 baskı formatında çıktı alabilmesini sağlayan dinamik baskı stili.
-*   **Erişilebilirlik (WCAG 2.2 AAA Uyumlu useFocusTrap)**: Açılır pencerelerde, detay çekmecelerinde ve kapsam analiz panellerinde odağın dışarı taşmasını engelleyen `useFocusTrap` odak hapsetme hook'u; arama kutusuna ilaç ekleme ve kaldırma gibi dinamik eylemleri seslendiren `aria-live` assertive anonsör altyapısı.
+*   **Erişilebilirlik (WCAG 2.2 AAA Uyumlu useFocusTrap)**: Açılır pencerelerde, detay çekmecelerin ve kapsam analiz panellerinde odağın dışarı taşmasını engelleyen `useFocusTrap` odak hapsetme hook'u; arama kutusuna ilaç ekleme ve kaldırma gibi dinamik eylemleri seslendiren `aria-live` assertive anonsör altyapısı.
 
 ## 🚦 4. Sistem Dayanıklılığı ve Hata Toleransı (Coded & Verified)
 *   **PostgreSQL / Supabase Kesinti Resilyansı**: Veritabanı sorgusu koptuğunda veya yavaşladığında, sistemin çökmeden asenkron `try/catch` bloğu üzerinden `data/drugs.json` ve `data/interactions.json` lokal JSON yedek katmanına otomatik geçmesi.
@@ -41,6 +43,7 @@ This document tracks all features that are fully implemented, compiled, and test
 
 ## 🔭 5. Kurumsal Gözlemlenebilirlik ve Hata İzleme (Coded & Verified)
 *   **Sentry Entegrasyonu**: Next.js Client (`sentry.client.config.ts`), Server (`sentry.server.config.ts`) ve Edge (`sentry.edge.config.ts`) çalışma zamanları için Sentry başlatma ve telemetri yapılandırması kurulmuştur.
+*   **Sentry Çerez Redaksiyon Resilyansı**: Telemetri nesnelerinde `event.request.cookies` alanı temizlenirken string ve nested nesne tiplerinin güvenli biçimde kontrol edilmesi sağlanarak telemetry katmanında oluşabilecek çalışma zamanı hataları engellenmiştir.
 *   **Turbopack & Webpack Build Sarmalayıcısı**: `next.config.ts` içerisine `withSentryConfig` entegre edilerek, derleme sırasında otomatik kaynak haritası (source map) yüklemesi ve tünelleme (`/monitoring`) yapılandırılmıştır.
 *   **Klinik Hata Sınırları (Global Error Boundaries)**: `app/error.tsx` ve `app/global-error.tsx` dosyalarıyla, çökmelerde kullanıcılara şefkatli bir Türkçe hata arayüzü sunulurken, hatalar `Sentry.captureException` ile gerçek zamanlı olarak izleme paneline raporlanmaktadır.
 
@@ -57,7 +60,15 @@ This document tracks all features that are fully implemented, compiled, and test
 *   **Ağ Durumu Canlı Takibi**: `app/kontrol/page.tsx` içerisinde tarayıcı ağ durumu dinleyicileriyle `isOffline` durumu takip edilmekte ve ağ kaybında sağ üstte glowing kehribar rengiyle premium bir **"Çevrimdışı Mod (Yerel Koruma)"** rozeti gösterilmektedir.
 *   **100% Çevrimdışı Tıbbi Korunma**: Sunucu veya internet bağlantısı koptuğunda, `/api/check` API rotası hata verir vermez sistem istemci tarafında asenkron `findInteractions` lokal arama motorunu devreye sokarak N-ilaç etkileşim denetimini tamamen internet bağlantısız (offline) olarak gerçekleştirebilmektedir.
 
-## 🧪 8. Kalite Güvence ve Test Kapsamı (Coded & Verified)
+## 🌐 8. HL7 FHIR Standartları ve OpenAPI 3.0 Sözleşmesi (Coded & Verified)
+*   **OpenAPI 3.0 API Sözleşmesi**: `public/openapi.json` dosyasında Auth, Check, Explain, Pillbox, Share ve FHIR entegrasyon uç noktalarının HTTP metotları, şemaları, parametreleri ve hata kodları standartlara tam uyumlu olarak belgelenmiştir.
+*   **HL7 FHIR Medication GET**: `/api/fhir/medication` uç noktası veritabanındaki ilaçları RxNorm (`rxcui`) ve ATC (`atcCode`) standart kodlama detayıyla `Medication` kaynağı formatında dışa aktarır.
+*   **HL7 FHIR MedicationRequest POST**: `/api/fhir/medicationrequest` uç noktası klinik parametreleri veya MedicationRequest listelerini işleyerek etkileşim ve risk bulgularını FHIR `Parameters` standartlarında hesaplar.
+*   **Güvenli Süreli Rapor Paylaşımı**: `/api/pillbox/share` (POST) ile 24 saat geçerlilik süresine sahip, kriptografik token'lı paylaşım linki oluşturulur.
+*   **Salt Okunur Rapor Görüntüleyici**: `/share/[token]` dinamik rotasında paylaşılan raporların salt okunur gösterimi, kalan süre sayacı ve hekimler için PDF/A4 baskı formatı entegre edilmiştir.
+*   **Audit Log & GDPR/KVKK Koruma**: `lib/audit.ts` kütüphanesi veri maskeleme (redact) mekanizmasıyla kişisel verileri maskeler. `/api/admin/review` (POST) ile de klinik hekim doğrulamaları güncellenirken eylemler güvenli audit tablosuna kaydedilir.
+
+## 🧪 9. Kalite Güvence ve Test Kapsamı (Coded & Verified)
 *   **Birim ve Entegrasyon Testleri (Jest / Next SWC Compiler)**:
     *   `tests/fuzzySearch.test.ts`: Türkçe karakter toleransı, Levenshtein typos, subsequence puanlaması ve boş/nonsense input direnci test edilmiştir.
     *   `tests/safetyFilter.test.ts`: Tıbbi bypass promptları, ekler ve çekim grupları, custom lookaround regex doğrulamaları ve safe-clinical geçişleri test edilmiştir.
@@ -66,9 +77,10 @@ This document tracks all features that are fully implemented, compiled, and test
     *   `tests/explain-route.test.ts` & `tests/gemini.test.ts`: API zaman aşımı, rate limit ihlalleri, cache hit/miss durumları ve Gemini kaskatlı model zinciri entegrasyonu test edilmiştir.
     *   `tests/accessibility.test.tsx`: `useFocusTrap` hook'unun odak hapsetme davranışı, `DrugSelector` klavye navigasyon olayları (ArrowDown, ArrowUp, Enter) ve `aria-live` assertive anonsörlerinin durumu mock DOM ile test edilmiştir.
     *   `tests/redis.test.ts`: Redis bağlantı hataları ve offline durumlarında `/api/check` ve `/api/explain` API rotalarının rate-limiter bypass ve live AI fallback resilience davranışları test edilmiştir.
+    *   `tests/enterprise.test.ts`: HL7 FHIR Medication/MedicationRequest uyumluluğu, 24 saatlik süre aşımı sınırları, admin klinik onayı ve GDPR/KVKK maskeleme audit süreçleri test edilmiştir.
 *   **Uçtan Uca (E2E) Testleri (Playwright)**:
     *   `tests/e2e.spec.ts`: Autocomplete klavye gezinimi, seçili chip strict mode yönetimi, dinamik buton ARIA nitelikleri (`button[aria-controls^='explain-drawer-']`), asenkron drawer açılma durumları ve odak halkası standartları test edilmiştir.
 
-## 🚀 9. Sunucu Derleme Otomasyonu ve Çakışma Yönetimi (Coded & Verified)
+## 🚀 10. Sunucu Derleme Otomasyonu ve Çakışma Yönetimi (Coded & Verified)
 *   **Vercel Peer Dependency Aşımı**: Next.js 16/Turbopack ve `@sentry/nextjs` arasındaki npm akran bağımlılığı (`ERESOLVE`) çakışmaları, `package.json` içerisine `overrides` parametresi eklenerek ve `.npmrc` üzerinden `legacy-peer-deps=true` ayarlanarak global olarak çözülmüştür.
-*   **Prisma İstemci Derleme Otomasyonu**: Vercel sunucusundaki derleme sırasında yeni eklenen veri modellerinin (`User`, `SavedPillbox`) bulunamaması sorunu, `package.json` build betiğine `prisma generate` eklenerek ve `postinstall` kancası aktif edilerek tamamen giderilmiştir.
+*   **Prisma İstemci Derleme Otomasyonu**: Vercel sunucusundaki derleme sırasında yeni eklenen veri modellerinin (`User`, `SavedPillbox`, `PillboxShare`, `AuditLog`) bulunamaması sorunu, `package.json` build betiğine `prisma generate` eklenerek ve `postinstall` kancası aktif edilerek tamamen giderilmiştir.

@@ -118,7 +118,6 @@ export function verifyCSRF(req: Request): boolean {
     try {
       const refererOrigin = new URL(referer).origin;
       if (refererOrigin !== expectedOrigin) {
-        console.warn(`[CSRF Alert] Referer mismatch: ${refererOrigin}, Expected: ${expectedOrigin}`);
         return false;
       }
     } catch {

@@ -65,7 +65,7 @@ export async function GET(
     const interactions = await findInteractionsDB(share.drugIds, resolvedDrugsCache);
     const accumulationWarnings = await checkAccumulationDB(share.drugIds, resolvedDrugsCache);
     const foodInteractions = await findFoodInteractionsDB(share.drugIds, resolvedDrugsCache);
-    const contraindications = await findContraindicationsDB(share.drugIds, null, resolvedDrugsCache); // salt-okunur varsayılan boş patientContext
+    const contraindications = await findContraindicationsDB(share.drugIds, undefined, resolvedDrugsCache); // salt-okunur varsayılan boş patientContext
 
     return NextResponse.json({
       success: true,

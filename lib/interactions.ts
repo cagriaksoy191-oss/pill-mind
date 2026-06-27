@@ -655,7 +655,7 @@ export interface ContraindicationResult {
   diseaseName?: string;
 }
 
-export function findContraindications(drugIds: string[], patientContext?: any): ContraindicationResult[] {
+export function findContraindications(drugIds: string[], patientContext?: PatientContext): ContraindicationResult[] {
   if (!patientContext) return [];
   
   const results: ContraindicationResult[] = [];
@@ -690,7 +690,7 @@ export function findContraindications(drugIds: string[], patientContext?: any): 
     }
   }
   
-  if (patientContext && typeof patientContext === "object" && "diseases" in patientContext && Array.isArray((patientContext as any).diseases) && patientContext.diseases.length > 0) {
+  if (patientContext && patientContext.diseases && Array.isArray(patientContext.diseases) && patientContext.diseases.length > 0) {
     for (const contra of (contraindicationsData as any[])) {
       if (resolvedIds.has(contra.drugId) && (patientContext as any).diseases.includes(contra.diseaseIcd)) {
         const drug = drugsMap.get(contra.drugId);
@@ -797,7 +797,17 @@ export function findContraindications(drugIds: string[], patientContext?: any): 
   return results;
 }
 
-export async function findContraindicationsDB(drugIds: string[], patientContext?: unknown, resolvedDrugsCache?: unknown[]): Promise<ContraindicationResult[]> {
+export interface PatientContext {
+  diseases?: string[];
+  isPregnant?: boolean;
+  isBreastfeeding?: boolean;
+  renalRisk?: boolean;
+  hepaticRisk?: boolean;
+  ageGroup?: string;
+  [key: string]: any;
+}
+
+export async function findContraindicationsDB(drugIds: string[], patientContext?: PatientContext, resolvedDrugsCache?: unknown[]): Promise<ContraindicationResult[]> {
   if (!patientContext) return [];
   
   const results: ContraindicationResult[] = [];

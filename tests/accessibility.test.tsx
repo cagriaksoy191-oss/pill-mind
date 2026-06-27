@@ -18,6 +18,17 @@ const mockDrugs = [
   { id: "2", name: "Parol", activeIngredient: "Paracetamol", category: "Analgesic" },
 ];
 
+
+function TestEmptyTrapComponent({ isActive }: { isActive: boolean }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useFocusTrap(ref, isActive);
+  return (
+    <div ref={ref} data-testid="empty-container">
+      <p>No focusable elements here</p>
+    </div>
+  );
+}
+
 // Test component for useFocusTrap
 function TestTrapComponent({ isActive }: { isActive: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -75,6 +86,21 @@ describe("Accessibility & Keyboard Navigation Tests", () => {
       fireEvent.keyDown(firstEl, { key: "Tab" });
       
       expect(document.activeElement).toBe(prevActive);
+    });
+
+    it("should prevent default tab behavior if no focusable elements are present", () => {
+      render(<TestEmptyTrapComponent isActive={true} />);
+      const container = screen.getByTestId("empty-container");
+
+      const event = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true });
+      Object.defineProperty(event, 'preventDefault', {
+        value: jest.fn(),
+        configurable: true
+      });
+
+      fireEvent(container, event);
+
+      expect(event.preventDefault).toHaveBeenCalled();
     });
   });
 

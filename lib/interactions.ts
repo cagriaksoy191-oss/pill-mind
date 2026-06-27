@@ -362,7 +362,6 @@ export async function checkAccumulationDB(drugIds: string[]): Promise<Accumulati
 
     return warnings;
   } catch (error) {
-    console.error("[PillMind CMIO Engine] Accumulation check DB failed, falling back to local JSON:", error);
     return checkAccumulation(drugIds);
   }
 }

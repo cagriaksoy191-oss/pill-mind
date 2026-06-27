@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { findInteractionsDB, checkAccumulationDB } from "@/lib/interactions";
+import { findInteractionsDB, checkAccumulationDB, resolveDrugsDB } from "@/lib/interactions";
 import { redis } from "@/lib/redis";
 import { getClientIp } from "@/lib/ip";
 
@@ -75,10 +75,11 @@ export async function POST(request: Request) {
 
     const { findFoodInteractionsDB, findContraindicationsDB, checkPolypharmacyAndBeers } = await import("@/lib/interactions");
 
-    const results = await findInteractionsDB(drugIds);
-    const accumulationWarnings = await checkAccumulationDB(drugIds);
-    const foodInteractions = typeof findFoodInteractionsDB === "function" ? await findFoodInteractionsDB(drugIds) : [];
-    const contraindications = typeof findContraindicationsDB === "function" ? await findContraindicationsDB(drugIds, patientContext) : [];
+    const resolvedDrugsCache = await resolveDrugsDB(drugIds);
+    const results = await findInteractionsDB(drugIds, resolvedDrugsCache);
+    const accumulationWarnings = await checkAccumulationDB(drugIds, resolvedDrugsCache);
+    const foodInteractions = typeof findFoodInteractionsDB === "function" ? await findFoodInteractionsDB(drugIds, resolvedDrugsCache) : [];
+    const contraindications = typeof findContraindicationsDB === "function" ? await findContraindicationsDB(drugIds, patientContext, resolvedDrugsCache) : [];
     const polypharmacyReport = typeof checkPolypharmacyAndBeers === "function"
       ? checkPolypharmacyAndBeers(drugIds, patientContext)
       : { score: drugIds.length, level: "low" as const, message: "", beersWarnings: [] };
@@ -94,7 +95,8 @@ export async function POST(request: Request) {
       disclaimer:
         "Bu sonuçlar sınırlı bir demo veri setine dayanabilir ve tıbbi tavsiye niteliği taşımaz.",
     });
-  } catch {
+  } catch (err) {
+    console.error("API Check Error:", err);
     return jsonNoStore(
       { error: "Kontrol sırasında bir hata oluştu." },
       500

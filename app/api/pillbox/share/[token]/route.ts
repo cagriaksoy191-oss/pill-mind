@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import {
   findInteractionsDB,
+  resolveDrugsDB,
   checkAccumulationDB,
   findFoodInteractionsDB,
   findContraindicationsDB
@@ -60,10 +61,11 @@ export async function GET(
     }
 
     // Process clinical interactions dynamically on-the-fly
-    const interactions = await findInteractionsDB(share.drugIds);
-    const accumulationWarnings = await checkAccumulationDB(share.drugIds);
-    const foodInteractions = await findFoodInteractionsDB(share.drugIds);
-    const contraindications = await findContraindicationsDB(share.drugIds, null); // salt-okunur varsayılan boş patientContext
+    const resolvedDrugsCache = await resolveDrugsDB(share.drugIds);
+    const interactions = await findInteractionsDB(share.drugIds, resolvedDrugsCache);
+    const accumulationWarnings = await checkAccumulationDB(share.drugIds, resolvedDrugsCache);
+    const foodInteractions = await findFoodInteractionsDB(share.drugIds, resolvedDrugsCache);
+    const contraindications = await findContraindicationsDB(share.drugIds, undefined, resolvedDrugsCache); // salt-okunur varsayılan boş patientContext
 
     return NextResponse.json({
       success: true,

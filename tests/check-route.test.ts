@@ -5,6 +5,7 @@ import { redis } from "@/lib/redis";
 jest.mock("@/lib/interactions", () => ({
   findInteractionsDB: jest.fn(),
   checkAccumulationDB: jest.fn().mockResolvedValue([]),
+  resolveDrugsDB: jest.fn().mockResolvedValue([{}]),
 }));
 
 jest.mock("@/lib/redis", () => ({

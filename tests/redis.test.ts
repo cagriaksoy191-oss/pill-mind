@@ -134,6 +134,7 @@ describe('Redis API Resilience Tests', () => {
         drug2Name: 'Drug B',
       }]),
       checkAccumulationDB: (jest.fn() as any).mockResolvedValue([]),
+    resolveDrugsDB: (jest.fn() as any).mockResolvedValue([{}]),
     }));
 
     // Dynamically import check route

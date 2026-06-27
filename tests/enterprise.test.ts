@@ -11,7 +11,8 @@ import {
   findInteractionsDB,
   checkAccumulationDB,
   findFoodInteractionsDB,
-  findContraindicationsDB
+  findContraindicationsDB,
+  resolveDrugsDB
 } from "@/lib/interactions";
 
 // Mock dependencies
@@ -30,6 +31,7 @@ jest.mock("@/lib/interactions", () => ({
   checkAccumulationDB: jest.fn(),
   findFoodInteractionsDB: jest.fn(),
   findContraindicationsDB: jest.fn(),
+  resolveDrugsDB: jest.fn().mockResolvedValue([{ id: "aspirin", name: "Aspirin" }]),
   getAllDrugs: jest.fn().mockReturnValue([
     { id: "aspirin", name: "Aspirin", activeIngredient: "Aspirin", category: "Analjezik" }
   ]),

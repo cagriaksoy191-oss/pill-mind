@@ -1,6 +1,6 @@
 // app/api/fhir/medicationrequest/route.ts
 import { NextResponse } from "next/server";
-import { findInteractionsDB, checkAccumulationDB, findFoodInteractionsDB, findContraindicationsDB } from "@/lib/interactions";
+import { findInteractionsDB, checkAccumulationDB, findFoodInteractionsDB, findContraindicationsDB, resolveDrugsDB } from "@/lib/interactions";
 
 export const dynamic = "force-dynamic";
 
@@ -61,10 +61,11 @@ export async function POST(request: Request) {
     }
 
     // Run clinical checking engine
-    const interactions = await findInteractionsDB(drugIds);
-    const accumulation = await checkAccumulationDB(drugIds);
-    const food = await findFoodInteractionsDB(drugIds);
-    const contra = await findContraindicationsDB(drugIds, patientContext);
+    const resolvedDrugsCache = await resolveDrugsDB(drugIds);
+    const interactions = await findInteractionsDB(drugIds, resolvedDrugsCache);
+    const accumulation = await checkAccumulationDB(drugIds, resolvedDrugsCache);
+    const food = await findFoodInteractionsDB(drugIds, resolvedDrugsCache);
+    const contra = await findContraindicationsDB(drugIds, patientContext, resolvedDrugsCache);
 
     // Return results in FHIR Parameters format
     return NextResponse.json({

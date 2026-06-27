@@ -4,6 +4,30 @@ import interactionsData from "@/data/interactions.json";
 import foodInteractionsData from "@/data/foodInteractions.json";
 import contraindicationsData from "@/data/contraindications.json";
 
+
+export async function resolveDrugsDB(drugIds: string[]) {
+  if (!process.env.DATABASE_URL || process.env.DATABASE_URL.includes("[SIFRE]")) {
+    return [];
+  }
+  try {
+    const { prisma } = await import("@/lib/prisma");
+    return await prisma.drug.findMany({
+      where: {
+        OR: [
+          { id: { in: drugIds } },
+          { name: { in: drugIds } },
+          { brandNames: { some: { name: { in: drugIds } } } },
+          { aliases: { some: { alias: { in: drugIds } } } },
+          { aliases: { some: { normalizedAlias: { in: drugIds } } } }
+        ]
+      }
+    });
+  } catch (error) {
+    console.error("[PillMind CMIO Engine] resolveDrugsDB başarısız:", error);
+    return [];
+  }
+}
+
 export interface Drug {
   id: string;
   name: string;
@@ -201,7 +225,7 @@ export function checkAccumulation(drugIds: string[]): AccumulationWarning[] {
  * Production-ready asynchronous N-Drug check using PostgreSQL database via Prisma.
  * Falls back to local JSON if the database URL is not configured or fails.
  */
-export async function findInteractionsDB(drugIds: string[]): Promise<CheckResult[]> {
+export async function findInteractionsDB(drugIds: string[], resolvedDrugsCache?: unknown[]): Promise<CheckResult[]> {
   // Eğer veritabanı bağlantısı yoksa doğrudan lokal kontrole yönlendir
   if (!process.env.DATABASE_URL || process.env.DATABASE_URL.includes("[SIFRE]")) {
     console.info("[PillMind CMIO Engine] DATABASE_URL tanımlı değil veya şablon halinde. Lokal JSON kontrolü yapılıyor.");
@@ -212,7 +236,7 @@ export async function findInteractionsDB(drugIds: string[]): Promise<CheckResult
     const { prisma } = await import("@/lib/prisma");
 
     // 1. İlaçları ve Marka/Alias adlarını çöz
-    const resolvedDrugs = await prisma.drug.findMany({
+    const resolvedDrugs = (resolvedDrugsCache as Drug[]) ?? await prisma.drug.findMany({
       where: {
         OR: [
           { id: { in: drugIds } },
@@ -289,7 +313,7 @@ export async function findInteractionsDB(drugIds: string[]): Promise<CheckResult
 /**
  * Asynchronous drug accumulation and overdose warning algorithm using database.
  */
-export async function checkAccumulationDB(drugIds: string[]): Promise<AccumulationWarning[]> {
+export async function checkAccumulationDB(drugIds: string[], resolvedDrugsCache?: unknown[]): Promise<AccumulationWarning[]> {
   if (!process.env.DATABASE_URL || process.env.DATABASE_URL.includes("[SIFRE]")) {
     return checkAccumulation(drugIds);
   }
@@ -297,7 +321,7 @@ export async function checkAccumulationDB(drugIds: string[]): Promise<Accumulati
   try {
     const { prisma } = await import("@/lib/prisma");
 
-    const resolvedDrugs = await prisma.drug.findMany({
+    const resolvedDrugs = (resolvedDrugsCache as Drug[]) ?? await prisma.drug.findMany({
       where: {
         OR: [
           { id: { in: drugIds } },
@@ -580,13 +604,13 @@ export function findFoodInteractions(drugIds: string[]): FoodInteractionResult[]
   return results;
 }
 
-export async function findFoodInteractionsDB(drugIds: string[]): Promise<FoodInteractionResult[]> {
+export async function findFoodInteractionsDB(drugIds: string[], resolvedDrugsCache?: unknown[]): Promise<FoodInteractionResult[]> {
   if (!process.env.DATABASE_URL || process.env.DATABASE_URL.includes("[SIFRE]")) {
     return findFoodInteractions(drugIds);
   }
   try {
     const { prisma } = await import("@/lib/prisma");
-    const resolvedDrugs = await prisma.drug.findMany({
+    const resolvedDrugs = (resolvedDrugsCache as Drug[]) ?? await prisma.drug.findMany({
       where: {
         OR: [
           { id: { in: drugIds } },
@@ -666,9 +690,9 @@ export function findContraindications(drugIds: string[], patientContext?: any): 
     }
   }
   
-  if (patientContext.diseases && Array.isArray(patientContext.diseases) && patientContext.diseases.length > 0) {
+  if (patientContext && typeof patientContext === "object" && "diseases" in patientContext && Array.isArray((patientContext as any).diseases) && patientContext.diseases.length > 0) {
     for (const contra of (contraindicationsData as any[])) {
-      if (resolvedIds.has(contra.drugId) && patientContext.diseases.includes(contra.diseaseIcd)) {
+      if (resolvedIds.has(contra.drugId) && (patientContext as any).diseases.includes(contra.diseaseIcd)) {
         const drug = drugsMap.get(contra.drugId);
         results.push({
           id: contra.id,
@@ -773,14 +797,14 @@ export function findContraindications(drugIds: string[], patientContext?: any): 
   return results;
 }
 
-export async function findContraindicationsDB(drugIds: string[], patientContext?: any): Promise<ContraindicationResult[]> {
+export async function findContraindicationsDB(drugIds: string[], patientContext?: unknown, resolvedDrugsCache?: unknown[]): Promise<ContraindicationResult[]> {
   if (!patientContext) return [];
   
   const results: ContraindicationResult[] = [];
   
   try {
     const { prisma } = await import("@/lib/prisma");
-    const resolvedDrugs = await prisma.drug.findMany({
+    const resolvedDrugs = (resolvedDrugsCache as Drug[]) ?? await prisma.drug.findMany({
       where: {
         OR: [
           { id: { in: drugIds } },

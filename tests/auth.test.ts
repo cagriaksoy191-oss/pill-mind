@@ -105,3 +105,24 @@ describe("CSRF / Origin Doğrulama Birim Testleri (CSRF & Cross-Origin Security 
   });
 });
 
+
+describe("E-posta Doğrulama Güvenliği (Email Validation Security)", () => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  test("Geçerli e-posta adreslerini kabul etmeli", () => {
+    expect(emailRegex.test("test@example.com")).toBe(true);
+    expect(emailRegex.test("user.name+tag@domain.co.uk")).toBe(true);
+    expect(emailRegex.test("123@123.com")).toBe(true);
+  });
+
+  test("Geçersiz e-posta adreslerini reddetmeli", () => {
+    expect(emailRegex.test("")).toBe(false);
+    expect(emailRegex.test("plainaddress")).toBe(false);
+    expect(emailRegex.test("@no-local-part.com")).toBe(false);
+    expect(emailRegex.test("no-at-sign.com")).toBe(false);
+    expect(emailRegex.test("no-domain@.com")).toBe(false);
+    expect(emailRegex.test("no-tld@domain")).toBe(false);
+    expect(emailRegex.test("spaces in@email.com")).toBe(false);
+    expect(emailRegex.test("multiple@@domain.com")).toBe(false);
+  });
+});

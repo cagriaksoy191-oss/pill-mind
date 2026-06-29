@@ -1,3 +1,4 @@
+process.env.JWT_SECRET = 'test-secret-key';
 // tests/auth.test.ts
 import { encryptSession, decryptSession, verifyCSRF, SessionData } from "../lib/auth";
 

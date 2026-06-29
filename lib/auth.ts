@@ -2,7 +2,10 @@
 import { NextRequest } from "next/server";
 import crypto from "crypto";
 
-const JWT_SECRET = process.env.JWT_SECRET || "pillmind-ultimate-32-chars-fallback-secret!";
+const getJwtSecret = () => {
+  if (!process.env.JWT_SECRET) throw new Error("JWT_SECRET is not set");
+  return process.env.JWT_SECRET;
+};
 
 export interface SessionData {
   userId: string;
@@ -14,7 +17,7 @@ export interface SessionData {
  * AES-256-GCM (AEAD) algoritmasıyla oturum verisini şifreler
  */
 export function encryptSession(data: SessionData): string {
-  const key = crypto.scryptSync(JWT_SECRET, "salt", 32);
+  const key = crypto.scryptSync(getJwtSecret(), "salt", 32);
   const iv = crypto.randomBytes(12); // GCM için dinamik 12-byte IV
   const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
   
@@ -46,7 +49,7 @@ export function decryptSession(token: string): SessionData | null {
       return null;
     }
     
-    const key = crypto.scryptSync(JWT_SECRET, "salt", 32);
+    const key = crypto.scryptSync(getJwtSecret(), "salt", 32);
     const decipher = crypto.createDecipheriv("aes-256-gcm", key, iv);
     decipher.setAuthTag(authTag);
     

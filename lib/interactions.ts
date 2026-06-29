@@ -3,6 +3,7 @@ import drugsData from "@/data/drugs.json";
 import interactionsData from "@/data/interactions.json";
 import foodInteractionsData from "@/data/foodInteractions.json";
 import contraindicationsData from "@/data/contraindications.json";
+import { precomputeFuzzyCache } from "@/lib/fuzzySearch";
 
 
 export async function resolveDrugsDB(drugIds: string[]) {
@@ -98,6 +99,8 @@ const drugsMap = new Map<string, Drug>();
 for (const d of drugsData as Drug[]) {
   drugsMap.set(d.id, d);
 }
+
+precomputeFuzzyCache(drugsData as Drug[]);
 
 const interactionsMap = new Map<string, Map<string, Interaction>>();
 for (const int of (interactionsData as RawInteraction[])) {

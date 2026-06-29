@@ -87,6 +87,18 @@ export interface FuzzyResult<T> {
 
 const normalizedCache = new WeakMap<object, { name: string; activeIngredient: string; category: string }>();
 
+export function precomputeFuzzyCache<T extends { name: string; activeIngredient: string; category?: string }>(items: T[]) {
+  for (const item of items) {
+    if (!normalizedCache.has(item)) {
+      normalizedCache.set(item, {
+        name: normalizeTurkish(item.name),
+        activeIngredient: normalizeTurkish(item.activeIngredient),
+        category: item.category ? normalizeTurkish(item.category) : ""
+      });
+    }
+  }
+}
+
 export function fuzzySearchDrugs<T extends { name: string; activeIngredient: string; category?: string }>(
   query: string,
   items: T[]

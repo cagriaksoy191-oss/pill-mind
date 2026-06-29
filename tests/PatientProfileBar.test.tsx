@@ -173,4 +173,39 @@ describe('PatientProfileBar', () => {
     setup();
     expect(screen.queryByText('Profil Aktif')).not.toBeInTheDocument();
   });
+
+  it('applies active styles when context fields are true', () => {
+    setup({
+      isPregnant: true,
+      isBreastfeeding: true,
+      ageGroup: 'elderly',
+      renalRisk: true,
+      hepaticRisk: true,
+      diseases: ['K25'],
+    });
+
+    const headerBtn = screen.getAllByText(/Hasta Risk Faktörleri Modülü/i)[0].closest('button');
+    fireEvent.click(headerBtn!);
+
+    const pregnantBtn = screen.getByText('Gebelik Durumu').closest('button');
+    expect(pregnantBtn).toHaveClass('bg-purple-500/10');
+
+    const breastfeedingBtn = screen.getByText('Emzirme Durumu').closest('button');
+    expect(breastfeedingBtn).toHaveClass('bg-pink-500/10');
+
+    const elderlyBtn = screen.getByText('65 Yaş Üstü');
+    expect(elderlyBtn).toHaveClass('bg-amber-600');
+
+    const adultBtn = screen.getByText('Yetişkin');
+    expect(adultBtn).not.toHaveClass('bg-indigo-600');
+
+    const renalBtn = screen.getByText('Böbrek Yetmezliği').closest('button');
+    expect(renalBtn).toHaveClass('bg-rose-500/10');
+
+    const hepaticBtn = screen.getByText('Karaciğer Yetmezliği').closest('button');
+    expect(hepaticBtn).toHaveClass('bg-orange-500/10');
+
+    const pepticUlcerBtn = screen.getByText('Peptik Ülser').closest('button');
+    expect(pepticUlcerBtn).toHaveClass('bg-red-500/10');
+  });
 });

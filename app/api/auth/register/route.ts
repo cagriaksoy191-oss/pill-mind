@@ -16,7 +16,8 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { email } = body as { email: string };
 
-    if (!email || !email.includes("@")) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email || !emailRegex.test(email)) {
       return NextResponse.json(
         { error: "Geçersiz bir e-posta adresi girdiniz." },
         { status: 400 }

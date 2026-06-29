@@ -99,6 +99,42 @@ describe('SavePillboxModal', () => {
     expect(mockOnSuccess).not.toHaveBeenCalled();
   });
 
+
+  it('handles error from API response without specific error message and alerts user', async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({})
+    });
+
+    render(<SavePillboxModal selectedDrugIds={mockDrugIds} onClose={mockOnClose} onSuccess={mockOnSuccess} />);
+
+    const input = screen.getByPlaceholderText('Örn: Sabah İlaçlarım, Tansiyon Tedavim');
+    fireEvent.change(input, { target: { value: 'My Pillbox' } });
+
+    const submitBtn = screen.getByText('Buluta Kaydet');
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(window.alert).toHaveBeenCalledWith('Kaydedilemedi.');
+    });
+  });
+
+  it('handles non-Error objects thrown and alerts user with default message', async () => {
+    (global.fetch as jest.Mock).mockRejectedValueOnce('Some string error');
+
+    render(<SavePillboxModal selectedDrugIds={mockDrugIds} onClose={mockOnClose} onSuccess={mockOnSuccess} />);
+
+    const input = screen.getByPlaceholderText('Örn: Sabah İlaçlarım, Tansiyon Tedavim');
+    fireEvent.change(input, { target: { value: 'My Pillbox' } });
+
+    const submitBtn = screen.getByText('Buluta Kaydet');
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(window.alert).toHaveBeenCalledWith('Kutu kaydedilirken bir hata oluştu.');
+    });
+  });
+
   it('handles network error and alerts user', async () => {
     (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('Network error'));
 

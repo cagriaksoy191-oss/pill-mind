@@ -225,8 +225,7 @@ export async function getInteractionContext(interactionId: string): Promise<Inte
 }
 
 export function getCoverageContext(drugIds: string[]): CoverageContext | null {
-  const drugs = drugsData as DrugRecord[];
-  const selected = drugs.filter((drug) => drugIds.includes(drug.id));
+  const selected = drugIds.map(id => drugsMap.get(id)).filter((drug): drug is DrugRecord => Boolean(drug));
 
   if (selected.length < 2) {
     return null;

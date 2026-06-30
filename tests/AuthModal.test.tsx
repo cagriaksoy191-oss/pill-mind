@@ -113,4 +113,45 @@ describe("AuthModal Component", () => {
 
     expect(mockOnSuccess).not.toHaveBeenCalled();
   });
+
+  it("displays a fallback error message if data.error is not provided upon failed login", async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({}),
+    });
+
+    render(<AuthModal onClose={mockOnClose} onSuccess={mockOnSuccess} />);
+
+    const input = screen.getByPlaceholderText("isim@örnek.com");
+    fireEvent.change(input, { target: { value: "test@example.com" } });
+
+    const submitButton = screen.getByRole("button", { name: "Giriş Yap / Kaydol" });
+    fireEvent.click(submitButton);
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+      expect(screen.getByText("⚠️ Giriş başarısız.")).toBeTruthy();
+    });
+
+    expect(mockOnSuccess).not.toHaveBeenCalled();
+  });
+
+  it("displays generic error message if a non-Error is caught", async () => {
+    (global.fetch as jest.Mock).mockRejectedValueOnce("String error");
+
+    render(<AuthModal onClose={mockOnClose} onSuccess={mockOnSuccess} />);
+
+    const input = screen.getByPlaceholderText("isim@örnek.com");
+    fireEvent.change(input, { target: { value: "test@example.com" } });
+
+    const submitButton = screen.getByRole("button", { name: "Giriş Yap / Kaydol" });
+    fireEvent.click(submitButton);
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+      expect(screen.getByText("⚠️ Giriş yaparken bir hata oluştu.")).toBeTruthy();
+    });
+
+    expect(mockOnSuccess).not.toHaveBeenCalled();
+  });
 });

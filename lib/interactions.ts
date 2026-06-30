@@ -168,53 +168,65 @@ export function checkAccumulation(drugIds: string[]): AccumulationWarning[] {
   }
 
   // 1. Aynı Etken Madde Çakışması
-  const ingredientMap = new Map<string, Drug[]>();
-  for (const drug of selectedDrugs) {
-    const ingredient = drug.activeIngredient.toLowerCase().trim();
-    if (!ingredientMap.has(ingredient)) {
-      ingredientMap.set(ingredient, []);
+  const ingredientMap = new Map<string, { count: number; names: string[]; activeIngredient: string }>();
+  for (let i = 0; i < selectedDrugs.length; i++) {
+    const drug = selectedDrugs[i];
+    const ingredientKey = drug.activeIngredient.toLowerCase().trim();
+    let data = ingredientMap.get(ingredientKey);
+    if (data === undefined) {
+      data = { count: 1, names: [drug.name], activeIngredient: drug.activeIngredient };
+      ingredientMap.set(ingredientKey, data);
+    } else {
+      data.count++;
+      data.names.push(drug.name);
     }
-    ingredientMap.get(ingredient)!.push(drug);
   }
 
-  for (const drugs of ingredientMap.values()) {
-    if (drugs.length > 1) {
-      const names = drugs.map(d => d.name);
+  for (const data of ingredientMap.values()) {
+    if (data.count > 1) {
       warnings.push({
         type: "active_ingredient",
         severity: "high",
-        message: `Dikkat: Aynı etkin maddeyi (${drugs[0].activeIngredient}) içeren birden fazla ilaç eklediniz. Aşırı doz riski!`,
-        triggerDrugs: names,
-        detail: `${names.join(" ve ")} ilaçlarının ikisi de ${drugs[0].activeIngredient} içermektedir.`
+        message: `Dikkat: Aynı etkin maddeyi (${data.activeIngredient}) içeren birden fazla ilaç eklediniz. Aşırı doz riski!`,
+        triggerDrugs: data.names,
+        detail: `${data.names.join(" ve ")} ilaçlarının ikisi de ${data.activeIngredient} içermektedir.`
       });
     }
   }
 
   // 2. Aynı Farmakolojik Grup
-  const groupMap = new Map<string, Drug[]>();
-  for (const drug of selectedDrugs) {
+  const groupMap = new Map<string, { count: number; names: string[]; groupName: string; uniqueIngredients: Set<string> }>();
+  for (let i = 0; i < selectedDrugs.length; i++) {
+    const drug = selectedDrugs[i];
     if (drug.pharmacologicalGroup) {
-      const group = drug.pharmacologicalGroup.toUpperCase().trim();
-      if (!groupMap.has(group)) {
-        groupMap.set(group, []);
+      const groupKey = drug.pharmacologicalGroup.toUpperCase().trim();
+      const ingredientKey = drug.activeIngredient.toLowerCase().trim();
+      let data = groupMap.get(groupKey);
+      if (data === undefined) {
+        data = {
+          count: 1,
+          names: [drug.name],
+          groupName: drug.pharmacologicalGroup,
+          uniqueIngredients: new Set([ingredientKey])
+        };
+        groupMap.set(groupKey, data);
+      } else {
+        data.count++;
+        data.names.push(drug.name);
+        data.uniqueIngredients.add(ingredientKey);
       }
-      groupMap.get(group)!.push(drug);
     }
   }
 
-  for (const drugs of groupMap.values()) {
-    if (drugs.length > 1) {
-      const names = drugs.map(d => d.name);
-      const uniqueIngredients = new Set(drugs.map(d => d.activeIngredient.toLowerCase().trim()));
-      if (uniqueIngredients.size > 1) {
-        warnings.push({
-          type: "pharmacological_group",
-          severity: "medium",
-          message: `Dikkat: Aynı farmakolojik sınıftan (${drugs[0].pharmacologicalGroup}) birden fazla ilaç eklediniz. Yan etki riski artabilir.`,
-          triggerDrugs: names,
-          detail: `${names.join(" ve ")} ilaçları ${drugs[0].pharmacologicalGroup} sınıfına aittir.`
-        });
-      }
+  for (const data of groupMap.values()) {
+    if (data.count > 1 && data.uniqueIngredients.size > 1) {
+      warnings.push({
+        type: "pharmacological_group",
+        severity: "medium",
+        message: `Dikkat: Aynı farmakolojik sınıftan (${data.groupName}) birden fazla ilaç eklediniz. Yan etki riski artabilir.`,
+        triggerDrugs: data.names,
+        detail: `${data.names.join(" ve ")} ilaçları ${data.groupName} sınıfına aittir.`
+      });
     }
   }
 
@@ -334,53 +346,65 @@ export async function checkAccumulationDB(drugIds: string[], resolvedDrugsCache?
     const warnings: AccumulationWarning[] = [];
 
     // 1. Aynı Etken Madde Çakışması
-    const ingredientMap = new Map<string, Drug[]>();
-    for (const drug of resolvedDrugs) {
-      const ingredient = drug.activeIngredient.toLowerCase().trim();
-      if (!ingredientMap.has(ingredient)) {
-        ingredientMap.set(ingredient, []);
+    const ingredientMap = new Map<string, { count: number; names: string[]; activeIngredient: string }>();
+    for (let i = 0; i < resolvedDrugs.length; i++) {
+      const drug = resolvedDrugs[i] as Drug;
+      const ingredientKey = drug.activeIngredient.toLowerCase().trim();
+      let data = ingredientMap.get(ingredientKey);
+      if (data === undefined) {
+        data = { count: 1, names: [drug.name], activeIngredient: drug.activeIngredient };
+        ingredientMap.set(ingredientKey, data);
+      } else {
+        data.count++;
+        data.names.push(drug.name);
       }
-      ingredientMap.get(ingredient)!.push(drug as Drug);
     }
 
-    for (const drugs of ingredientMap.values()) {
-      if (drugs.length > 1) {
-        const names = drugs.map(d => d.name);
+    for (const data of ingredientMap.values()) {
+      if (data.count > 1) {
         warnings.push({
           type: "active_ingredient",
           severity: "high",
-          message: `Dikkat: Aynı etkin maddeyi (${drugs[0].activeIngredient}) içeren birden fazla ilaç eklediniz. Aşırı doz riski!`,
-          triggerDrugs: names,
-          detail: `${names.join(" ve ")} ilaçlarının ikisi de ${drugs[0].activeIngredient} içermektedir.`
+          message: `Dikkat: Aynı etkin maddeyi (${data.activeIngredient}) içeren birden fazla ilaç eklediniz. Aşırı doz riski!`,
+          triggerDrugs: data.names,
+          detail: `${data.names.join(" ve ")} ilaçlarının ikisi de ${data.activeIngredient} içermektedir.`
         });
       }
     }
 
     // 2. Aynı Farmakolojik Grup Birikimi
-    const groupMap = new Map<string, Drug[]>();
-    for (const drug of resolvedDrugs) {
+    const groupMap = new Map<string, { count: number; names: string[]; groupName: string; uniqueIngredients: Set<string> }>();
+    for (let i = 0; i < resolvedDrugs.length; i++) {
+      const drug = resolvedDrugs[i] as Drug;
       if (drug.pharmacologicalGroup) {
-        const group = drug.pharmacologicalGroup.toUpperCase().trim();
-        if (!groupMap.has(group)) {
-          groupMap.set(group, []);
+        const groupKey = drug.pharmacologicalGroup.toUpperCase().trim();
+        const ingredientKey = drug.activeIngredient.toLowerCase().trim();
+        let data = groupMap.get(groupKey);
+        if (data === undefined) {
+          data = {
+            count: 1,
+            names: [drug.name],
+            groupName: drug.pharmacologicalGroup,
+            uniqueIngredients: new Set([ingredientKey])
+          };
+          groupMap.set(groupKey, data);
+        } else {
+          data.count++;
+          data.names.push(drug.name);
+          data.uniqueIngredients.add(ingredientKey);
         }
-        groupMap.get(group)!.push(drug as Drug);
       }
     }
 
-    for (const drugs of groupMap.values()) {
-      if (drugs.length > 1) {
-        const names = drugs.map(d => d.name);
-        const uniqueIngredients = new Set(drugs.map(d => d.activeIngredient.toLowerCase().trim()));
-        if (uniqueIngredients.size > 1) {
-          warnings.push({
-            type: "pharmacological_group",
-            severity: "medium",
-            message: `Dikkat: Aynı farmakolojik sınıftan (${drugs[0].pharmacologicalGroup}) birden fazla ilaç eklediniz. Yan etki riski artabilir.`,
-            triggerDrugs: names,
-            detail: `${names.join(" ve ")} ilaçları ${drugs[0].pharmacologicalGroup} sınıfına aittir.`
-          });
-        }
+    for (const data of groupMap.values()) {
+      if (data.count > 1 && data.uniqueIngredients.size > 1) {
+        warnings.push({
+          type: "pharmacological_group",
+          severity: "medium",
+          message: `Dikkat: Aynı farmakolojik sınıftan (${data.groupName}) birden fazla ilaç eklediniz. Yan etki riski artabilir.`,
+          triggerDrugs: data.names,
+          detail: `${data.names.join(" ve ")} ilaçları ${data.groupName} sınıfına aittir.`
+        });
       }
     }
 

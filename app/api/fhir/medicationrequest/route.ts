@@ -62,10 +62,12 @@ export async function POST(request: Request) {
 
     // Run clinical checking engine
     const resolvedDrugsCache = await resolveDrugsDB(drugIds);
-    const interactions = await findInteractionsDB(drugIds, resolvedDrugsCache);
-    const accumulation = await checkAccumulationDB(drugIds, resolvedDrugsCache);
-    const food = await findFoodInteractionsDB(drugIds, resolvedDrugsCache);
-    const contra = await findContraindicationsDB(drugIds, patientContext, resolvedDrugsCache);
+    const [interactions, accumulation, food, contra] = await Promise.all([
+      findInteractionsDB(drugIds, resolvedDrugsCache),
+      checkAccumulationDB(drugIds, resolvedDrugsCache),
+      findFoodInteractionsDB(drugIds, resolvedDrugsCache),
+      findContraindicationsDB(drugIds, patientContext, resolvedDrugsCache)
+    ]);
 
     // Return results in FHIR Parameters format
     return NextResponse.json({

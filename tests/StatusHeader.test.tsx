@@ -192,4 +192,37 @@ describe("StatusHeader Component", () => {
       expect(document.documentElement.classList.contains("dark")).toBeFalsy();
     });
   });
+
+  it("initializes to dark theme when no localStorage and system prefers dark", () => {
+    localStorage.clear();
+    // Temporarily override the window.matchMedia mock for this test
+    Object.defineProperty(window, "matchMedia", {
+      writable: true,
+      value: jest.fn().mockImplementation((query) => ({
+        matches: true, // System prefers dark mode
+        media: query,
+        onchange: null,
+      })),
+    });
+
+    render(<StatusHeader {...defaultProps} />);
+
+    // In dark mode, the button shows "☀️" to switch to light mode
+    expect(screen.getByText("☀️")).toBeInTheDocument();
+  });
+
+  it("initializes to dark theme when window is undefined", () => {
+    localStorage.clear();
+    const originalWindow = global.window;
+    // @ts-ignore
+    delete global.window;
+
+    try {
+      render(<StatusHeader {...defaultProps} />);
+      // In dark mode, the button shows "☀️" to switch to light mode
+      expect(screen.getByText("☀️")).toBeInTheDocument();
+    } finally {
+      global.window = originalWindow;
+    }
+  });
 });

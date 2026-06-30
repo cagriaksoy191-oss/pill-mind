@@ -115,6 +115,18 @@ describe('useFocusTrap', () => {
     expect(preventDefaultSpy).toHaveBeenCalled();
   });
 
+  it('does nothing when a key other than Tab is pressed', () => {
+    const ref = { current: container };
+    renderHook(() => useFocusTrap(ref, true));
+
+    const enterEvent = new KeyboardEvent('keydown', { key: 'Enter' });
+    const preventDefaultSpy = jest.spyOn(enterEvent, 'preventDefault');
+
+    container.dispatchEvent(enterEvent);
+
+    expect(preventDefaultSpy).not.toHaveBeenCalled();
+  });
+
   it('removes event listener on unmount', () => {
     const ref = { current: container };
     const addEventListenerSpy = jest.spyOn(container, 'addEventListener');

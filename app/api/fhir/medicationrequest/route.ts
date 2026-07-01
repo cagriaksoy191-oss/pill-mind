@@ -1,6 +1,13 @@
 // app/api/fhir/medicationrequest/route.ts
 import { NextResponse } from "next/server";
-import { findInteractionsDB, checkAccumulationDB, findFoodInteractionsDB, findContraindicationsDB, resolveDrugsDB } from "@/lib/interactions";
+import { findInteractionsDB, checkAccumulationDB, findFoodInteractionsDB, findContraindicationsDB, resolveDrugsDB, PatientContext } from "@/lib/interactions";
+
+
+interface FhirParameter {
+  name: string;
+  valueString?: string;
+  [key: string]: unknown;
+}
 
 export const dynamic = "force-dynamic";
 
@@ -8,20 +15,20 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     let drugIds: string[] = [];
-    let patientContext: any = null;
+    let patientContext: PatientContext | undefined = undefined;
 
     // 1. Parse FHIR Parameters
     if (body.resourceType === "Parameters" && Array.isArray(body.parameter)) {
-      const medsParam = body.parameter.find((p: any) => p.name === "medications");
+      const medsParam = body.parameter.find((p: FhirParameter) => p.name === "medications");
       if (medsParam && medsParam.valueString) {
         drugIds = medsParam.valueString.split(",").map((s: string) => s.trim());
       }
-      const ctxParam = body.parameter.find((p: any) => p.name === "patientContext");
+      const ctxParam = body.parameter.find((p: FhirParameter) => p.name === "patientContext");
       if (ctxParam && ctxParam.valueString) {
         try {
           patientContext = JSON.parse(ctxParam.valueString);
         } catch {
-          patientContext = null;
+          patientContext = undefined;
         }
       }
     } 

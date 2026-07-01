@@ -34,8 +34,6 @@ export interface Drug {
   activeIngredient: string;
   category: string;
   pharmacologicalGroup?: string;
-  rxcui?: string | null;
-  ingredient?: { atcCode?: string | null } | null;
 }
 
 export interface RawInteraction {

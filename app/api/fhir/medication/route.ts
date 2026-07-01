@@ -1,12 +1,23 @@
 // app/api/fhir/medication/route.ts
 import { NextResponse } from "next/server";
-import { getAllDrugs, Drug } from "@/lib/interactions";
+import { getAllDrugs } from "@/lib/interactions";
+
+
+type PrismaDrugWithIngredient = {
+  id: string;
+  name: string;
+  activeIngredient: string;
+  category: string;
+  pharmacologicalGroup: string | null;
+  rxcui: string | null;
+  ingredient: { id: string; name: string; normalizedName: string; rxcui: string | null; atcCode: string | null } | null;
+};
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    let drugsList: (Drug & { ingredient?: { atcCode?: string | null } | null })[] = [];
+    let drugsList: PrismaDrugWithIngredient[] = [];
     try {
       const { prisma } = await import("@/lib/prisma");
       drugsList = await prisma.drug.findMany({
@@ -16,7 +27,15 @@ export async function GET() {
       });
     } catch {
       // Fallback
-      drugsList = getAllDrugs() as (Drug & { ingredient?: { atcCode?: string | null } | null })[];
+      drugsList = getAllDrugs().map(d => ({
+        id: d.id,
+        name: d.name,
+        activeIngredient: d.activeIngredient,
+        category: d.category,
+        pharmacologicalGroup: d.pharmacologicalGroup ?? null,
+        rxcui: null,
+        ingredient: null
+      }));
     }
 
     const entries = drugsList.map(drug => {

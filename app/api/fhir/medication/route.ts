@@ -1,12 +1,12 @@
 // app/api/fhir/medication/route.ts
 import { NextResponse } from "next/server";
-import { getAllDrugs } from "@/lib/interactions";
+import { getAllDrugs, Drug } from "@/lib/interactions";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    let drugsList = [];
+    let drugsList: (Drug & { ingredient?: { atcCode?: string | null } | null })[] = [];
     try {
       const { prisma } = await import("@/lib/prisma");
       drugsList = await prisma.drug.findMany({
@@ -16,7 +16,7 @@ export async function GET() {
       });
     } catch {
       // Fallback
-      drugsList = getAllDrugs() as any[];
+      drugsList = getAllDrugs() as (Drug & { ingredient?: { atcCode?: string | null } | null })[];
     }
 
     const entries = drugsList.map(drug => {
@@ -28,7 +28,7 @@ export async function GET() {
           display: drug.name
         });
       }
-      const atc = (drug.ingredient as any)?.atcCode;
+      const atc = drug.ingredient?.atcCode;
       if (atc) {
         coding.push({
           system: "http://www.whocc.no/atc",

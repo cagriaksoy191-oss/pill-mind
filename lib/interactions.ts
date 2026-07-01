@@ -571,6 +571,15 @@ export function getDrugClinicalMetadata(drugId: string): DrugClinicalMetadata {
   }
 }
 
+
+export interface FoodInteraction {
+  id: string;
+  drugId: string;
+  substance: string;
+  effect: string;
+  severity: string;
+}
+
 export interface FoodInteractionResult {
   id: string;
   drugId: string;
@@ -612,7 +621,7 @@ export function findFoodInteractions(drugIds: string[]): FoodInteractionResult[]
   }
 
   const results: FoodInteractionResult[] = [];
-  for (const foodInt of (foodInteractionsData as any[])) {
+  for (const foodInt of (foodInteractionsData as FoodInteraction[])) {
     if (resolvedIds.has(foodInt.drugId)) {
       const drug = drugsMap.get(foodInt.drugId);
       results.push({

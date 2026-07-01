@@ -2,11 +2,22 @@
 import { NextResponse } from "next/server";
 import { getAllDrugs } from "@/lib/interactions";
 
+
+type PrismaDrugWithIngredient = {
+  id: string;
+  name: string;
+  activeIngredient: string;
+  category: string;
+  pharmacologicalGroup: string | null;
+  rxcui: string | null;
+  ingredient: { id: string; name: string; normalizedName: string; rxcui: string | null; atcCode: string | null } | null;
+};
+
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    let drugsList = [];
+    let drugsList: PrismaDrugWithIngredient[] = [];
     try {
       const { prisma } = await import("@/lib/prisma");
       drugsList = await prisma.drug.findMany({
@@ -16,7 +27,15 @@ export async function GET() {
       });
     } catch {
       // Fallback
-      drugsList = getAllDrugs() as any[];
+      drugsList = getAllDrugs().map(d => ({
+        id: d.id,
+        name: d.name,
+        activeIngredient: d.activeIngredient,
+        category: d.category,
+        pharmacologicalGroup: d.pharmacologicalGroup ?? null,
+        rxcui: null,
+        ingredient: null
+      }));
     }
 
     const entries = drugsList.map(drug => {
@@ -28,7 +47,7 @@ export async function GET() {
           display: drug.name
         });
       }
-      const atc = (drug.ingredient as any)?.atcCode;
+      const atc = drug.ingredient?.atcCode;
       if (atc) {
         coding.push({
           system: "http://www.whocc.no/atc",

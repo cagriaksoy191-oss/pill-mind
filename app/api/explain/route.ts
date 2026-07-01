@@ -50,6 +50,44 @@ function jsonNoStore(body: unknown, status = 200) {
 }
 
 
+
+export interface CachedExplanation {
+  explanation: string;
+  generatedAt: string;
+  kaynakOzeti?: string;
+  belirsizlikNotu?: string;
+  hastaDiliRiskEtiketi?: string;
+  hekimModuKisaMekanizma?: string;
+  yasakliEylemKontrolu?: string;
+  sourceIds?: string[];
+}
+
+async function getCachedExplanation(cacheKey: string): Promise<CachedExplanation | null> {
+  if (!redis) return null;
+  try {
+    const cached = await redis.get<CachedExplanation>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+  } catch (err) {
+    console.warn("[Redis] Cache read error, continuing to live AI:", err);
+  }
+  return null;
+}
+
+async function setCachedExplanation(cacheKey: string, data: CachedExplanation): Promise<void> {
+  if (!redis) return;
+  try {
+    await redis.set(
+      cacheKey,
+      data,
+      { ex: 60 * 60 * 24 * 7 } // 7-day TTL
+    );
+  } catch (err) {
+    console.warn("[Redis] Cache write error:", err);
+  }
+}
+
 async function handleInteraction(interactionId: unknown) {
   if (typeof interactionId !== "string" || interactionId.trim() === "" || interactionId.length > 100) {
     return jsonNoStore({ error: "Geçersiz veya aşırı uzun interactionId." }, 400);
@@ -71,77 +109,38 @@ async function handleInteraction(interactionId: unknown) {
   const isHighSeverity = ctx.interaction.severity === "high" || ctx.interaction.severity === "HIGH";
   const cacheKey = `explanation:v3:interaction:${interactionId}:data:${SNAPSHOT_VERSION}:schema:${SCHEMA_VERSION}:locale:tr`;
 
-  // Redis Cache Check (with fail-safe wrapper)
-  if (redis) {
-    try {
-      const cached = await redis.get<{
-        explanation: string;
-        generatedAt: string;
-        kaynakOzeti?: string;
-        belirsizlikNotu?: string;
-        hastaDiliRiskEtiketi?: string;
-        hekimModuKisaMekanizma?: string;
-        yasakliEylemKontrolu?: string;
-        sourceIds?: string[];
-      }>(cacheKey);
-      if (cached) {
-        console.info(`[Redis] Cache HIT for interaction: ${interactionId}`);
-        return jsonNoStore({
-          explanation: cached.explanation,
-          source: "cache" as const,
-          generatedAt: cached.generatedAt,
-          disclaimer: DISCLAIMER,
-          kaynakOzeti: cached.kaynakOzeti,
-          belirsizlikNotu: cached.belirsizlikNotu,
-          hastaDiliRiskEtiketi: cached.hastaDiliRiskEtiketi,
-          hekimModuKisaMekanizma: cached.hekimModuKisaMekanizma,
-          yasakliEylemKontrolu: cached.yasakliEylemKontrolu,
-          sourceIds: cached.sourceIds,
-        });
-      }
-    } catch (err) {
-      console.warn("[Redis] Cache read error, continuing to live AI:", err);
-    }
+  const cached = await getCachedExplanation(cacheKey);
+  if (cached) {
+    console.info(`[Redis] Cache HIT for interaction: ${interactionId}`);
+    return jsonNoStore({
+      ...cached,
+      source: "cache" as const,
+      disclaimer: DISCLAIMER,
+    });
   }
 
   // Gemini Execution
   try {
     const result = await callGeminiForInteraction(ctx);
     const parsedJSON = result.parsedJSON || {};
-
-    if (redis) {
-      try {
-        await redis.set(
-          cacheKey,
-          {
-            explanation: result.explanation,
-            generatedAt: result.generatedAt,
-            kaynakOzeti: parsedJSON.kaynakOzeti,
-            belirsizlikNotu: parsedJSON.belirsizlikNotu,
-            hastaDiliRiskEtiketi: parsedJSON.hastaDiliRiskEtiketi,
-            hekimModuKisaMekanizma: parsedJSON.hekimModuKisaMekanizma,
-            yasakliEylemKontrolu: parsedJSON.yasakliEylemKontrolu,
-            sourceIds: parsedJSON.sourceIds,
-          },
-          { ex: 60 * 60 * 24 * 7 } // 7-day TTL
-        );
-        console.info(`[Redis] Cache WRITE for interaction: ${interactionId}`);
-      } catch (err) {
-        console.warn("[Redis] Cache write error:", err);
-      }
-    }
-
-    return jsonNoStore({
+    const cacheData: CachedExplanation = {
       explanation: result.explanation,
-      source: "gemini_live" as const,
       generatedAt: result.generatedAt,
-      disclaimer: DISCLAIMER,
       kaynakOzeti: parsedJSON.kaynakOzeti,
       belirsizlikNotu: parsedJSON.belirsizlikNotu,
       hastaDiliRiskEtiketi: parsedJSON.hastaDiliRiskEtiketi,
       hekimModuKisaMekanizma: parsedJSON.hekimModuKisaMekanizma,
       yasakliEylemKontrolu: parsedJSON.yasakliEylemKontrolu,
       sourceIds: parsedJSON.sourceIds,
+    };
+
+    await setCachedExplanation(cacheKey, cacheData);
+    console.info(`[Redis] Cache WRITE for interaction: ${interactionId}`);
+
+    return jsonNoStore({
+      ...cacheData,
+      source: "gemini_live" as const,
+      disclaimer: DISCLAIMER,
     });
   } catch (error) {
     // Fail-closed for High Severity
@@ -196,77 +195,38 @@ async function handleCoverage(drugIds: unknown) {
   const sortedIds = [...drugIds].sort().join(":");
   const cacheKey = `explanation:v3:coverage:${sortedIds}:data:${SNAPSHOT_VERSION}:schema:${SCHEMA_VERSION}:locale:tr`;
 
-  // Redis Cache Check (with fail-safe wrapper)
-  if (redis) {
-    try {
-      const cached = await redis.get<{
-        explanation: string;
-        generatedAt: string;
-        kaynakOzeti?: string;
-        belirsizlikNotu?: string;
-        hastaDiliRiskEtiketi?: string;
-        hekimModuKisaMekanizma?: string;
-        yasakliEylemKontrolu?: string;
-        sourceIds?: string[];
-      }>(cacheKey);
-      if (cached) {
-        console.info(`[Redis] Cache HIT for coverage: ${sortedIds}`);
-        return jsonNoStore({
-          explanation: cached.explanation,
-          source: "cache" as const,
-          generatedAt: cached.generatedAt,
-          disclaimer: DISCLAIMER,
-          kaynakOzeti: cached.kaynakOzeti,
-          belirsizlikNotu: cached.belirsizlikNotu,
-          hastaDiliRiskEtiketi: cached.hastaDiliRiskEtiketi,
-          hekimModuKisaMekanizma: cached.hekimModuKisaMekanizma,
-          yasakliEylemKontrolu: cached.yasakliEylemKontrolu,
-          sourceIds: cached.sourceIds,
-        });
-      }
-    } catch (err) {
-      console.warn("[Redis] Cache read error, continuing to live AI:", err);
-    }
+  const cached = await getCachedExplanation(cacheKey);
+  if (cached) {
+    console.info(`[Redis] Cache HIT for coverage: ${sortedIds}`);
+    return jsonNoStore({
+      ...cached,
+      source: "cache" as const,
+      disclaimer: DISCLAIMER,
+    });
   }
 
   // Gemini Execution
   try {
     const result = await callGeminiForCoverage(ctx);
     const parsedJSON = result.parsedJSON || {};
-
-    if (redis) {
-      try {
-        await redis.set(
-          cacheKey,
-          {
-            explanation: result.explanation,
-            generatedAt: result.generatedAt,
-            kaynakOzeti: parsedJSON.kaynakOzeti,
-            belirsizlikNotu: parsedJSON.belirsizlikNotu,
-            hastaDiliRiskEtiketi: parsedJSON.hastaDiliRiskEtiketi,
-            hekimModuKisaMekanizma: parsedJSON.hekimModuKisaMekanizma,
-            yasakliEylemKontrolu: parsedJSON.yasakliEylemKontrolu,
-            sourceIds: parsedJSON.sourceIds,
-          },
-          { ex: 60 * 60 * 24 * 7 } // 7-day TTL
-        );
-        console.info(`[Redis] Cache WRITE for coverage: ${sortedIds}`);
-      } catch (err) {
-        console.warn("[Redis] Cache write error:", err);
-      }
-    }
-
-    return jsonNoStore({
+    const cacheData: CachedExplanation = {
       explanation: result.explanation,
-      source: "gemini_live" as const,
       generatedAt: result.generatedAt,
-      disclaimer: DISCLAIMER,
       kaynakOzeti: parsedJSON.kaynakOzeti,
       belirsizlikNotu: parsedJSON.belirsizlikNotu,
       hastaDiliRiskEtiketi: parsedJSON.hastaDiliRiskEtiketi,
       hekimModuKisaMekanizma: parsedJSON.hekimModuKisaMekanizma,
       yasakliEylemKontrolu: parsedJSON.yasakliEylemKontrolu,
       sourceIds: parsedJSON.sourceIds,
+    };
+
+    await setCachedExplanation(cacheKey, cacheData);
+    console.info(`[Redis] Cache WRITE for coverage: ${sortedIds}`);
+
+    return jsonNoStore({
+      ...cacheData,
+      source: "gemini_live" as const,
+      disclaimer: DISCLAIMER,
     });
   } catch (error) {
     return jsonNoStore(
@@ -290,32 +250,25 @@ async function handleInteractionStream(interactionId: string) {
   const isHighSeverity = ctx.interaction.severity === "high" || ctx.interaction.severity === "HIGH";
   const cacheKey = `explanation:v3:interaction:${interactionId}:data:${SNAPSHOT_VERSION}:schema:${SCHEMA_VERSION}:locale:tr`;
 
-  // Check Redis Cache
-  if (redis) {
-    try {
-      const cached = await redis.get<{ explanation: string; generatedAt: string }>(cacheKey);
-      if (cached) {
-        return new Response(
-          new ReadableStream({
-            start(controller) {
-              const encoder = new TextEncoder();
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ chunk: cached.explanation, source: "cache", generatedAt: cached.generatedAt })}\n\n`));
-              controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
-              controller.close();
-            }
-          }),
-          {
-            headers: {
-              "Content-Type": "text/event-stream",
-              "Cache-Control": "no-cache, no-transform",
-              "Connection": "keep-alive",
-            }
-          }
-        );
+  const cached = await getCachedExplanation(cacheKey);
+  if (cached) {
+    return new Response(
+      new ReadableStream({
+        start(controller) {
+          const encoder = new TextEncoder();
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ chunk: cached.explanation, source: "cache", generatedAt: cached.generatedAt })}\n\n`));
+          controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
+          controller.close();
+        }
+      }),
+      {
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache, no-transform",
+          "Connection": "keep-alive",
+        }
       }
-    } catch (err) {
-      console.warn("[Redis] Cache read error, continuing to live AI:", err);
-    }
+    );
   }
 
   const prompt = buildInteractionStreamPrompt(ctx);
@@ -364,17 +317,7 @@ async function handleInteractionStream(interactionId: string) {
             second: "2-digit",
           }).format(new Date());
 
-          if (redis) {
-            try {
-              await redis.set(
-                cacheKey,
-                { explanation: buffer, generatedAt },
-                { ex: 60 * 60 * 24 * 7 }
-              );
-            } catch (err) {
-              console.warn("[Redis] Cache write error:", err);
-            }
-          }
+          await setCachedExplanation(cacheKey, { explanation: buffer, generatedAt });
 
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true, generatedAt })}\n\n`));
           controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
@@ -409,32 +352,25 @@ async function handleCoverageStream(drugIds: string[]) {
   const sortedIds = [...drugIds].sort().join(":");
   const cacheKey = `explanation:v3:coverage:${sortedIds}:data:${SNAPSHOT_VERSION}:schema:${SCHEMA_VERSION}:locale:tr`;
 
-  // Check Redis Cache
-  if (redis) {
-    try {
-      const cached = await redis.get<{ explanation: string; generatedAt: string }>(cacheKey);
-      if (cached) {
-        return new Response(
-          new ReadableStream({
-            start(controller) {
-              const encoder = new TextEncoder();
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ chunk: cached.explanation, source: "cache", generatedAt: cached.generatedAt })}\n\n`));
-              controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
-              controller.close();
-            }
-          }),
-          {
-            headers: {
-              "Content-Type": "text/event-stream",
-              "Cache-Control": "no-cache, no-transform",
-              "Connection": "keep-alive",
-            }
-          }
-        );
+  const cached = await getCachedExplanation(cacheKey);
+  if (cached) {
+    return new Response(
+      new ReadableStream({
+        start(controller) {
+          const encoder = new TextEncoder();
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ chunk: cached.explanation, source: "cache", generatedAt: cached.generatedAt })}\n\n`));
+          controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
+          controller.close();
+        }
+      }),
+      {
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache, no-transform",
+          "Connection": "keep-alive",
+        }
       }
-    } catch (err) {
-      console.warn("[Redis] Cache read error, continuing to live AI:", err);
-    }
+    );
   }
 
   const prompt = buildCoverageStreamPrompt(ctx);
@@ -475,17 +411,7 @@ async function handleCoverageStream(drugIds: string[]) {
             second: "2-digit",
           }).format(new Date());
 
-          if (redis) {
-            try {
-              await redis.set(
-                cacheKey,
-                { explanation: buffer, generatedAt },
-                { ex: 60 * 60 * 24 * 7 }
-              );
-            } catch (err) {
-              console.warn("[Redis] Cache write error:", err);
-            }
-          }
+          await setCachedExplanation(cacheKey, { explanation: buffer, generatedAt });
 
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true, generatedAt })}\n\n`));
           controller.enqueue(encoder.encode(`data: [DONE]\n\n`));

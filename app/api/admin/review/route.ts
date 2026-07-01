@@ -1,5 +1,7 @@
 // app/api/admin/review/route.ts
 import { NextRequest, NextResponse } from "next/server";
+
+import { jsonNoStore } from "@/lib/http";
 import { getSession, verifyCSRF } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { writeAuditLog } from "@/lib/audit";
@@ -7,14 +9,7 @@ import { Status } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
-function jsonNoStore(body: unknown, status = 200) {
-  return NextResponse.json(body, {
-    status,
-    headers: {
-      "Cache-Control": "no-store, max-age=0",
-    },
-  });
-}
+
 
 export async function POST(request: NextRequest) {
   try {

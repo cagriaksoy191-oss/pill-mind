@@ -76,10 +76,17 @@ export async function POST(request: Request) {
     const { findFoodInteractionsDB, findContraindicationsDB, checkPolypharmacyAndBeers } = await import("@/lib/interactions");
 
     const resolvedDrugsCache = await resolveDrugsDB(drugIds);
-    const results = await findInteractionsDB(drugIds, resolvedDrugsCache);
-    const accumulationWarnings = await checkAccumulationDB(drugIds, resolvedDrugsCache);
-    const foodInteractions = typeof findFoodInteractionsDB === "function" ? await findFoodInteractionsDB(drugIds, resolvedDrugsCache) : [];
-    const contraindications = typeof findContraindicationsDB === "function" ? await findContraindicationsDB(drugIds, patientContext, resolvedDrugsCache) : [];
+    const [
+      results,
+      accumulationWarnings,
+      foodInteractions,
+      contraindications
+    ] = await Promise.all([
+      findInteractionsDB(drugIds, resolvedDrugsCache),
+      checkAccumulationDB(drugIds, resolvedDrugsCache),
+      typeof findFoodInteractionsDB === "function" ? findFoodInteractionsDB(drugIds, resolvedDrugsCache) : Promise.resolve([]),
+      typeof findContraindicationsDB === "function" ? findContraindicationsDB(drugIds, patientContext, resolvedDrugsCache) : Promise.resolve([])
+    ]);
     const polypharmacyReport = typeof checkPolypharmacyAndBeers === "function"
       ? checkPolypharmacyAndBeers(drugIds, patientContext)
       : { score: drugIds.length, level: "low" as const, message: "", beersWarnings: [] };

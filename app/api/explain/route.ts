@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+
+import { jsonNoStore } from "@/lib/http";
 import {
   callGeminiForCoverage,
   callGeminiForInteraction,
@@ -40,14 +42,7 @@ function getErrorReason(error: unknown) {
   return "api_error";
 }
 
-function jsonNoStore(body: unknown, status = 200) {
-  return NextResponse.json(body, {
-    status,
-    headers: {
-      "Cache-Control": "no-store, max-age=0",
-    },
-  });
-}
+
 
 
 

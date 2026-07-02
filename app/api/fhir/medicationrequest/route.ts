@@ -19,11 +19,17 @@ export async function POST(request: Request) {
 
     // 1. Parse FHIR Parameters
     if (body.resourceType === "Parameters" && Array.isArray(body.parameter)) {
-      const medsParam = body.parameter.find((p: FhirParameter) => p.name === "medications");
+      let medsParam;
+      let ctxParam;
+      for (const p of body.parameter) {
+        if (p.name === "medications") medsParam = p;
+        else if (p.name === "patientContext") ctxParam = p;
+        if (medsParam && ctxParam) break;
+      }
+
       if (medsParam && medsParam.valueString) {
         drugIds = medsParam.valueString.split(",").map((s: string) => s.trim());
       }
-      const ctxParam = body.parameter.find((p: FhirParameter) => p.name === "patientContext");
       if (ctxParam && ctxParam.valueString) {
         try {
           patientContext = JSON.parse(ctxParam.valueString);

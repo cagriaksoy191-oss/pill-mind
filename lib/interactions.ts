@@ -846,18 +846,23 @@ export async function findContraindicationsDB(drugIds: string[], patientContext?
         }
       });
       
-      for (const c of dbContras) {
-        const drug = resolvedDrugsMap.get(c.drugId);
-        results.push({
-          id: c.id,
-          drugId: c.drugId,
-          drugName: drug?.name ?? c.drugId,
-          type: "disease",
-          severity: c.severity.toLowerCase() as "high" | "medium" | "low",
-          message: c.effect,
-          diseaseIcd: c.diseaseIcd,
-          diseaseName: c.diseaseName
-        });
+      if (dbContras.length > 0) {
+        const baseLen = results.length;
+        results.length = baseLen + dbContras.length;
+        for (let i = 0, len = dbContras.length; i < len; i++) {
+          const c = dbContras[i];
+          const drug = resolvedDrugsMap.get(c.drugId);
+          results[baseLen + i] = {
+            id: c.id,
+            drugId: c.drugId,
+            drugName: drug?.name ?? c.drugId,
+            type: "disease",
+            severity: c.severity.toLowerCase() as "high" | "medium" | "low",
+            message: c.effect,
+            diseaseIcd: c.diseaseIcd,
+            diseaseName: c.diseaseName
+          };
+        }
       }
     }
     

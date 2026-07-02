@@ -93,6 +93,16 @@ export function getAllDrugs(): Drug[] {
   return drugsData as Drug[];
 }
 
+
+const DRUG_ALIASES: Record<string, string> = {
+  coraspin: "aspirin", ecopirin: "aspirin", aspirin: "aspirin",
+  parol: "parasetamol", calpol: "parasetamol", tylol: "parasetamol", parasetamol: "parasetamol",
+  nurofen: "ibuprofen", dolorex: "ibuprofen", advil: "ibuprofen", ibuprofen: "ibuprofen",
+  coumadin: "warfarin", warfarin: "warfarin",
+  metformin: "metformin", enalapril: "enalapril", amoksisilin: "amoksisilin",
+  omeprazol: "omeprazol", diklofenak: "diklofenak", metoprolol: "metoprolol"
+};
+
 // Pre-compute O(1) lookups at module initialization
 const drugsMap = new Map<string, Drug>();
 for (const d of drugsData as Drug[]) {
@@ -597,26 +607,9 @@ export function findFoodInteractions(drugIds: string[]): FoodInteractionResult[]
       continue;
     }
     const lower = idOrName.toLowerCase().trim();
-    if (lower === "coraspin" || lower === "ecopirin" || lower === "aspirin") {
-      resolvedIds.add("aspirin");
-    } else if (lower === "parol" || lower === "calpol" || lower === "tylol" || lower === "parasetamol") {
-      resolvedIds.add("parasetamol");
-    } else if (lower === "nurofen" || lower === "dolorex" || lower === "advil" || lower === "ibuprofen") {
-      resolvedIds.add("ibuprofen");
-    } else if (lower === "coumadin" || lower === "warfarin") {
-      resolvedIds.add("warfarin");
-    } else if (lower === "metformin") {
-      resolvedIds.add("metformin");
-    } else if (lower === "enalapril") {
-      resolvedIds.add("enalapril");
-    } else if (lower === "amoksisilin") {
-      resolvedIds.add("amoksisilin");
-    } else if (lower === "omeprazol") {
-      resolvedIds.add("omeprazol");
-    } else if (lower === "diklofenak") {
-      resolvedIds.add("diklofenak");
-    } else if (lower === "metoprolol") {
-      resolvedIds.add("metoprolol");
+    const canonicalId = DRUG_ALIASES[lower];
+    if (canonicalId) {
+      resolvedIds.add(canonicalId);
     }
   }
 
@@ -700,26 +693,9 @@ export function findContraindications(drugIds: string[], patientContext?: Patien
       continue;
     }
     const lower = idOrName.toLowerCase().trim();
-    if (lower === "coraspin" || lower === "ecopirin" || lower === "aspirin") {
-      resolvedIds.add("aspirin");
-    } else if (lower === "parol" || lower === "calpol" || lower === "tylol" || lower === "parasetamol") {
-      resolvedIds.add("parasetamol");
-    } else if (lower === "nurofen" || lower === "dolorex" || lower === "advil" || lower === "ibuprofen") {
-      resolvedIds.add("ibuprofen");
-    } else if (lower === "coumadin" || lower === "warfarin") {
-      resolvedIds.add("warfarin");
-    } else if (lower === "metformin") {
-      resolvedIds.add("metformin");
-    } else if (lower === "enalapril") {
-      resolvedIds.add("enalapril");
-    } else if (lower === "amoksisilin") {
-      resolvedIds.add("amoksisilin");
-    } else if (lower === "omeprazol") {
-      resolvedIds.add("omeprazol");
-    } else if (lower === "diklofenak") {
-      resolvedIds.add("diklofenak");
-    } else if (lower === "metoprolol") {
-      resolvedIds.add("metoprolol");
+    const canonicalId = DRUG_ALIASES[lower];
+    if (canonicalId) {
+      resolvedIds.add(canonicalId);
     }
   }
   
@@ -1004,26 +980,9 @@ export function checkPolypharmacyAndBeers(drugIds: string[], patientContext?: an
       continue;
     }
     const lower = idOrName.toLowerCase().trim();
-    if (lower === "coraspin" || lower === "ecopirin" || lower === "aspirin") {
-      resolvedIds.add("aspirin");
-    } else if (lower === "parol" || lower === "calpol" || lower === "tylol" || lower === "parasetamol") {
-      resolvedIds.add("parasetamol");
-    } else if (lower === "nurofen" || lower === "dolorex" || lower === "advil" || lower === "ibuprofen") {
-      resolvedIds.add("ibuprofen");
-    } else if (lower === "coumadin" || lower === "warfarin") {
-      resolvedIds.add("warfarin");
-    } else if (lower === "metformin") {
-      resolvedIds.add("metformin");
-    } else if (lower === "enalapril") {
-      resolvedIds.add("enalapril");
-    } else if (lower === "amoksisilin") {
-      resolvedIds.add("amoksisilin");
-    } else if (lower === "omeprazol") {
-      resolvedIds.add("omeprazol");
-    } else if (lower === "diklofenak") {
-      resolvedIds.add("diklofenak");
-    } else if (lower === "metoprolol") {
-      resolvedIds.add("metoprolol");
+    const canonicalId = DRUG_ALIASES[lower];
+    if (canonicalId) {
+      resolvedIds.add(canonicalId);
     }
   }
   

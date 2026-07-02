@@ -515,3 +515,21 @@ describe("buildInteractionStreamPrompt", () => {
     expect(prompt).toContain("Doğrulanmış Tıbbi Özet: Critical interaction here.");
   });
 });
+
+describe("buildCoverageStreamPrompt", () => {
+  it("should generate the correct prompt with drug names and ingredients", async () => {
+    const { buildCoverageStreamPrompt } = await import("../lib/gemini");
+    const mockCtx = {
+      drugNames: ["Drug A", "Drug B"],
+      drugIngredients: ["Ing A", "Ing B"]
+    };
+
+    const prompt = buildCoverageStreamPrompt(mockCtx);
+
+    expect(prompt).toContain("Sen Sağlık İletişim Asistanı ve Tıbbi Yapay Zeka Güvenlik Uzmanısın.");
+    expect(prompt).toContain("Seçilen ilaçlar: Drug A, Drug B");
+    expect(prompt).toContain("Etken maddeler: Ing A, Ing B");
+    expect(prompt).toContain("kullanmayın");
+    expect(prompt).toContain("bırakın");
+  });
+});

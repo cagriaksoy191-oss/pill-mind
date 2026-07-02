@@ -1,4 +1,4 @@
-import { getCoverageContext, getInteractionContext, formatExplanation } from "../lib/gemini";
+import { getCoverageContext, getInteractionContext, formatExplanation, buildInteractionStreamPrompt } from "../lib/gemini";
 
 describe("getCoverageContext", () => {
   it("should return null when an empty array is provided", () => {
@@ -457,4 +457,61 @@ Bu bir hekim yönlendirmesidir.`;
     expect(formatExplanation(input)).toBe(expected);
   });
 
+});
+
+describe("buildInteractionStreamPrompt", () => {
+  it("should generate prompt with correct severity labels", () => {
+    const baseCtx = {
+      drug1Name: "Drug A",
+      drug2Name: "Drug B",
+      drug1Ingredient: "Ingredient A",
+      drug2Ingredient: "Ingredient B",
+      interaction: {
+        id: "1",
+        drug1Id: "d1",
+        drug2Id: "d2",
+        severity: "high" as const,
+        summary: "Test summary",
+        evidences: [],
+        mechanisms: []
+      }
+    };
+
+    const promptHigh = buildInteractionStreamPrompt(baseCtx);
+    expect(promptHigh).toContain("Şiddet Derecesi: yüksek");
+
+    const promptMedium = buildInteractionStreamPrompt({
+      ...baseCtx,
+      interaction: { ...baseCtx.interaction, severity: "medium" as const }
+    });
+    expect(promptMedium).toContain("Şiddet Derecesi: orta");
+
+    const promptLow = buildInteractionStreamPrompt({
+      ...baseCtx,
+      interaction: { ...baseCtx.interaction, severity: "low" as const }
+    });
+    expect(promptLow).toContain("Şiddet Derecesi: düşük");
+  });
+
+  it("should correctly format the drugs and summary into the prompt", () => {
+    const prompt = buildInteractionStreamPrompt({
+      drug1Name: "Drug A",
+      drug2Name: "Drug B",
+      drug1Ingredient: "Ingredient A",
+      drug2Ingredient: "Ingredient B",
+      interaction: {
+        id: "1",
+        drug1Id: "d1",
+        drug2Id: "d2",
+        severity: "high",
+        summary: "Critical interaction here.",
+        evidences: [],
+        mechanisms: []
+      }
+    });
+
+    expect(prompt).toContain("İlaç 1: Drug A (Etken madde: Ingredient A)");
+    expect(prompt).toContain("İlaç 2: Drug B (Etken madde: Ingredient B)");
+    expect(prompt).toContain("Doğrulanmış Tıbbi Özet: Critical interaction here.");
+  });
 });

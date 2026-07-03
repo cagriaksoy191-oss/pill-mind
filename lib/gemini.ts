@@ -676,32 +676,75 @@ export async function* streamGeminiContent(prompt: string): AsyncGenerator<strin
     ],
   });
 
+  const SPECULATIVE_TIMEOUT_MS = 1500;
+  const controller = new AbortController();
+
+  const fetchModel = async (model: string): Promise<Response> => {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?key=${GEMINI_API_KEY}`;
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: payload,
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      throw new Error(`API Error ${response.status}`);
+    }
+    if (!response.body) {
+      throw new Error("No response body");
+    }
+    return response;
+  };
+
+  const runningTasks: Promise<Response>[] = [];
+  let successResponse: Response | null = null;
   let lastError: Error | null = null;
 
-  for (const model of MODEL_CHAIN) {
+  for (let i = 0; i < MODEL_CHAIN.length; i++) {
+    const model = MODEL_CHAIN[i];
+    const taskPromise = fetchModel(model).catch((err) => {
+        lastError = err instanceof Error ? err : new Error(String(err));
+        console.warn(`[GEMINI STREAM] Model ${model} failed:`, err);
+        throw err;
+    });
+    runningTasks.push(taskPromise);
+
+    if (i === MODEL_CHAIN.length - 1) {
+      break;
+    }
+
+    const timeout = createTimeoutReject(SPECULATIVE_TIMEOUT_MS, "SPECULATIVE_TIMEOUT");
     try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?key=${GEMINI_API_KEY}`;
-      const response = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: payload,
-      });
-
-      if (!response.ok) {
-        throw new Error(`API Error ${response.status}`);
+      successResponse = await Promise.race([
+        Promise.any(runningTasks),
+        timeout.promise
+      ]);
+      timeout.cancel();
+      break;
+    } catch (error) {
+      timeout.cancel();
+      if (error instanceof Error && error.message === "SPECULATIVE_TIMEOUT") {
+        console.info(`[GEMINI STREAM] Model ${model} is taking longer than ${SPECULATIVE_TIMEOUT_MS}ms. Launching fallback speculatively.`);
       }
+    }
+  }
 
-      if (!response.body) {
-        throw new Error("No response body");
+  if (!successResponse) {
+      try {
+          successResponse = await Promise.any(runningTasks);
+      } catch {
+          throw lastError || new Error("All models in the stream chain failed.");
       }
+  }
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder("utf-8");
-      let buffer = "";
-      let braceCount = 0;
-      let startIdx = -1;
-      let scanIndex = 0;
+  const reader = successResponse.body!.getReader();
+  const decoder = new TextDecoder("utf-8");
+  let buffer = "";
+  let braceCount = 0;
+  let startIdx = -1;
+  let scanIndex = 0;
 
+  try {
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -737,12 +780,8 @@ export async function* streamGeminiContent(prompt: string): AsyncGenerator<strin
           scanIndex++;
         }
       }
-      return;
-    } catch (err) {
-      console.warn(`[GEMINI STREAM] Model ${model} failed:`, err);
-      lastError = err instanceof Error ? err : new Error(String(err));
-    }
+  } finally {
+      // Clean up abort controller when stream is finished or closed early
+      controller.abort();
   }
-
-  throw lastError || new Error("All models in the stream chain failed.");
 }

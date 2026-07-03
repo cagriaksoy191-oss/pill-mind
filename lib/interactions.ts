@@ -127,32 +127,41 @@ for (const int of (interactionsData as RawInteraction[])) {
 /**
  * Deterministic N-Drug interaction check using local JSON files (Fallback layer).
  */
+function formatInteractionResult(match: Interaction): CheckResult {
+  const drug1 = drugsMap.get(match.drug1);
+  const drug2 = drugsMap.get(match.drug2);
+  return {
+    interaction: match,
+    drug1Name: drug1?.name ?? match.drug1,
+    drug2Name: drug2?.name ?? match.drug2,
+  };
+}
+
+function findInteractionsForDrug(
+  mapA: Map<string, Interaction>,
+  drugIds: string[],
+  startIndex: number,
+  results: CheckResult[]
+): void {
+  for (let j = startIndex; j < drugIds.length; j++) {
+    const match = mapA.get(drugIds[j]);
+    if (match) {
+      results.push(formatInteractionResult(match));
+    }
+  }
+}
+
 export function findInteractions(drugIds: string[]): CheckResult[] {
   if (!Array.isArray(drugIds) || drugIds.length < 2) {
     return [];
   }
+
   const results: CheckResult[] = [];
 
   for (let i = 0; i < drugIds.length; i++) {
-    const a = drugIds[i];
-    const mapA = interactionsMap.get(a);
-
-    if (!mapA) continue;
-
-    for (let j = i + 1; j < drugIds.length; j++) {
-      const b = drugIds[j];
-
-      const match = mapA.get(b);
-
-      if (match) {
-        const drug1 = drugsMap.get(match.drug1);
-        const drug2 = drugsMap.get(match.drug2);
-        results.push({
-          interaction: match,
-          drug1Name: drug1?.name ?? match.drug1,
-          drug2Name: drug2?.name ?? match.drug2,
-        });
-      }
+    const mapA = interactionsMap.get(drugIds[i]);
+    if (mapA) {
+      findInteractionsForDrug(mapA, drugIds, i + 1, results);
     }
   }
 

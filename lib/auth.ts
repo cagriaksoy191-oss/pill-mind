@@ -17,7 +17,8 @@ export interface SessionData {
  * AES-256-GCM (AEAD) algoritmasıyla oturum verisini şifreler
  */
 export function encryptSession(data: SessionData): string {
-  const key = crypto.scryptSync(getJwtSecret(), "salt", 32);
+  const salt = crypto.randomBytes(16); // Dinamik salt
+  const key = crypto.scryptSync(getJwtSecret(), salt, 32);
   const iv = crypto.randomBytes(12); // GCM için dinamik 12-byte IV
   const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
   
@@ -26,8 +27,8 @@ export function encryptSession(data: SessionData): string {
   
   const authTag = cipher.getAuthTag(); // 16-byte bütünlük etiketi (auth tag)
   
-  // Format: iv_hex:authTag_hex:encrypted_hex
-  return `${iv.toString("hex")}:${authTag.toString("hex")}:${encrypted}`;
+  // Format: salt_hex:iv_hex:authTag_hex:encrypted_hex
+  return `${salt.toString("hex")}:${iv.toString("hex")}:${authTag.toString("hex")}:${encrypted}`;
 }
 
 /**
@@ -36,27 +37,49 @@ export function encryptSession(data: SessionData): string {
 export function decryptSession(token: string): SessionData | null {
   try {
     const parts = token.split(":");
-    if (parts.length !== 3) {
-      return null;
+    
+    // Eski format (3 parça: iv:authTag:encrypted) - Geriye dönük uyumluluk için
+    if (parts.length === 3) {
+      const iv = Buffer.from(parts[0], "hex");
+      const authTag = Buffer.from(parts[1], "hex");
+      const encryptedText = parts[2];
+
+      if (iv.length !== 12 || authTag.length !== 16) {
+        return null;
+      }
+
+      const key = crypto.scryptSync(getJwtSecret(), "salt", 32);
+      const decipher = crypto.createDecipheriv("aes-256-gcm", key, iv);
+      decipher.setAuthTag(authTag);
+
+      let decrypted = decipher.update(encryptedText, "hex", "utf8");
+      decrypted += decipher.final("utf8");
+
+      return JSON.parse(decrypted) as SessionData;
     }
     
-    const iv = Buffer.from(parts[0], "hex");
-    const authTag = Buffer.from(parts[1], "hex");
-    const encryptedText = parts[2];
-    
-    // Parametre uzunluğu doğrulamaları
-    if (iv.length !== 12 || authTag.length !== 16) {
-      return null;
+    // Yeni format (4 parça: salt:iv:authTag:encrypted)
+    if (parts.length === 4) {
+      const salt = Buffer.from(parts[0], "hex");
+      const iv = Buffer.from(parts[1], "hex");
+      const authTag = Buffer.from(parts[2], "hex");
+      const encryptedText = parts[3];
+
+      if (salt.length !== 16 || iv.length !== 12 || authTag.length !== 16) {
+        return null;
+      }
+
+      const key = crypto.scryptSync(getJwtSecret(), salt, 32);
+      const decipher = crypto.createDecipheriv("aes-256-gcm", key, iv);
+      decipher.setAuthTag(authTag);
+
+      let decrypted = decipher.update(encryptedText, "hex", "utf8");
+      decrypted += decipher.final("utf8");
+
+      return JSON.parse(decrypted) as SessionData;
     }
     
-    const key = crypto.scryptSync(getJwtSecret(), "salt", 32);
-    const decipher = crypto.createDecipheriv("aes-256-gcm", key, iv);
-    decipher.setAuthTag(authTag);
-    
-    let decrypted = decipher.update(encryptedText, "hex", "utf8");
-    decrypted += decipher.final("utf8");
-    
-    return JSON.parse(decrypted) as SessionData;
+    return null;
   } catch {
     return null;
   }

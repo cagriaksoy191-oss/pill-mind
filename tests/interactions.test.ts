@@ -1,4 +1,4 @@
-import { getSeverityLabel, getSeverityColor, getAllDrugs, findInteractions } from "../lib/interactions";
+import { getSeverityLabel, getSeverityColor, getAllDrugs, findInteractions, findContraindications } from "../lib/interactions";
 
 describe("interactions UI helpers", () => {
 
@@ -187,6 +187,71 @@ describe("interactions UI helpers", () => {
       const ids = result.map(r => r.interaction.id);
       expect(ids).toContain("aspirin-warfarin");
       expect(ids).toContain("ibuprofen-warfarin");
+    });
+  });
+
+  describe("findContraindications", () => {
+    test("returns empty array when patientContext is undefined", () => {
+      const result = findContraindications(["aspirin"]);
+      expect(result).toEqual([]);
+    });
+
+    test("returns empty array when patientContext has no risks and no diseases", () => {
+      const result = findContraindications(["aspirin"], {});
+      expect(result).toEqual([]);
+    });
+
+    test("returns contraindications for diseases (e.g. Aspirin and K25 Peptik Ülser)", () => {
+      const result = findContraindications(["aspirin"], { diseases: ["K25"] });
+      expect(result.length).toBeGreaterThan(0);
+      expect(result[0].type).toBe("disease");
+      expect(result[0].diseaseIcd).toBe("K25");
+      expect(result[0].severity).toBe("high");
+    });
+
+    test("returns pregnancy contraindications (e.g. Category X or D drugs)", () => {
+      // Warfarin is category X
+      const result = findContraindications(["warfarin"], { isPregnant: true });
+      expect(result.length).toBeGreaterThan(0);
+
+      const pregContra = result.find(r => r.type === "pregnancy");
+      expect(pregContra).toBeDefined();
+      expect(pregContra?.severity).toBe("high");
+    });
+
+    test("returns breastfeeding contraindications (e.g. aspirin)", () => {
+      const result = findContraindications(["aspirin"], { isBreastfeeding: true });
+      expect(result.length).toBeGreaterThan(0);
+
+      const lactContra = result.find(r => r.type === "breastfeeding");
+      expect(lactContra).toBeDefined();
+      expect(lactContra?.severity).toBe("medium");
+    });
+
+    test("returns renal risk contraindications (e.g. metformin)", () => {
+      const result = findContraindications(["metformin"], { renalRisk: true });
+      expect(result.length).toBeGreaterThan(0);
+
+      const renalContra = result.find(r => r.type === "renal");
+      expect(renalContra).toBeDefined();
+      expect(renalContra?.severity).toBe("high");
+    });
+
+    test("returns renal risk contraindications (e.g. ibuprofen)", () => {
+      const result = findContraindications(["ibuprofen"], { renalRisk: true });
+      expect(result.length).toBeGreaterThan(0);
+
+      const renalContra = result.find(r => r.type === "renal");
+      expect(renalContra).toBeDefined();
+      expect(renalContra?.severity).toBe("high");
+    });
+
+    test("handles aliases and casing", () => {
+      // Using an alias or different casing should still find the contraindication
+      const result = findContraindications(["Aspirin "], { diseases: ["K25"] });
+      expect(result.length).toBeGreaterThan(0);
+      expect(result[0].type).toBe("disease");
+      expect(result[0].diseaseIcd).toBe("K25");
     });
   });
 });

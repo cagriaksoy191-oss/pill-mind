@@ -86,15 +86,16 @@ export async function POST(request: Request) {
       );
     }
 
-    // Kullanıcıyı veritabanında ara veya otomatik oluştur (Magic Link simülasyonu)
-    let user = await prisma.user.findUnique({
+    // Kullanıcıyı veritabanında ara — sadece kayıtlı kullanıcılar giriş yapabilir
+    const user = await prisma.user.findUnique({
       where: { email: cleanEmail },
     });
 
     if (!user) {
-      user = await prisma.user.create({
-        data: { email: cleanEmail },
-      });
+      return NextResponse.json(
+        { error: "Bu e-posta adresine ait bir hesap bulunamadı." },
+        { status: 404 }
+      );
     }
 
     // 7 Günlük oturum süresi belirlenir

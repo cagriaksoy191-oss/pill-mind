@@ -31,11 +31,10 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { interactionId, status, notes, reviewerRole, evidenceSourceId } = body as {
+    const { interactionId, status, notes, evidenceSourceId } = body as {
       interactionId: string;
       status: string;
       notes?: string;
-      reviewerRole?: string;
       evidenceSourceId?: string;
     };
 
@@ -80,7 +79,7 @@ export async function POST(request: NextRequest) {
       data: {
         entityType: "DrugInteraction",
         entityId: interactionId,
-        reviewerRole: reviewerRole || "CLINICAL_REVIEWER",
+        reviewerRole: "CLINICAL_REVIEWER",
         reviewerId: session.userId,
         decision: uppercaseStatus,
         notes: notes || null,

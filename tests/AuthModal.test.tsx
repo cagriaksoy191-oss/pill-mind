@@ -46,49 +46,83 @@ describe("AuthModal Component", () => {
     expect(mockOnSuccess).not.toHaveBeenCalled();
   });
 
-  it("calls fetch and onSuccess upon successful login", async () => {
+  it("calls fetch and onSuccess upon successful login via OTP", async () => {
     const mockUser = { id: "123", email: "test@example.com" };
-    (global.fetch as jest.Mock).mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ user: mockUser }),
-    });
+
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ isOtpRequired: true, otpToken: "mock-token" }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ user: mockUser }),
+      });
 
     render(<AuthModal onClose={mockOnClose} onSuccess={mockOnSuccess} />);
 
-    const input = screen.getByPlaceholderText("isim@örnek.com");
-    fireEvent.change(input, { target: { value: "test@example.com" } });
+    // Step 1: Submit Email
+    const emailInput = screen.getByPlaceholderText("isim@örnek.com");
+    fireEvent.change(emailInput, { target: { value: "test@example.com" } });
 
-    const submitButton = screen.getByRole("button", { name: "Giriş Yap / Kaydol" });
-    fireEvent.click(submitButton);
+    const emailSubmitBtn = screen.getByRole("button", { name: "Giriş Yap / Kaydol" });
+    fireEvent.click(emailSubmitBtn);
 
+    // Verify transition to OTP step
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledTimes(1);
-      expect(global.fetch).toHaveBeenCalledWith("/api/auth/login", {
+      expect(screen.getByPlaceholderText("123456")).toBeTruthy();
+    });
+
+    // Step 2: Submit OTP
+    const otpInput = screen.getByPlaceholderText("123456");
+    fireEvent.change(otpInput, { target: { value: "123456" } });
+
+    const otpSubmitBtn = screen.getByRole("button", { name: "Doğrula ve Giriş Yap" });
+    fireEvent.click(otpSubmitBtn);
+
+    // Verify successful login
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledTimes(2);
+      expect(global.fetch).toHaveBeenLastCalledWith("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: "test@example.com" }),
+        body: JSON.stringify({ email: "test@example.com", otp: "123456", otpToken: "mock-token" }),
       });
       expect(mockOnSuccess).toHaveBeenCalledTimes(1);
       expect(mockOnSuccess).toHaveBeenCalledWith(mockUser);
     });
   });
 
-  it("displays an error message upon failed login", async () => {
-    (global.fetch as jest.Mock).mockResolvedValueOnce({
-      ok: false,
-      json: async () => ({ error: "Geçersiz kimlik bilgileri." }),
-    });
+  it("displays an error message upon failed OTP login", async () => {
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ isOtpRequired: true, otpToken: "mock-token" }),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ error: "Geçersiz kimlik bilgileri." }),
+      });
 
     render(<AuthModal onClose={mockOnClose} onSuccess={mockOnSuccess} />);
 
-    const input = screen.getByPlaceholderText("isim@örnek.com");
-    fireEvent.change(input, { target: { value: "test@example.com" } });
+    const emailInput = screen.getByPlaceholderText("isim@örnek.com");
+    fireEvent.change(emailInput, { target: { value: "test@example.com" } });
 
-    const submitButton = screen.getByRole("button", { name: "Giriş Yap / Kaydol" });
-    fireEvent.click(submitButton);
+    const emailSubmitBtn = screen.getByRole("button", { name: "Giriş Yap / Kaydol" });
+    fireEvent.click(emailSubmitBtn);
 
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledTimes(1);
+      expect(screen.getByPlaceholderText("123456")).toBeTruthy();
+    });
+
+    const otpInput = screen.getByPlaceholderText("123456");
+    fireEvent.change(otpInput, { target: { value: "123456" } });
+
+    const otpSubmitBtn = screen.getByRole("button", { name: "Doğrula ve Giriş Yap" });
+    fireEvent.click(otpSubmitBtn);
+
+    await waitFor(() => {
       expect(screen.getByText("⚠️ Geçersiz kimlik bilgileri.")).toBeTruthy();
     });
 

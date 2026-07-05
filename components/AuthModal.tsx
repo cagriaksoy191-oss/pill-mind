@@ -16,22 +16,37 @@ export default function AuthModal({ onClose, onSuccess }: AuthModalProps) {
   const [emailInput, setEmailInput] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [authLoading, setAuthLoading] = useState(false);
+  const [step, setStep] = useState<"email" | "otp">("email");
+  const [otpInput, setOtpInput] = useState("");
+  const [otpToken, setOtpToken] = useState("");
 
   const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!emailInput || !emailInput.includes("@")) {
-      setErrorMsg("Lütfen geçerli bir e-posta adresi girin.");
-      return;
+
+    if (step === "email") {
+      if (!emailInput || !emailInput.includes("@")) {
+        setErrorMsg("Lütfen geçerli bir e-posta adresi girin.");
+        return;
+      }
+    } else {
+      if (!otpInput || otpInput.length !== 6) {
+        setErrorMsg("Lütfen 6 haneli doğrulama kodunu girin.");
+        return;
+      }
     }
 
     setAuthLoading(true);
     setErrorMsg(null);
 
     try {
+      const payload = step === "email"
+        ? { email: emailInput }
+        : { email: emailInput, otp: otpInput, otpToken };
+
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: emailInput }),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
@@ -39,7 +54,12 @@ export default function AuthModal({ onClose, onSuccess }: AuthModalProps) {
         throw new Error(data.error || "Giriş başarısız.");
       }
 
-      onSuccess(data.user);
+      if (data.isOtpRequired) {
+        setOtpToken(data.otpToken);
+        setStep("otp");
+      } else {
+        onSuccess(data.user);
+      }
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : "Giriş yaparken bir hata oluştu.";
       setErrorMsg(errMsg);
@@ -70,17 +90,35 @@ export default function AuthModal({ onClose, onSuccess }: AuthModalProps) {
         </div>
 
         <form onSubmit={handleAuthSubmit} className="space-y-4">
-          <div>
-            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">E-POSTA ADRESİ</label>
-            <input
-              type="email"
-              placeholder="isim@örnek.com"
-              value={emailInput}
-              onChange={(e) => setEmailInput(e.target.value)}
-              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all font-medium text-sm"
-              required
-            />
-          </div>
+          {step === "email" ? (
+            <div>
+              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">E-POSTA ADRESİ</label>
+              <input
+                type="email"
+                placeholder="isim@örnek.com"
+                value={emailInput}
+                onChange={(e) => setEmailInput(e.target.value)}
+                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all font-medium text-sm"
+                required
+              />
+            </div>
+          ) : (
+            <div>
+              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">DOĞRULAMA KODU (OTP)</label>
+              <input
+                type="text"
+                placeholder="123456"
+                maxLength={6}
+                value={otpInput}
+                onChange={(e) => setOtpInput(e.target.value.replace(/[^0-9]/g, ''))}
+                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all font-medium text-center text-xl tracking-[0.5em]"
+                required
+              />
+              <p className="text-xs text-slate-400 mt-2 text-center">
+                E-posta adresinize gönderilen 6 haneli kodu girin.
+              </p>
+            </div>
+          )}
 
           {errorMsg && (
             <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-300 font-medium">
@@ -96,7 +134,7 @@ export default function AuthModal({ onClose, onSuccess }: AuthModalProps) {
             {authLoading ? (
               <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
             ) : (
-              "Giriş Yap / Kaydol"
+              step === "email" ? "Giriş Yap / Kaydol" : "Doğrula ve Giriş Yap"
             )}
           </button>
         </form>

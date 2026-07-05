@@ -1,3 +1,5 @@
+process.env.JWT_SECRET = 'test-secret';
+import crypto from "crypto";
 import { POST } from "@/app/api/auth/login/route";
 import { prisma } from "@/lib/prisma";
 
@@ -26,13 +28,81 @@ describe("POST /api/auth/login", () => {
     } as unknown as Request;
   };
 
+  it("should require OTP if only email is provided", async () => {
+    const req = createMockRequest({ email: "test@example.com" });
+    const res = await POST(req);
+
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.success).toBe(true);
+    expect(data.isOtpRequired).toBe(true);
+    expect(data.otpToken).toBeDefined();
+  });
+
+  it("should return 400 if OTP token is invalid or expired", async () => {
+    const req = createMockRequest({
+      email: "test@example.com",
+      otp: "123456",
+      otpToken: "1000:invalidhash"
+    });
+    const res = await POST(req);
+
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.error).toBe("Girdiğiniz doğrulama kodunun süresi dolmuş.");
+  });
+
+  it("should return 400 if OTP is incorrect", async () => {
+    const expires = Date.now() + 300000;
+    const hash = crypto.createHmac('sha256', process.env.JWT_SECRET!).update(`test@example.com:123456:${expires}`).digest('hex');
+    const otpToken = `${expires}:${hash}`;
+
+    const req = createMockRequest({
+      email: "test@example.com",
+      otp: "654321", // Wrong OTP
+      otpToken
+    });
+    const res = await POST(req);
+
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.error).toBe("Girdiğiniz doğrulama kodu hatalı.");
+  });
+
+  it("should successfully log in if OTP is correct", async () => {
+    const expires = Date.now() + 300000;
+    const email = "test@example.com";
+    const otp = "123456";
+    const hash = crypto.createHmac('sha256', process.env.JWT_SECRET!).update(`${email}:${otp}:${expires}`).digest('hex');
+    const otpToken = `${expires}:${hash}`;
+
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+      id: "user-1",
+      email: "test@example.com"
+    });
+
+    const req = createMockRequest({ email, otp, otpToken });
+    const res = await POST(req);
+
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.success).toBe(true);
+    expect(data.user.id).toBe("user-1");
+  });
+
   it("should return 500 if an internal error occurs (e.g., db failure)", async () => {
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
     // Simulating database error
     (prisma.user.findUnique as jest.Mock).mockRejectedValue(new Error("Database connection failed"));
 
-    const req = createMockRequest({ email: "test@example.com" });
+    const expires = Date.now() + 300000;
+    const email = "test@example.com";
+    const otp = "123456";
+    const hash = crypto.createHmac('sha256', process.env.JWT_SECRET!).update(`${email}:${otp}:${expires}`).digest('hex');
+    const otpToken = `${expires}:${hash}`;
+
+    const req = createMockRequest({ email, otp, otpToken });
     const res = await POST(req);
 
     expect(res.status).toBe(500);
@@ -42,4 +112,5 @@ describe("POST /api/auth/login", () => {
 
     consoleSpy.mockRestore();
   });
+
 });

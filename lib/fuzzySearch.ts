@@ -1,10 +1,22 @@
 const turkishCharMap: Record<string, string> = {
-  'İ': 'i', 'I': 'i', 'ı': 'i', 'ğ': 'g', 'ü': 'u', 'ş': 's', 'ö': 'o', 'ç': 'c', '\u0307': '',
-  'Ğ': 'g', 'Ü': 'u', 'Ş': 's', 'Ö': 'o', 'Ç': 'c'
+  İ: "i",
+  I: "i",
+  ı: "i",
+  ğ: "g",
+  ü: "u",
+  ş: "s",
+  ö: "o",
+  ç: "c",
+  "\u0307": "",
+  Ğ: "g",
+  Ü: "u",
+  Ş: "s",
+  Ö: "o",
+  Ç: "c",
 };
 const turkishRegex = /[İIığüşöçĞÜŞÖÇ\u0307]/g;
 
-export function normalizeTurkish(text: string): string {
+function normalizeTurkish(text: string): string {
   if (!text) return "";
   return text
     .replace(turkishRegex, (m) => turkishCharMap[m] || "")
@@ -44,7 +56,7 @@ function levenshteinDistance(s1: string, s2: string): number {
       const ins = cRow[j - 1] + 1;
       const sub = pRow[j - 1] + cost;
 
-      cRow[j] = del < ins ? (del < sub ? del : sub) : (ins < sub ? ins : sub);
+      cRow[j] = del < ins ? (del < sub ? del : sub) : ins < sub ? ins : sub;
     }
     const temp = pRow;
     pRow = cRow;
@@ -85,15 +97,17 @@ export interface FuzzyResult<T> {
   score: number;
 }
 
-const normalizedCache = new WeakMap<object, { name: string; activeIngredient: string; category: string }>();
+const normalizedCache = new WeakMap<
+  object,
+  { name: string; activeIngredient: string; category: string }
+>();
 
-export function fuzzySearchDrugs<T extends { name: string; activeIngredient: string; category?: string }>(
-  query: string,
-  items: T[]
-): FuzzyResult<T>[] {
+export function fuzzySearchDrugs<
+  T extends { name: string; activeIngredient: string; category?: string },
+>(query: string, items: T[]): FuzzyResult<T>[] {
   const q = normalizeTurkish(query);
   if (!q) {
-    return items.map(item => ({ item, score: 0 }));
+    return items.map((item) => ({ item, score: 0 }));
   }
 
   const results: FuzzyResult<T>[] = [];
@@ -104,14 +118,16 @@ export function fuzzySearchDrugs<T extends { name: string; activeIngredient: str
       normalized = {
         name: normalizeTurkish(item.name),
         activeIngredient: normalizeTurkish(item.activeIngredient),
-        category: item.category ? normalizeTurkish(item.category) : ""
+        category: item.category ? normalizeTurkish(item.category) : "",
       };
       normalizedCache.set(item, normalized);
     }
 
     const nameScore = calculateScore(q, normalized.name) * 1.5; // brand name has priority
     const ingredientScore = calculateScore(q, normalized.activeIngredient);
-    const categoryScore = normalized.category ? calculateScore(q, normalized.category) * 0.5 : 0;
+    const categoryScore = normalized.category
+      ? calculateScore(q, normalized.category) * 0.5
+      : 0;
 
     const bestScore = Math.max(nameScore, ingredientScore, categoryScore);
 

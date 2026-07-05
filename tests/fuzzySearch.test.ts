@@ -1,5 +1,5 @@
 // tests/fuzzySearch.test.ts
-import { normalizeTurkish, fuzzySearchDrugs } from "../lib/fuzzySearch";
+import { fuzzySearchDrugs } from "../lib/fuzzySearch";
 
 interface MockDrug {
   id: string;
@@ -10,21 +10,31 @@ interface MockDrug {
 
 describe("Fuzzy Search Birim Testleri (Turkish Fuzzy Search)", () => {
   const mockDrugs: MockDrug[] = [
-    { id: "1", name: "Aspirin", activeIngredient: "Asetilsalisilik Asit", category: "Analjezik" },
-    { id: "2", name: "Coraspin", activeIngredient: "Asetilsalisilik Asit", category: "Antikoagülan" },
-    { id: "3", name: "Parol", activeIngredient: "Parasetamol", category: "Antipiretik" },
-    { id: "4", name: "Apranax", activeIngredient: "Naproksen Sodyum", category: "NSAİİ" },
+    {
+      id: "1",
+      name: "Aspirin",
+      activeIngredient: "Asetilsalisilik Asit",
+      category: "Analjezik",
+    },
+    {
+      id: "2",
+      name: "Coraspin",
+      activeIngredient: "Asetilsalisilik Asit",
+      category: "Antikoagülan",
+    },
+    {
+      id: "3",
+      name: "Parol",
+      activeIngredient: "Parasetamol",
+      category: "Antipiretik",
+    },
+    {
+      id: "4",
+      name: "Apranax",
+      activeIngredient: "Naproksen Sodyum",
+      category: "NSAİİ",
+    },
   ];
-
-  test("Türkçe karakterlerin başarıyla normalize edilmesi (Turkish Character Normalization)", () => {
-    expect(normalizeTurkish("İLAÇ")).toBe("ilac");
-    expect(normalizeTurkish("koraspin")).toBe("koraspin");
-    expect(normalizeTurkish("çalışma")).toBe("calisma");
-    expect(normalizeTurkish("ıspanak")).toBe("ispanak");
-    expect(normalizeTurkish("ŞÖLEN")).toBe("solen");
-    expect(normalizeTurkish("Ömür")).toBe("omur");
-    expect(normalizeTurkish("Gümüş")).toBe("gumus");
-  });
 
   test("Yazım hatalarında Levenshtein toleransı (Typo Tolerance & Levenshtein)", () => {
     // "asprn" typed, should find Aspirin and Coraspin

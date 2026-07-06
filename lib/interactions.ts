@@ -109,6 +109,15 @@ for (const d of drugsData as Drug[]) {
   drugsMap.set(d.id, d);
 }
 
+
+const contraindicationsMap = new Map<string, any[]>();
+for (const contra of (contraindicationsData as any[])) {
+  if (!contraindicationsMap.has(contra.drugId)) {
+    contraindicationsMap.set(contra.drugId, []);
+  }
+  contraindicationsMap.get(contra.drugId)!.push(contra);
+}
+
 const interactionsMap = new Map<string, Map<string, Interaction>>();
 for (const int of (interactionsData as RawInteraction[])) {
   const mappedInt: Interaction = {
@@ -709,19 +718,24 @@ export function findContraindications(drugIds: string[], patientContext?: Patien
   }
   
   if (patientContext && patientContext.diseases && Array.isArray(patientContext.diseases) && patientContext.diseases.length > 0) {
-    for (const contra of (contraindicationsData as any[])) {
-      if (resolvedIds.has(contra.drugId) && (patientContext as any).diseases.includes(contra.diseaseIcd)) {
-        const drug = drugsMap.get(contra.drugId);
-        results.push({
-          id: contra.id,
-          drugId: contra.drugId,
-          drugName: drug?.name ?? contra.drugId,
-          type: "disease",
-          severity: contra.severity.toLowerCase() as "high" | "medium" | "low",
-          message: contra.effect,
-          diseaseIcd: contra.diseaseIcd,
-          diseaseName: contra.diseaseName
-        });
+    for (const drugId of Array.from(resolvedIds)) {
+      const contras = contraindicationsMap.get(drugId);
+      if (contras) {
+        for (const contra of contras) {
+          if ((patientContext as any).diseases.includes(contra.diseaseIcd)) {
+            const drug = drugsMap.get(contra.drugId);
+            results.push({
+              id: contra.id,
+              drugId: contra.drugId,
+              drugName: drug?.name ?? contra.drugId,
+              type: "disease",
+              severity: contra.severity.toLowerCase() as "high" | "medium" | "low",
+              message: contra.effect,
+              diseaseIcd: contra.diseaseIcd,
+              diseaseName: contra.diseaseName
+            });
+          }
+        }
       }
     }
   }

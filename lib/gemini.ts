@@ -365,13 +365,14 @@ ${(() => {
   const evs = ctx.interaction.evidences;
   if (!evs || evs.length === 0) return "Bulunmuyor";
   const len = evs.length;
-  const arr = new Array(len);
+  let str = "";
   for (let i = 0; i < len; i++) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const e = evs[i] as any;
-    arr[i] = "- Kaynak ID: " + e.source.id + ", Başlık: " + e.source.title + ", URL: " + e.source.url + ", Seviye: " + e.evidenceLevel + ", Özet: " + e.summary;
+    if (i > 0) str += "\n";
+    str += "- Kaynak ID: " + e.source.id + ", Başlık: " + e.source.title + ", URL: " + e.source.url + ", Seviye: " + e.evidenceLevel + ", Özet: " + e.summary;
   }
-  return arr.join("\n");
+  return str;
 })()}
 
 Doğrulanmış Veritabanı Mekanizmaları:
@@ -379,13 +380,14 @@ ${(() => {
   const mecs = ctx.interaction.mechanisms;
   if (!mecs || mecs.length === 0) return "Bulunmuyor";
   const len = mecs.length;
-  const arr = new Array(len);
+  let str = "";
   for (let i = 0; i < len; i++) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const m = mecs[i] as any;
-    arr[i] = "- Tür: " + m.type + ", Detay: " + m.mechanism + ", Farmakokinetik: " + m.pharmacokinetic + ", Farmakodinamik: " + m.pharmacodynamic;
+    if (i > 0) str += "\n";
+    str += "- Tür: " + m.type + ", Detay: " + m.mechanism + ", Farmakokinetik: " + m.pharmacokinetic + ", Farmakodinamik: " + m.pharmacodynamic;
   }
-  return arr.join("\n");
+  return str;
 })()}
 
 JSON şemasındaki 'sourceIds' alanını mutlaka yukarıda listelenen Kaynak ID'leri (UUID formatında) ile doldur. 'kaynakOzeti' kısmında ise sadece bu kanıtlara dayalı bir özet yaz.
@@ -455,10 +457,15 @@ async function executeGeminiRequest(model: string, payload: string): Promise<str
   const candidate = data?.candidates?.[0];
   const finishReason: string | undefined = candidate?.finishReason;
 
-  const rawText = (candidate?.content?.parts ?? [])
-    .map((part: { text?: string }) => typeof part?.text === "string" ? part.text : "")
-    .filter(Boolean)
-    .join("");
+  let rawText = "";
+  const parts = candidate?.content?.parts ?? [];
+  const partsLen = parts.length;
+  for (let i = 0; i < partsLen; i++) {
+    const part = parts[i];
+    if (typeof part?.text === "string" && part.text) {
+      rawText += part.text;
+    }
+  }
 
   if (!rawText) {
     throw new Error("Modelden boş yanıt alındı.");
@@ -512,19 +519,29 @@ export function formatExplanation(parsedJSON: GeminiExplanationResponse): string
       rawOneriler = [];
     }
   }
-  const oneriler: string[] = rawOneriler
-    .map((o: unknown) => normalizeExplanation(String(o || "")))
-    .filter(Boolean);
-
   const hekim = normalizeExplanation(parsedJSON.hekimYonlendirmesi || "");
+
+  let onerilerStr = "**Önemli Belirtiler ve Öneriler:**";
+  const len = rawOneriler.length;
+  if (len > 0) {
+    const arr = [];
+    for (let i = 0; i < len; i++) {
+      const val = normalizeExplanation(String(rawOneriler[i] || ""));
+      if (val) {
+        arr.push(`• ${val}`);
+      }
+    }
+    if (arr.length > 0) {
+      onerilerStr += "\n" + arr.join("\n");
+    }
+  }
 
   return `
 ${giris}
 
 ${klinik}
 
-**Önemli Belirtiler ve Öneriler:**
-${oneriler.map((o) => `• ${o}`).join("\n")}
+${onerilerStr}
 
 ${hekim}
 `.trim();

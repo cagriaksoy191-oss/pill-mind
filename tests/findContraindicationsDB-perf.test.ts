@@ -21,6 +21,10 @@ describe("findContraindicationsDB Performance", () => {
     process.env.DATABASE_URL = originalDbUrl;
   });
 
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
   it("should benchmark contraindication finding with many contras", async () => {
     const drugIds = Array.from({ length: 50 }, (_, i) => `drug-${i}`);
 
@@ -52,6 +56,58 @@ describe("findContraindicationsDB Performance", () => {
     const end = performance.now();
 
     console.log(`[BENCHMARK] findContraindicationsDB with 10000 db results (100 iterations): ${(end - start).toFixed(2)} ms`);
-    expect(true).toBe(true);
+    expect(mockFindManyContra).toHaveBeenCalledTimes(100);
   });
+
+  it("should handle empty diseases array without querying db", async () => {
+    const drugIds = ["drug-1", "drug-2"];
+    const resolvedDrugsCache = drugIds.map(id => ({
+      id,
+      name: `Name ${id}`,
+      activeIngredient: `Active ${id}`,
+      category: "Category",
+      pharmacologicalGroup: "Group"
+    }));
+
+    await findContraindicationsDB(drugIds, { diseases: [] }, resolvedDrugsCache);
+
+    expect(mockFindManyContra).not.toHaveBeenCalled();
+  });
+
+  it("should handle undefined diseases without querying db", async () => {
+    const drugIds = ["drug-1", "drug-2"];
+    const resolvedDrugsCache = drugIds.map(id => ({
+      id,
+      name: `Name ${id}`,
+      activeIngredient: `Active ${id}`,
+      category: "Category",
+      pharmacologicalGroup: "Group"
+    }));
+
+    await findContraindicationsDB(drugIds, { ageGroup: "elderly" }, resolvedDrugsCache);
+
+    expect(mockFindManyContra).not.toHaveBeenCalled();
+  });
+
+  it("should handle empty drugIds without querying contraindications if no resolved drugs", async () => {
+    mockFindManyDrug.mockResolvedValue([]);
+    await findContraindicationsDB([], { diseases: ["ICD-1"] });
+
+    // It will query contraindications with an empty resolvedDrugIds array
+    expect(mockFindManyContra).toHaveBeenCalledWith({
+      where: {
+        drugId: { in: [] },
+        diseaseIcd: { in: ["ICD-1"] }
+      }
+    });
+  });
+
+  it("should handle empty drugIds and empty diseases array simultaneously without querying contraindications", async () => {
+    mockFindManyDrug.mockResolvedValue([]);
+    await findContraindicationsDB([], { diseases: [] });
+
+    // It should not query contraindications since diseases is empty
+    expect(mockFindManyContra).not.toHaveBeenCalled();
+  });
+
 });

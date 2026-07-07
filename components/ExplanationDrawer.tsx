@@ -1,5 +1,5 @@
 import { getEvidenceLevelBadge } from "@/lib/utils/badges";
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 
 interface ExplanationData {

@@ -72,12 +72,10 @@ export async function POST(request: Request) {
     const verifyHash = crypto.createHmac('sha256', getJwtSecret()).update(`${cleanEmail}:${otp}:${expiresStr}`).digest('hex');
 
     // Timing safe eşitlik kontrolü (Side-channel ataklarını önlemek için)
-    let isValid = false;
-    try {
-      isValid = crypto.timingSafeEqual(Buffer.from(verifyHash), Buffer.from(expectedHash));
-    } catch (e) {
-      isValid = false;
-    }
+    // Sabit uzunlukta hash'ler oluşturularak length-mismatch side-channel atağı önlenir
+    const expectedHashBuffer = crypto.createHash('sha256').update(expectedHash).digest();
+    const verifyHashBuffer = crypto.createHash('sha256').update(verifyHash).digest();
+    const isValid = crypto.timingSafeEqual(verifyHashBuffer, expectedHashBuffer);
 
     if (!isValid) {
       return NextResponse.json(

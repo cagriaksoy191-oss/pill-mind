@@ -30,6 +30,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Fetch user from database to check authorization
+    const user = await prisma.user.findUnique({
+      where: { id: session.userId },
+      select: { role: true }
+    });
+
+    if (!user || (user.role !== "ADMIN" && user.role !== "CLINICAL_REVIEWER")) {
+      return jsonNoStore(
+        { error: "Klinik onay işlemi için yetkiniz bulunmamaktadır." },
+        403
+      );
+    }
+
     const body = await request.json();
     const { interactionId, status, notes, evidenceSourceId } = body as {
       interactionId: string;

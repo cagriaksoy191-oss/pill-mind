@@ -39,6 +39,9 @@ jest.mock("@/lib/interactions", () => ({
 
 jest.mock("@/lib/prisma", () => ({
   prisma: {
+    user: {
+      findUnique: jest.fn(),
+    },
     drug: {
       findMany: jest.fn(),
     },
@@ -252,8 +255,20 @@ describe("PillMind 3.0 Enterprise and FHIR API Tests", () => {
       expect(res.status).toBe(401);
     });
 
+    it("should return 403 if the authenticated user is not an authorized reviewer", async () => {
+      (getSession as jest.Mock).mockReturnValue({ userId: "user-1", email: "hasta@pillmind.com" });
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue({ role: "USER" });
+
+      const req = createMockRequest({ interactionId: "int-1", status: "VERIFIED" });
+      const res = await submitReview(req);
+      expect(res.status).toBe(403);
+      const body = await res.json();
+      expect(body.error).toBe("Klinik onay işlemi için yetkiniz bulunmamaktadır.");
+    });
+
     it("should update status, create clinical review record, and log action", async () => {
       (getSession as jest.Mock).mockReturnValue({ userId: "admin-1", email: "admin@pillmind.com" });
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue({ role: "ADMIN" });
       (prisma.drugInteraction.findUnique as jest.Mock).mockResolvedValue({ id: "int-1", severity: "high" });
       (prisma.drugInteraction.update as jest.Mock).mockResolvedValue({ id: "int-1", verificationStatus: "VERIFIED" });
       (prisma.clinicalReview.create as jest.Mock).mockResolvedValue({ id: "rev-1", entityId: "int-1" });

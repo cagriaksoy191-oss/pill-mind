@@ -1,5 +1,4 @@
 import { streamGeminiContent } from "../lib/gemini";
-import { MODEL_CHAIN } from "../lib/gemini";
 
 // Setup polyfills
 const util = require('util');

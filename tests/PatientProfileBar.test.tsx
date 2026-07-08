@@ -23,7 +23,14 @@ describe('PatientProfileBar', () => {
 
   const setup = (contextOverrides: Partial<PatientContext> = {}) => {
     const context = { ...defaultContext, ...contextOverrides };
-    return render(<PatientProfileBar context={context} onChange={mockOnChange} />);
+    const utils = render(<PatientProfileBar context={context} onChange={mockOnChange} />);
+
+    const openPanel = () => {
+      const headerBtn = screen.getAllByText(/Hasta Risk Faktörleri Modülü/i)[0].closest('button');
+      if (headerBtn) fireEvent.click(headerBtn);
+    };
+
+    return { ...utils, openPanel };
   };
 
   it('renders correctly', () => {
@@ -32,13 +39,12 @@ describe('PatientProfileBar', () => {
   });
 
   it('toggles the panel open and close', () => {
-    setup();
+    const { openPanel } = setup();
     // Initially closed, so we shouldn't see inner elements
     expect(screen.queryByText('Gebelik Durumu')).not.toBeInTheDocument();
 
     // Click header to open
-    const headerBtn = screen.getAllByText(/Hasta Risk Faktörleri Modülü/i)[0].closest('button');
-    fireEvent.click(headerBtn!);
+    openPanel();
 
     // Now it should be open
     expect(screen.getByText('Gebelik Durumu')).toBeInTheDocument();
@@ -52,9 +58,8 @@ describe('PatientProfileBar', () => {
   });
 
   it('calls onChange with toggled pregnancy state', () => {
-    setup();
-    const headerBtn = screen.getAllByText(/Hasta Risk Faktörleri Modülü/i)[0].closest('button');
-    fireEvent.click(headerBtn!);
+    const { openPanel } = setup();
+    openPanel();
 
     const pregnantBtn = screen.getByText('Gebelik Durumu').closest('button');
     fireEvent.click(pregnantBtn!);
@@ -66,9 +71,8 @@ describe('PatientProfileBar', () => {
   });
 
   it('calls onChange with toggled breastfeeding state', () => {
-    setup();
-    const headerBtn = screen.getAllByText(/Hasta Risk Faktörleri Modülü/i)[0].closest('button');
-    fireEvent.click(headerBtn!);
+    const { openPanel } = setup();
+    openPanel();
 
     const breastfeedingBtn = screen.getByText('Emzirme Durumu').closest('button');
     fireEvent.click(breastfeedingBtn!);
@@ -80,9 +84,8 @@ describe('PatientProfileBar', () => {
   });
 
   it('calls onChange with correct ageGroup', () => {
-    setup();
-    const headerBtn = screen.getAllByText(/Hasta Risk Faktörleri Modülü/i)[0].closest('button');
-    fireEvent.click(headerBtn!);
+    const { openPanel } = setup();
+    openPanel();
 
     const elderlyBtn = screen.getByText('65 Yaş Üstü');
     fireEvent.click(elderlyBtn);
@@ -102,9 +105,8 @@ describe('PatientProfileBar', () => {
   });
 
   it('calls onChange with toggled renal and hepatic risks', () => {
-    setup();
-    const headerBtn = screen.getAllByText(/Hasta Risk Faktörleri Modülü/i)[0].closest('button');
-    fireEvent.click(headerBtn!);
+    const { openPanel } = setup();
+    openPanel();
 
     const renalBtn = screen.getByText('Böbrek Yetmezliği').closest('button');
     fireEvent.click(renalBtn!);
@@ -125,9 +127,8 @@ describe('PatientProfileBar', () => {
 
   it('adds and removes a disease from the list', () => {
     // Initial state: no diseases
-    setup();
-    const headerBtn = screen.getAllByText(/Hasta Risk Faktörleri Modülü/i)[0].closest('button');
-    fireEvent.click(headerBtn!);
+    const { openPanel } = setup();
+    openPanel();
 
     const pepticUlcerBtn = screen.getByText('Peptik Ülser').closest('button');
     fireEvent.click(pepticUlcerBtn!);
@@ -143,11 +144,8 @@ describe('PatientProfileBar', () => {
     jest.clearAllMocks();
 
     // Re-render with K25 already present
-    setup({ diseases: ['K25', 'I10'] });
-
-    // Have to open it again for the new setup
-    const newHeaderBtn = screen.getAllByText(/Hasta Risk Faktörleri Modülü/i)[0].closest('button');
-    fireEvent.click(newHeaderBtn!);
+    const { openPanel: openPanelAgain } = setup({ diseases: ['K25', 'I10'] });
+    openPanelAgain();
 
     const pepticUlcerBtnAgain = screen.getByText('Peptik Ülser').closest('button');
     fireEvent.click(pepticUlcerBtnAgain!);
@@ -158,7 +156,6 @@ describe('PatientProfileBar', () => {
       diseases: ['I10'], // Only I10 remains
     });
   });
-
 
   it('renders "Profil Aktif" badge when filters are active', () => {
     const { unmount } = setup({ isPregnant: true });
@@ -175,7 +172,7 @@ describe('PatientProfileBar', () => {
   });
 
   it('applies active styles when context fields are true', () => {
-    setup({
+    const { openPanel } = setup({
       isPregnant: true,
       isBreastfeeding: true,
       ageGroup: 'elderly',
@@ -184,8 +181,7 @@ describe('PatientProfileBar', () => {
       diseases: ['K25'],
     });
 
-    const headerBtn = screen.getAllByText(/Hasta Risk Faktörleri Modülü/i)[0].closest('button');
-    fireEvent.click(headerBtn!);
+    openPanel();
 
     const pregnantBtn = screen.getByText('Gebelik Durumu').closest('button');
     expect(pregnantBtn).toHaveClass('bg-purple-500/10');

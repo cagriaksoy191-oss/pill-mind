@@ -466,3 +466,70 @@ describe("findFoodInteractionsDB", () => {
 });
 
 });
+
+describe("resolveDrugsDB", () => {
+  const originalEnv = process.env;
+
+  beforeEach(() => {
+    jest.resetModules();
+    process.env = { ...originalEnv, DATABASE_URL: "postgresql://user:pass@localhost:5432/db" };
+    const { prisma } = require("@/lib/prisma");
+    if (prisma.drug && prisma.drug.findMany && typeof prisma.drug.findMany.mockClear === 'function') {
+        prisma.drug.findMany.mockClear();
+    }
+  });
+
+  afterAll(() => {
+    process.env = originalEnv;
+  });
+
+  it("should return empty array if DATABASE_URL is not set", async () => {
+    delete process.env.DATABASE_URL;
+    const { resolveDrugsDB } = require("../lib/interactions");
+    const result = await resolveDrugsDB(["drug1"]);
+    expect(result).toEqual([]);
+  });
+
+  it("should return empty array if DATABASE_URL includes [SIFRE]", async () => {
+    process.env.DATABASE_URL = "postgresql://user:[SIFRE]@localhost:5432/db";
+    const { resolveDrugsDB } = require("../lib/interactions");
+    const result = await resolveDrugsDB(["drug1"]);
+    expect(result).toEqual([]);
+  });
+
+  it("should return drugs from DB", async () => {
+    const { prisma } = require("@/lib/prisma");
+    const { resolveDrugsDB } = require("../lib/interactions");
+    const mockDrugs = [{ id: "drug1", name: "Drug 1" }];
+    prisma.drug.findMany.mockResolvedValue(mockDrugs);
+
+    const result = await resolveDrugsDB(["drug1"]);
+
+    expect(prisma.drug.findMany).toHaveBeenCalledWith({
+      where: {
+        OR: [
+          { id: { in: ["drug1"] } },
+          { name: { in: ["drug1"] } },
+          { brandNames: { some: { name: { in: ["drug1"] } } } },
+          { aliases: { some: { alias: { in: ["drug1"] } } } },
+          { aliases: { some: { normalizedAlias: { in: ["drug1"] } } } }
+        ]
+      }
+    });
+    expect(result).toEqual(mockDrugs);
+  });
+
+  it("should return empty array on database error and log error", async () => {
+    const { prisma } = require("@/lib/prisma");
+    const { resolveDrugsDB } = require("../lib/interactions");
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    prisma.drug.findMany.mockRejectedValue(new Error("DB Error"));
+
+    const result = await resolveDrugsDB(["drug1"]);
+
+    expect(consoleSpy).toHaveBeenCalled();
+    expect(result).toEqual([]);
+
+    consoleSpy.mockRestore();
+  });
+});

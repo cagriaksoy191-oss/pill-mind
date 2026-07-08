@@ -467,6 +467,164 @@ describe("findFoodInteractionsDB", () => {
 
 });
 
+
+describe("findContraindicationsDB", () => {
+  const originalEnv = process.env;
+
+  beforeEach(() => {
+    jest.resetModules();
+    process.env = { ...originalEnv, DATABASE_URL: "postgresql://user:pass@localhost:5432/db" };
+    const { prisma } = require("@/lib/prisma");
+    if (prisma.drug && prisma.drug.findMany && typeof prisma.drug.findMany.mockClear === 'function') {
+        prisma.drug.findMany.mockClear();
+    }
+    if (prisma.contraindication && prisma.contraindication.findMany && typeof prisma.contraindication.findMany.mockClear === 'function') {
+        prisma.contraindication.findMany.mockClear();
+    }
+  });
+
+  afterAll(() => {
+    process.env = originalEnv;
+  });
+
+  test("returns empty array if patientContext is undefined", async () => {
+    const { findContraindicationsDB } = require("../lib/interactions");
+    const result = await findContraindicationsDB(["warfarin"]);
+    expect(result).toEqual([]);
+  });
+
+  test("uses resolvedDrugsCache if provided", async () => {
+    const { findContraindicationsDB } = require("../lib/interactions");
+    const { prisma } = require("@/lib/prisma");
+
+    const mockDrug = { id: "warfarin", name: "warfarin" };
+
+    // Pass cache directly
+    const result = await findContraindicationsDB(["warfarin"], { isPregnant: true }, [mockDrug]);
+
+    // Should return pregnancy contraindication for Warfarin Category X
+    expect(result).toHaveLength(1);
+    expect(result[0].type).toBe("pregnancy");
+
+    // Should NOT have fetched from DB since cache was provided
+    expect(prisma.drug.findMany).not.toHaveBeenCalled();
+  });
+
+  test("returns disease contraindications from DB if Prisma query succeeds", async () => {
+    const { findContraindicationsDB } = require("../lib/interactions");
+    const { prisma } = require("@/lib/prisma");
+
+    const mockDrug = { id: "aspirin", name: "Aspirin" };
+    const mockContra = {
+      id: "c1",
+      drugId: "aspirin",
+      diseaseIcd: "K25",
+      diseaseName: "Peptik Ülser",
+      effect: "Kanama riski",
+      severity: "High"
+    };
+
+    prisma.drug.findMany.mockResolvedValue([mockDrug]);
+    // mock contraindication if not defined yet
+    if (!prisma.contraindication) { prisma.contraindication = { findMany: jest.fn() }; }
+    prisma.contraindication.findMany.mockResolvedValue([mockContra]);
+
+    const result = await findContraindicationsDB(["aspirin"], { diseases: ["K25"] });
+
+    expect(prisma.drug.findMany).toHaveBeenCalled();
+    expect(prisma.contraindication.findMany).toHaveBeenCalledWith({
+      where: {
+        drugId: { in: ["aspirin"] },
+        diseaseIcd: { in: ["K25"] }
+      }
+    });
+
+    expect(result).toHaveLength(1);
+    expect(result[0].type).toBe("disease");
+    expect(result[0].diseaseIcd).toBe("K25");
+  });
+
+  test("returns pregnancy contraindications from clinical metadata", async () => {
+    const { findContraindicationsDB } = require("../lib/interactions");
+    const { prisma } = require("@/lib/prisma");
+
+    const mockDrugX = { id: "warfarin", name: "Warfarin" };
+    const mockDrugD = { id: "aspirin", name: "Aspirin" };
+
+    prisma.drug.findMany.mockResolvedValue([mockDrugX, mockDrugD]);
+
+    const result = await findContraindicationsDB(["warfarin", "aspirin"], { isPregnant: true });
+
+    expect(result).toHaveLength(2);
+    expect(result.some(r => r.drugId === "warfarin" && r.type === "pregnancy" && r.message.includes("Kategori X"))).toBe(true);
+    // Note: Aspirin's exact category in metadata dictates if it's caught. Based on findContraindications tests, it might not be D, let's just rely on the count or check warfarin.
+  });
+
+  test("returns breastfeeding contraindications from clinical metadata", async () => {
+    const { findContraindicationsDB } = require("../lib/interactions");
+    const { prisma } = require("@/lib/prisma");
+
+    const mockDrug = { id: "aspirin", name: "Aspirin" };
+    prisma.drug.findMany.mockResolvedValue([mockDrug]);
+
+    const result = await findContraindicationsDB(["aspirin"], { isBreastfeeding: true });
+
+    expect(result).toHaveLength(1);
+    expect(result[0].type).toBe("breastfeeding");
+    expect(result[0].severity).toBe("medium");
+  });
+
+  test("returns renal risk contraindications from clinical metadata", async () => {
+    const { findContraindicationsDB } = require("../lib/interactions");
+    const { prisma } = require("@/lib/prisma");
+
+    const mockDrug1 = { id: "metformin", name: "Metformin" };
+    const mockDrug2 = { id: "ibuprofen", name: "Ibuprofen" };
+
+    prisma.drug.findMany.mockResolvedValue([mockDrug1, mockDrug2]);
+
+    const result = await findContraindicationsDB(["metformin", "ibuprofen"], { renalRisk: true });
+
+    expect(result).toHaveLength(2);
+    expect(result.every(r => r.type === "renal")).toBe(true);
+  });
+
+  test("returns hepatic risk contraindications from clinical metadata", async () => {
+    const { findContraindicationsDB } = require("../lib/interactions");
+    const { prisma } = require("@/lib/prisma");
+
+    const mockDrug1 = { id: "parasetamol", name: "Parasetamol" };
+    const mockDrug2 = { id: "warfarin", name: "Warfarin" };
+
+    prisma.drug.findMany.mockResolvedValue([mockDrug1, mockDrug2]);
+
+    const result = await findContraindicationsDB(["parasetamol", "warfarin"], { hepaticRisk: true });
+
+    expect(result).toHaveLength(2);
+    expect(result.every(r => r.type === "hepatic")).toBe(true);
+  });
+
+  test("uses fallback if Prisma query fails", async () => {
+    const { findContraindicationsDB } = require("../lib/interactions");
+    const { prisma } = require("@/lib/prisma");
+
+    const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+
+    // Make Prisma throw an error
+    prisma.drug.findMany.mockRejectedValue(new Error("Database connection failed"));
+
+    // Fallback logic uses findContraindications, which uses getDrugClinicalMetadata
+    const result = await findContraindicationsDB(["warfarin"], { isPregnant: true });
+
+    // Fallback should still find the category X pregnancy risk
+    expect(result.length).toBeGreaterThan(0);
+    expect(result[0].type).toBe("pregnancy");
+
+    expect(consoleSpy).toHaveBeenCalled();
+    consoleSpy.mockRestore();
+  });
+});
+
 describe("resolveDrugsDB", () => {
   const originalEnv = process.env;
 

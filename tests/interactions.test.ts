@@ -835,3 +835,124 @@ describe("resolveDrugsDB", () => {
     consoleSpy.mockRestore();
   });
 });
+
+
+describe("checkAccumulationDB", () => {
+  const originalEnv = process.env;
+
+  beforeEach(() => {
+    jest.resetModules();
+    process.env = { ...originalEnv, DATABASE_URL: "postgresql://user:pass@localhost:5432/db" };
+    const { prisma } = require("@/lib/prisma");
+    if (prisma.drug && prisma.drug.findMany && typeof prisma.drug.findMany.mockClear === 'function') {
+        prisma.drug.findMany.mockClear();
+    }
+  });
+
+  afterAll(() => {
+    process.env = originalEnv;
+  });
+
+  it("should return checkAccumulation results if DATABASE_URL is not set", async () => {
+    delete process.env.DATABASE_URL;
+    const { checkAccumulationDB } = require("../lib/interactions");
+    const result = await checkAccumulationDB(["aspirin", "ibuprofen"]);
+    expect(result.length).toBeGreaterThan(0);
+    expect(result[0].type).toBe("pharmacological_group");
+  });
+
+  it("should return checkAccumulation results if DATABASE_URL includes [SIFRE]", async () => {
+    process.env.DATABASE_URL = "postgresql://user:[SIFRE]@localhost:5432/db";
+    const { checkAccumulationDB } = require("../lib/interactions");
+    const result = await checkAccumulationDB(["aspirin", "ibuprofen"]);
+    expect(result.length).toBeGreaterThan(0);
+    expect(result[0].type).toBe("pharmacological_group");
+  });
+
+  it("should return accumulation warnings for same active ingredient from DB", async () => {
+    const { prisma } = require("@/lib/prisma");
+    const { checkAccumulationDB } = require("../lib/interactions");
+
+    // Mock 2 drugs with the same active ingredient
+    const mockDrugs = [
+      { id: "drug1", name: "Parol", activeIngredient: "Parasetamol" },
+      { id: "drug2", name: "Minoset", activeIngredient: "Parasetamol" }
+    ];
+    prisma.drug.findMany.mockResolvedValue(mockDrugs);
+
+    const result = await checkAccumulationDB(["parol", "minoset"]);
+
+    expect(prisma.drug.findMany).toHaveBeenCalledWith({
+      where: {
+        OR: [
+          { id: { in: ["parol", "minoset"] } },
+          { name: { in: ["parol", "minoset"] } },
+          { brandNames: { some: { name: { in: ["parol", "minoset"] } } } }
+        ]
+      }
+    });
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toEqual({
+      type: "active_ingredient",
+      severity: "high",
+      message: "Dikkat: Aynı etkin maddeyi (Parasetamol) içeren birden fazla ilaç eklediniz. Aşırı doz riski!",
+      triggerDrugs: ["Parol", "Minoset"],
+      detail: "Parol ve Minoset ilaçlarının ikisi de Parasetamol içermektedir."
+    });
+  });
+
+  it("should return accumulation warnings for same pharmacological group from DB", async () => {
+    const { prisma } = require("@/lib/prisma");
+    const { checkAccumulationDB } = require("../lib/interactions");
+
+    // Mock 2 drugs with different ingredients but same pharmacological group
+    const mockDrugs = [
+      { id: "drug1", name: "Ibuprofen", activeIngredient: "Ibuprofen", pharmacologicalGroup: "NSAII" },
+      { id: "drug2", name: "Naproksen", activeIngredient: "Naproksen", pharmacologicalGroup: "NSAII" }
+    ];
+    prisma.drug.findMany.mockResolvedValue(mockDrugs);
+
+    const result = await checkAccumulationDB(["ibuprofen", "naproksen"]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toEqual({
+      type: "pharmacological_group",
+      severity: "medium",
+      message: "Dikkat: Aynı farmakolojik sınıftan (NSAII) birden fazla ilaç eklediniz. Yan etki riski artabilir.",
+      triggerDrugs: ["Ibuprofen", "Naproksen"],
+      detail: "Ibuprofen ve Naproksen ilaçları NSAII sınıfına aittir."
+    });
+  });
+
+  it("should use resolvedDrugsCache if provided instead of querying DB", async () => {
+    const { prisma } = require("@/lib/prisma");
+    const { checkAccumulationDB } = require("../lib/interactions");
+
+    const mockDrugs = [
+      { id: "drug1", name: "Parol", activeIngredient: "Parasetamol" },
+      { id: "drug2", name: "Minoset", activeIngredient: "Parasetamol" }
+    ];
+
+    const result = await checkAccumulationDB(["parol", "minoset"], mockDrugs);
+
+    expect(prisma.drug.findMany).not.toHaveBeenCalled();
+    expect(result).toHaveLength(1);
+    expect(result[0].type).toBe("active_ingredient");
+  });
+
+  it("should return checkAccumulation results on database error and log error", async () => {
+    const { prisma } = require("@/lib/prisma");
+    const { checkAccumulationDB } = require("../lib/interactions");
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    prisma.drug.findMany.mockRejectedValue(new Error("DB Error"));
+
+    const result = await checkAccumulationDB(["aspirin", "ibuprofen"]);
+
+    // checkAccumulation from local mock data should return active ingredient warning for parol/minoset
+    expect(result.length).toBeGreaterThan(0);
+    expect(result[0].type).toBe("pharmacological_group");
+
+    consoleSpy.mockRestore();
+  });
+});

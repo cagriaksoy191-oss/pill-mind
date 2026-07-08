@@ -1,4 +1,4 @@
-import { getCoverageContext, getInteractionContext, formatExplanation, buildInteractionStreamPrompt, isOutputSafe } from "../lib/gemini";
+import { getCoverageContext, getInteractionContext, formatExplanation, buildInteractionStreamPrompt, isOutputSafe , UNSAFE_PATTERNS} from "../lib/gemini";
 
 describe("getCoverageContext", () => {
   it("should return null when an empty array is provided", () => {
@@ -555,6 +555,26 @@ describe("isOutputSafe", () => {
   });
 });
 
+
+
+describe("UNSAFE_PATTERNS", () => {
+  it("should be an array of case-insensitive RegExps", () => {
+    expect(Array.isArray(UNSAFE_PATTERNS)).toBe(true);
+    expect(UNSAFE_PATTERNS.length).toBeGreaterThan(0);
+
+    UNSAFE_PATTERNS.forEach((pattern) => {
+      expect(pattern instanceof RegExp).toBe(true);
+      expect(pattern.flags).toContain('i');
+    });
+  });
+
+  it("should have correct Turkish custom word boundary wrappers", () => {
+    const patternStr = UNSAFE_PATTERNS[0].source;
+    // Validate wrapper (?:^|[^a-zA-Z0-9ıİğĞüşŞöÖçÇ]) ... (?:$|[^a-zA-Z0-9ıİğĞüşŞöÖçÇ])
+    expect(patternStr.startsWith('(?:^|[^a-zA-Z0-9ıİğĞüşŞöÖçÇ])')).toBe(true);
+    expect(patternStr.endsWith('(?:$|[^a-zA-Z0-9ıİğĞüşŞöÖçÇ])')).toBe(true);
+  });
+});
 
 describe("runReviewerAgent", () => {
   const originalFetch = global.fetch;

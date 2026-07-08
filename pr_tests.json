@@ -1,4 +1,4 @@
 {
-  "title": "🧪 [Add Tests] ExplanationDrawer tests already exist and pass",
-  "body": "## 🧪 Testing Improvement Task\n\n### 🎯 What\nVerified that comprehensive tests for `ExplanationDrawer` component already exist in `tests/ExplanationDrawer.test.tsx`.\n\n### 📊 Coverage\nThe existing tests cover rendering, loading states, cached vs live AI responses, error handling, badge rendering, and UI fallback states.\n\n### ✨ Result\nEnsured tests pass successfully without needing to add redundant duplicate code. Task successfully completed."
+  "title": "🧪 [Testing Improvement] Add unit tests for runReviewerAgent",
+  "body": "## 🧪 Testing Improvement Task\n\n### 🎯 What\nAdded robust unit tests for the `runReviewerAgent` function in `lib/gemini.ts` to ensure safety checks and fallback modes behave deterministically.\n\n### 📊 Coverage\nCovered the following key scenarios:\n- Safe output classification (`EVET` response).\n- Unsafe output classification (`HAYIR` response).\n- Graceful degradation on API fetch failures (`ok: false`).\n- Graceful degradation on network timeouts/exceptions (`SAFETY SHIELD DEGRADED` mode).\n\n### ✨ Result\nAchieved deterministic coverage of the Reviewer Agent logic without modifying the actual implementation, resolving the testing gap."
 }

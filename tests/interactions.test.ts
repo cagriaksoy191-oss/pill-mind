@@ -1,4 +1,17 @@
-import { getDrugClinicalMetadata, getSeverityLabel, getSeverityColor, getAllDrugs, findInteractions, findContraindications, findFoodInteractions } from "../lib/interactions";
+import { prisma } from "@/lib/prisma";
+import { getDrugClinicalMetadata, getSeverityLabel, getSeverityColor, getAllDrugs, findInteractions, findContraindications, findFoodInteractions, findFoodInteractionsDB } from "../lib/interactions";
+
+// --- Mocks ---
+jest.mock("@/lib/prisma", () => ({
+  prisma: {
+    drug: {
+      findMany: jest.fn()
+    },
+    foodInteraction: {
+      findMany: jest.fn()
+    }
+  }
+}));
 
 describe("interactions UI helpers", () => {
 
@@ -341,5 +354,115 @@ describe("interactions UI helpers", () => {
       expect(isWarfarin).toBe(true);
     });
   });
+
+
+
+
+describe("findFoodInteractionsDB", () => {
+  const originalEnv = process.env;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    process.env = { ...originalEnv };
+  });
+
+  afterAll(() => {
+    process.env = originalEnv;
+  });
+
+  test("returns fallback if DATABASE_URL is missing", async () => {
+    delete process.env.DATABASE_URL;
+    const result = await findFoodInteractionsDB(["warfarin"]);
+    expect(result.length).toBeGreaterThan(0);
+    expect(prisma.drug.findMany).not.toHaveBeenCalled();
+  });
+
+  test("returns fallback if DATABASE_URL contains [SIFRE]", async () => {
+    process.env.DATABASE_URL = "postgres://user:[SIFRE]@host/db";
+    const result = await findFoodInteractionsDB(["warfarin"]);
+    expect(result.length).toBeGreaterThan(0);
+    expect(prisma.drug.findMany).not.toHaveBeenCalled();
+  });
+
+  test("returns food interactions from DB if Prisma query succeeds", async () => {
+    process.env.DATABASE_URL = "postgres://user:pass@host/db";
+
+    // Setup mock return values
+    const mockDrug = { id: "warfarin", name: "warfarin" };
+    const mockFoodInt = {
+      id: "f1",
+      drugId: "warfarin",
+      substance: "Vitamin K",
+      effect: "Decrease efficacy",
+      severity: "High",
+      drug: mockDrug
+    };
+
+    (prisma.drug.findMany as jest.Mock).mockResolvedValue([mockDrug]);
+    (prisma.foodInteraction.findMany as jest.Mock).mockResolvedValue([mockFoodInt]);
+
+    const result = await findFoodInteractionsDB(["warfarin"]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toEqual({
+      id: "f1",
+      drugId: "warfarin",
+      drugName: "warfarin",
+      substance: "Vitamin K",
+      effect: "Decrease efficacy",
+      severity: "high"
+    });
+
+    expect(prisma.drug.findMany).toHaveBeenCalled();
+    expect(prisma.foodInteraction.findMany).toHaveBeenCalledWith({
+      where: { drugId: { in: ["warfarin"] } },
+      include: { drug: true }
+    });
+  });
+
+  test("uses resolvedDrugsCache if provided", async () => {
+    process.env.DATABASE_URL = "postgres://user:pass@host/db";
+
+    const mockDrug = { id: "metformin", name: "metformin" };
+    const mockFoodInt = {
+      id: "f2",
+      drugId: "metformin",
+      substance: "Alcohol",
+      effect: "Risk of lactic acidosis",
+      severity: "Medium",
+      drug: mockDrug
+    };
+
+    (prisma.foodInteraction.findMany as jest.Mock).mockResolvedValue([mockFoodInt]);
+
+    // Pass resolvedDrugsCache
+    const result = await findFoodInteractionsDB(["metformin"], [mockDrug]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].substance).toBe("Alcohol");
+
+    // drug.findMany should NOT be called because cache was provided
+    expect(prisma.drug.findMany).not.toHaveBeenCalled();
+    expect(prisma.foodInteraction.findMany).toHaveBeenCalled();
+  });
+
+  test("uses fallback if Prisma query fails", async () => {
+    process.env.DATABASE_URL = "postgres://user:pass@host/db";
+
+    // Suppress expected console.error during the test
+    const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+
+    // Make Prisma throw an error
+    (prisma.drug.findMany as jest.Mock).mockRejectedValue(new Error("Database connection failed"));
+
+    const result = await findFoodInteractionsDB(["warfarin"]);
+
+    // Should fallback to findFoodInteractions, returning results for warfarin
+    expect(result.length).toBeGreaterThan(0);
+    expect(consoleSpy).toHaveBeenCalled();
+
+    consoleSpy.mockRestore();
+  });
+});
 
 });

@@ -413,8 +413,8 @@ Bu bir hekim yönlendirmesidir.`;
   });
 
   it("should handle hastalaraOneriler as null or undefined", () => {
-    const input1 = { hastalaraOneriler: null } as any;
-    const input2 = { hastalaraOneriler: undefined } as any;
+    const input1 = { hastalaraOneriler: null } as unknown;
+    const input2 = { hastalaraOneriler: undefined } as unknown;
     const input3 = {};
 
     const expected = `**Önemli Belirtiler ve Öneriler:**`;
@@ -427,7 +427,7 @@ Bu bir hekim yönlendirmesidir.`;
   it("should handle hastalaraOneriler as an object (invalid type)", () => {
     const input = {
       hastalaraOneriler: { someKey: "someValue" }
-    } as any;
+    } as unknown;
 
     const expected = `**Önemli Belirtiler ve Öneriler:**`;
 
@@ -435,8 +435,8 @@ Bu bir hekim yönlendirmesidir.`;
   });
 
   it("should handle hastalaraOneriler as a number or boolean", () => {
-    const input1 = { hastalaraOneriler: 123 } as any;
-    const input2 = { hastalaraOneriler: true } as any;
+    const input1 = { hastalaraOneriler: 123 } as unknown;
+    const input2 = { hastalaraOneriler: true } as unknown;
 
     const expected = `**Önemli Belirtiler ve Öneriler:**`;
 
@@ -447,7 +447,7 @@ Bu bir hekim yönlendirmesidir.`;
   it("should handle hastalaraOneriler as an array with invalid elements gracefully", () => {
     const input = {
       hastalaraOneriler: ["Valid", null, undefined, 456, false, "Another valid"]
-    } as any;
+    } as unknown;
 
     const expected = `**Önemli Belirtiler ve Öneriler:**
 • Valid
@@ -552,5 +552,69 @@ describe("isOutputSafe", () => {
 
   it("should handle case sensitivity and Turkish characters", () => {
     expect(isOutputSafe("kullanmayın")).toBe(false);
+  });
+});
+
+
+describe("runReviewerAgent", () => {
+  const originalFetch = global.fetch;
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    jest.restoreAllMocks();
+  });
+
+  it("should return true when safety check responds with EVET", async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: jest.fn().mockResolvedValue({
+        candidates: [{ content: { parts: [{ text: " EVET " }] } }]
+      })
+    });
+
+    const { runReviewerAgent } = await import("../lib/gemini");
+    const result = await runReviewerAgent("Safe text");
+    expect(result).toBe(true);
+  });
+
+  it("should return false when safety check responds with HAYIR", async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: jest.fn().mockResolvedValue({
+        candidates: [{ content: { parts: [{ text: " HAYIR " }] } }]
+      })
+    });
+
+    const { runReviewerAgent } = await import("../lib/gemini");
+    const result = await runReviewerAgent("Unsafe text with medical advice");
+    expect(result).toBe(false);
+  });
+
+  it("should return true (degraded mode) when fetch fails with ok: false", async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+    });
+    jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const { runReviewerAgent } = await import("../lib/gemini");
+    const result = await runReviewerAgent("Text");
+    expect(result).toBe(true);
+    expect(console.warn).toHaveBeenCalledWith(
+      expect.stringContaining("[PillMind AI Safety] Reviewer Agent (gemini-2.5-flash-lite) bağlantısı kurulamadı. Regex kontrolüne güvenilerek [SAFETY SHIELD DEGRADED] moduyla devam ediliyor.")
+    );
+  });
+
+  it("should return true (degraded mode) when fetch throws an error (e.g. timeout)", async () => {
+    const error = new Error("Network timeout");
+    global.fetch = jest.fn().mockRejectedValue(error);
+    jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const { runReviewerAgent } = await import("../lib/gemini");
+    const result = await runReviewerAgent("Text");
+    expect(result).toBe(true);
+    expect(console.warn).toHaveBeenCalledWith(
+      expect.stringContaining("[PillMind AI Safety] Reviewer Agent (gemini-2.5-flash-lite) denetimi sırasında hata, [SAFETY SHIELD DEGRADED] moduyla devam ediliyor:"),
+      error
+    );
   });
 });

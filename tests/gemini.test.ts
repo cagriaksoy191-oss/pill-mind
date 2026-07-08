@@ -1,4 +1,4 @@
-import { getCoverageContext, getInteractionContext, formatExplanation, buildInteractionStreamPrompt } from "../lib/gemini";
+import { getCoverageContext, getInteractionContext, formatExplanation, buildInteractionStreamPrompt, isOutputSafe } from "../lib/gemini";
 
 describe("getCoverageContext", () => {
   it("should return null when an empty array is provided", () => {
@@ -531,5 +531,26 @@ describe("buildCoverageStreamPrompt", () => {
     expect(prompt).toContain("Etken maddeler: Ing A, Ing B");
     expect(prompt).toContain("kullanmayın");
     expect(prompt).toContain("bırakın");
+  });
+});
+
+describe("isOutputSafe", () => {
+  it("should return true for safe text", () => {
+    expect(isOutputSafe("Bu ilaçların bir arada kullanımında bilinen bir etkileşim yoktur.")).toBe(true);
+    expect(isOutputSafe("Düzenli egzersiz yapmak sağlığınıza iyi gelir.")).toBe(true);
+  });
+
+  it("should return false for text containing unsafe patterns", () => {
+    expect(isOutputSafe("Bu ilacı kesinlikle kullanmayın")).toBe(false);
+    expect(isOutputSafe("Tedaviyi bırakınız")).toBe(false);
+    expect(isOutputSafe("İlacı hemen kesmelisiniz")).toBe(false);
+    expect(isOutputSafe("Dozunuzu artırın")).toBe(false);
+    expect(isOutputSafe("İlacın dozu azaltılmalıdır")).toBe(false);
+    expect(isOutputSafe("Bu sizin için tamamen güvenli")).toBe(false);
+    expect(isOutputSafe("Hiç risk yok")).toBe(false);
+  });
+
+  it("should handle case sensitivity and Turkish characters", () => {
+    expect(isOutputSafe("kullanmayın")).toBe(false);
   });
 });

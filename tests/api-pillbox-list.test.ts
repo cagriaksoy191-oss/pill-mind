@@ -1,0 +1,80 @@
+import { GET } from "@/app/api/pillbox/list/route";
+import { NextRequest } from "next/server";
+import { getSession } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+
+// Mock dependencies
+jest.mock("@/lib/auth", () => ({
+  getSession: jest.fn(),
+}));
+
+jest.mock("@/lib/prisma", () => ({
+  prisma: {
+    savedPillbox: {
+      findMany: jest.fn(),
+    },
+  },
+}));
+
+describe("GET /api/pillbox/list", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  const createMockRequest = () => {
+    return {} as unknown as NextRequest;
+  };
+
+  it("should return 401 if user is not authenticated", async () => {
+    (getSession as jest.Mock).mockReturnValue(null);
+
+    const req = createMockRequest();
+    const res = await GET(req);
+
+    expect(res.status).toBe(401);
+    const data = await res.json();
+    expect(data.error).toBe("Kaydedilmiş kutularınızı görmek için lütfen önce giriş yapın.");
+  });
+
+  it("should return 200 and the list of pillboxes successfully", async () => {
+    (getSession as jest.Mock).mockReturnValue({ userId: "user-1", email: "test@test.com", expires: Date.now() + 10000 });
+
+    const mockPillboxes = [
+      { id: "pillbox-1", userId: "user-1", name: "My Pillbox", drugIds: ["drug-1"], createdAt: new Date() },
+      { id: "pillbox-2", userId: "user-1", name: "My Pillbox 2", drugIds: ["drug-2"], createdAt: new Date() }
+    ];
+    (prisma.savedPillbox.findMany as jest.Mock).mockResolvedValue(mockPillboxes);
+
+    const req = createMockRequest();
+    const res = await GET(req);
+
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.success).toBe(true);
+    // JSON serialization of dates turns them to strings in NextResponse
+    expect(data.pillboxes.length).toBe(2);
+    expect(data.pillboxes[0].id).toBe("pillbox-1");
+    expect(data.pillboxes[1].id).toBe("pillbox-2");
+
+    expect(prisma.savedPillbox.findMany).toHaveBeenCalledWith({
+      where: { userId: "user-1" },
+      orderBy: { createdAt: "desc" },
+    });
+  });
+
+  it("should return 500 if an internal error occurs", async () => {
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    (getSession as jest.Mock).mockReturnValue({ userId: "user-1", email: "test@test.com", expires: Date.now() + 10000 });
+    (prisma.savedPillbox.findMany as jest.Mock).mockRejectedValue(new Error("Database error"));
+
+    const req = createMockRequest();
+    const res = await GET(req);
+
+    expect(res.status).toBe(500);
+    const data = await res.json();
+    expect(data.error).toBe("Kayıtlı ilaç kutuları listelenirken hata oluştu.");
+
+    expect(consoleSpy).toHaveBeenCalled();
+    consoleSpy.mockRestore();
+  });
+});

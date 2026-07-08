@@ -1,4 +1,4 @@
-import { getDrugClinicalMetadata, getSeverityLabel, getSeverityColor, getAllDrugs, findInteractions, findContraindications } from "../lib/interactions";
+import { getDrugClinicalMetadata, getSeverityLabel, getSeverityColor, getAllDrugs, findInteractions, findContraindications, findFoodInteractions } from "../lib/interactions";
 
 describe("interactions UI helpers", () => {
 
@@ -292,4 +292,54 @@ describe("interactions UI helpers", () => {
       expect(result[0].diseaseIcd).toBe("K25");
     });
   });
+
+  describe("findFoodInteractions", () => {
+    test("returns empty array for empty input", () => {
+      const result = findFoodInteractions([]);
+      expect(result).toEqual([]);
+    });
+
+    test("returns empty array for non-interacting drugs", () => {
+      // e.g. amoksisilin might not have food interactions in our dataset
+      const result = findFoodInteractions(["amoksisilin"]);
+      expect(result).toEqual([]);
+    });
+
+    test("returns food interactions for a known interacting drug (warfarin)", () => {
+      const result = findFoodInteractions(["warfarin"]);
+      expect(result.length).toBeGreaterThan(0);
+
+      const warfarinInteractions = result.filter(r => r.drugId === "warfarin");
+      expect(warfarinInteractions.length).toBeGreaterThan(0);
+
+      // Ensure we have some expected properties
+      expect(warfarinInteractions[0]).toHaveProperty("id");
+      expect(warfarinInteractions[0]).toHaveProperty("substance");
+      expect(warfarinInteractions[0]).toHaveProperty("effect");
+      expect(warfarinInteractions[0]).toHaveProperty("severity");
+    });
+
+    test("returns food interactions for a known interacting drug (metformin)", () => {
+      const result = findFoodInteractions(["metformin"]);
+      expect(result.length).toBeGreaterThan(0);
+
+      const substances = result.map(r => r.substance.toLowerCase());
+      expect(substances).toContain("alkol");
+    });
+
+    test("handles aliases (e.g. coumadin -> warfarin)", () => {
+      const result = findFoodInteractions(["coumadin"]);
+      expect(result.length).toBeGreaterThan(0);
+      const isWarfarin = result.every(r => r.drugId === "warfarin");
+      expect(isWarfarin).toBe(true);
+    });
+
+    test("handles mixed casing and whitespace", () => {
+      const result = findFoodInteractions(["  WaRfaRiN  "]);
+      expect(result.length).toBeGreaterThan(0);
+      const isWarfarin = result.every(r => r.drugId === "warfarin");
+      expect(isWarfarin).toBe(true);
+    });
+  });
+
 });

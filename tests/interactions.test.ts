@@ -358,12 +358,24 @@ describe("interactions UI helpers", () => {
 
 
 
-describe("findFoodInteractionsDB", () => {
+
+describe("findInteractionsDB", () => {
   const originalEnv = process.env;
 
   beforeEach(() => {
-    jest.clearAllMocks();
-    process.env = { ...originalEnv };
+    jest.resetModules();
+    process.env = { ...originalEnv, DATABASE_URL: "postgresql://user:pass@localhost:5432/db" };
+    const { prisma } = require("@/lib/prisma");
+
+    if (!prisma.drug) prisma.drug = { findMany: jest.fn() };
+    if (!prisma.drugInteraction) prisma.drugInteraction = { findMany: jest.fn() };
+
+    if (typeof prisma.drug.findMany.mockClear === 'function') {
+        prisma.drug.findMany.mockClear();
+    }
+    if (typeof prisma.drugInteraction.findMany.mockClear === 'function') {
+        prisma.drugInteraction.findMany.mockClear();
+    }
   });
 
   afterAll(() => {
@@ -372,6 +384,133 @@ describe("findFoodInteractionsDB", () => {
 
   test("returns fallback if DATABASE_URL is missing", async () => {
     delete process.env.DATABASE_URL;
+    const { findInteractionsDB } = require("../lib/interactions");
+    const { prisma } = require("@/lib/prisma");
+    const result = await findInteractionsDB(["warfarin"]);
+    expect(Array.isArray(result)).toBe(true);
+    expect(prisma.drug.findMany).not.toHaveBeenCalled();
+  });
+
+  test("returns fallback if DATABASE_URL contains [SIFRE]", async () => {
+    process.env.DATABASE_URL = "postgres://user:[SIFRE]@host/db";
+    const { findInteractionsDB } = require("../lib/interactions");
+    const { prisma } = require("@/lib/prisma");
+    const result = await findInteractionsDB(["warfarin"]);
+    expect(Array.isArray(result)).toBe(true);
+    expect(prisma.drug.findMany).not.toHaveBeenCalled();
+  });
+
+  test("uses resolvedDrugsCache if provided and fetches interactions from DB", async () => {
+    const { findInteractionsDB } = require("../lib/interactions");
+    const { prisma } = require("@/lib/prisma");
+
+    const mockDrug1 = { id: "drug1", name: "Drug 1" };
+    const mockDrug2 = { id: "drug2", name: "Drug 2" };
+
+    const mockInteraction = {
+      id: "int1",
+      drug1Id: "drug1",
+      drug2Id: "drug2",
+      severity: "High",
+      summary: "Bad interaction",
+      clinicalDetail: "Detail",
+      source: "FDA",
+      sourceLabel: "FDA Data",
+      verificationStatus: "Verified",
+      evidenceLevel: "fda_approved",
+      evidences: [],
+      mechanisms: []
+    };
+
+    (prisma.drugInteraction.findMany as jest.Mock).mockResolvedValue([mockInteraction]);
+
+    const result = await findInteractionsDB(["drug1", "drug2"], [mockDrug1, mockDrug2]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].interaction.summary).toBe("Bad interaction");
+
+    expect(prisma.drug.findMany).not.toHaveBeenCalled();
+    expect(prisma.drugInteraction.findMany).toHaveBeenCalled();
+  });
+
+  test("fetches drugs and interactions from DB if cache not provided", async () => {
+    const { findInteractionsDB } = require("../lib/interactions");
+    const { prisma } = require("@/lib/prisma");
+
+    const mockDrug1 = { id: "drug1", name: "Drug 1" };
+    const mockDrug2 = { id: "drug2", name: "Drug 2" };
+
+    const mockInteraction = {
+      id: "int1",
+      drug1Id: "drug1",
+      drug2Id: "drug2",
+      severity: "High",
+      summary: "Bad interaction",
+      clinicalDetail: "Detail",
+      source: "FDA",
+      sourceLabel: "FDA Data",
+      verificationStatus: "Verified",
+      evidenceLevel: "fda_approved",
+      evidences: [],
+      mechanisms: []
+    };
+
+    (prisma.drug.findMany as jest.Mock).mockResolvedValue([mockDrug1, mockDrug2]);
+    (prisma.drugInteraction.findMany as jest.Mock).mockResolvedValue([mockInteraction]);
+
+    const result = await findInteractionsDB(["drug1", "drug2"]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].interaction.summary).toBe("Bad interaction");
+
+    expect(prisma.drug.findMany).toHaveBeenCalled();
+    expect(prisma.drugInteraction.findMany).toHaveBeenCalled();
+  });
+
+  test("uses fallback if Prisma query fails", async () => {
+    const { findInteractionsDB } = require("../lib/interactions");
+    const { prisma } = require("@/lib/prisma");
+
+    const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+
+    (prisma.drug.findMany as jest.Mock).mockRejectedValue(new Error("DB Error"));
+
+    const result = await findInteractionsDB(["warfarin"]);
+    expect(Array.isArray(result)).toBe(true);
+    expect(consoleSpy).toHaveBeenCalled();
+
+    consoleSpy.mockRestore();
+  });
+});
+
+
+describe("findFoodInteractionsDB", () => {
+  const originalEnv = process.env;
+
+  beforeEach(() => {
+    jest.resetModules();
+    process.env = { ...originalEnv, DATABASE_URL: "postgresql://user:pass@localhost:5432/db" };
+    const { prisma } = require("@/lib/prisma");
+
+    if (!prisma.drug) prisma.drug = { findMany: jest.fn() };
+    if (!prisma.foodInteraction) prisma.foodInteraction = { findMany: jest.fn() };
+
+    if (typeof prisma.drug.findMany.mockClear === 'function') {
+        prisma.drug.findMany.mockClear();
+    }
+    if (typeof prisma.foodInteraction.findMany.mockClear === 'function') {
+        prisma.foodInteraction.findMany.mockClear();
+    }
+  });
+
+  afterAll(() => {
+    process.env = originalEnv;
+  });
+
+  test("returns fallback if DATABASE_URL is missing", async () => {
+    delete process.env.DATABASE_URL;
+    const { findFoodInteractionsDB } = require("../lib/interactions");
+    const { prisma } = require("@/lib/prisma");
     const result = await findFoodInteractionsDB(["warfarin"]);
     expect(result.length).toBeGreaterThan(0);
     expect(prisma.drug.findMany).not.toHaveBeenCalled();
@@ -379,13 +518,16 @@ describe("findFoodInteractionsDB", () => {
 
   test("returns fallback if DATABASE_URL contains [SIFRE]", async () => {
     process.env.DATABASE_URL = "postgres://user:[SIFRE]@host/db";
+    const { findFoodInteractionsDB } = require("../lib/interactions");
+    const { prisma } = require("@/lib/prisma");
     const result = await findFoodInteractionsDB(["warfarin"]);
     expect(result.length).toBeGreaterThan(0);
     expect(prisma.drug.findMany).not.toHaveBeenCalled();
   });
 
   test("returns food interactions from DB if Prisma query succeeds", async () => {
-    process.env.DATABASE_URL = "postgres://user:pass@host/db";
+    const { findFoodInteractionsDB } = require("../lib/interactions");
+    const { prisma } = require("@/lib/prisma");
 
     // Setup mock return values
     const mockDrug = { id: "warfarin", name: "warfarin" };
@@ -421,7 +563,8 @@ describe("findFoodInteractionsDB", () => {
   });
 
   test("uses resolvedDrugsCache if provided", async () => {
-    process.env.DATABASE_URL = "postgres://user:pass@host/db";
+    const { findFoodInteractionsDB } = require("../lib/interactions");
+    const { prisma } = require("@/lib/prisma");
 
     const mockDrug = { id: "metformin", name: "metformin" };
     const mockFoodInt = {
@@ -447,7 +590,8 @@ describe("findFoodInteractionsDB", () => {
   });
 
   test("uses fallback if Prisma query fails", async () => {
-    process.env.DATABASE_URL = "postgres://user:pass@host/db";
+    const { findFoodInteractionsDB } = require("../lib/interactions");
+    const { prisma } = require("@/lib/prisma");
 
     // Suppress expected console.error during the test
     const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
@@ -465,8 +609,8 @@ describe("findFoodInteractionsDB", () => {
   });
 });
 
-});
 
+});
 
 describe("findContraindicationsDB", () => {
   const originalEnv = process.env;

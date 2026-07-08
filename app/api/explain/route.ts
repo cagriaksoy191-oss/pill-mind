@@ -469,7 +469,15 @@ export async function POST(request: Request) {
         }
       } catch (redisErr) {
         // Fail-safe: If Redis is down, log it but let the application continue
-        console.warn("[Redis Rate Limiter] Resilient Fallback - Bypass due to Redis error:", redisErr);
+        console.warn("[Redis Rate Limiter] Blocked request due to Redis error:", redisErr);
+        return jsonNoStore(
+          {
+            error: "Hizmet şu anda kullanılamıyor. Lütfen daha sonra tekrar deneyin.",
+            source: "error" as const,
+            reason: "service_unavailable"
+          },
+          503
+        );
       }
     }
 

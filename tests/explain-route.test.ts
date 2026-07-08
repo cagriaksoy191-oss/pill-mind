@@ -315,11 +315,10 @@ describe("POST /api/explain", () => {
     const res = await POST(req);
     const data = await res.json();
 
-    expect(res.status).toBe(200);
-    expect(data.explanation).toBe("Live AI explanation generated after rate limiter fail.");
-
+    expect(res.status).toBe(503);
+    expect(data.error).toBe("Hizmet şu anda kullanılamıyor. Lütfen daha sonra tekrar deneyin.");
     expect(consoleWarnSpy).toHaveBeenCalledWith(
-      "[Redis Rate Limiter] Resilient Fallback - Bypass due to Redis error:",
+      "[Redis Rate Limiter] Blocked request due to Redis error:",
       fakeRedisError
     );
   });

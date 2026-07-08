@@ -1,6 +1,44 @@
-import { getSeverityLabel, getSeverityColor, getAllDrugs, findInteractions, findContraindications } from "../lib/interactions";
+import { getDrugClinicalMetadata, getSeverityLabel, getSeverityColor, getAllDrugs, findInteractions, findContraindications } from "../lib/interactions";
 
 describe("interactions UI helpers", () => {
+
+  describe("getDrugClinicalMetadata", () => {
+    test("returns correct clinical metadata for a known drug (aspirin)", () => {
+      const result = getDrugClinicalMetadata("aspirin");
+      expect(result.pregnancyCategory).toBe("D");
+      expect(result.pregnancyNote).toContain("3. trimesterde kontrendikedir");
+      expect(result.breastfeedingNote).toContain("Salisilatlar süte geçer");
+      expect(result.renalNote).toContain("Ciddi böbrek yetmezliğinde kontrendikedir");
+      expect(result.hepaticNote).toContain("Karaciğer yetmezliğinde kanama riski nedeniyle dikkatli kullanılmalıdır");
+    });
+
+    test("returns correct clinical metadata for another known drug (warfarin)", () => {
+      const result = getDrugClinicalMetadata("warfarin");
+      expect(result.pregnancyCategory).toBe("X");
+      expect(result.pregnancyNote).toContain("Gebelikte kesinlikle kontrendikedir");
+    });
+
+    test("handles mixed casing and whitespace correctly", () => {
+      const result1 = getDrugClinicalMetadata("  AsPiRiN  ");
+      expect(result1.pregnancyCategory).toBe("D");
+
+      const result2 = getDrugClinicalMetadata("WARFARIN");
+      expect(result2.pregnancyCategory).toBe("X");
+    });
+
+    test("returns default metadata for an unknown drug", () => {
+      const result = getDrugClinicalMetadata("unknown_drug_123");
+      expect(result.pregnancyCategory).toBe("C");
+      expect(result.pregnancyNote).toContain("Yeterli insan çalışması yoktur");
+    });
+
+    test("returns default metadata for empty string", () => {
+      const result = getDrugClinicalMetadata("");
+      expect(result.pregnancyCategory).toBe("C");
+      expect(result.pregnancyNote).toContain("Yeterli insan çalışması yoktur");
+    });
+  });
+
 
   describe("getSeverityLabel", () => {
     test("returns correct label for 'high' severity", () => {

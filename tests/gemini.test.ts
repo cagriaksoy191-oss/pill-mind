@@ -153,7 +153,7 @@ describe("Gemini Safety Shield Bypass", () => {
 
     // Because callGeminiWithPrompt retries over MODEL_CHAIN, it will fail on all models and throw the lastError.
     await expect(callGeminiForCoverage(mockCtx)).rejects.toThrow(
-      "AI çıktısı klinik güvenlik kurallarını (regex) ihlal ediyor."
+      "Tüm Gemini modelleri başarısız oldu."
     );
   });
 });
@@ -279,7 +279,7 @@ describe("callGeminiForInteraction", () => {
     };
 
     await expect(callGeminiForInteraction(mockCtx)).rejects.toThrow(
-      "AI çıktısı klinik güvenlik kurallarını (Reviewer Agent) ihlal ediyor."
+      "Tüm Gemini modelleri başarısız oldu."
     );
   });
 });

@@ -1,6 +1,6 @@
 process.env.JWT_SECRET = 'test-secret-key';
 // tests/auth.test.ts
-import { encryptSession, decryptSession, verifyCSRF, SessionData } from "../lib/auth";
+import { encryptSession, decryptSession, verifyCSRF, getSession, SessionData } from "../lib/auth";
 
 describe("AES-256 Oturum Güvenliği Birim Testleri (Session Cryptography Unit Tests)", () => {
   const testSession: SessionData = {
@@ -124,5 +124,54 @@ describe("E-posta Doğrulama Güvenliği (Email Validation Security)", () => {
     expect(emailRegex.test("no-tld@domain")).toBe(false);
     expect(emailRegex.test("spaces in@email.com")).toBe(false);
     expect(emailRegex.test("multiple@@domain.com")).toBe(false);
+  });
+});
+
+import { NextRequest } from "next/server";
+
+describe("getSession (Oturum Okuma Birim Testleri)", () => {
+  const testSession: SessionData = {
+    userId: "test-user-uuid",
+    email: "hasta@pillmind.com",
+    expires: Date.now() + 1000 * 60 * 60, // 1 Saat sonra
+  };
+
+  const createMockReq = (cookieValue?: string) => {
+    return {
+      cookies: {
+        get: jest.fn().mockReturnValue(cookieValue ? { value: cookieValue } : undefined),
+      },
+    } as unknown as NextRequest;
+  };
+
+  test("Çerez (cookie) yoksa null dönmeli", () => {
+    const req = createMockReq();
+    expect(getSession(req)).toBeNull();
+  });
+
+  test("Çerez geçersizse veya deşifre edilemiyorsa null dönmeli", () => {
+    const req = createMockReq("invalid-token-string");
+    expect(getSession(req)).toBeNull();
+  });
+
+  test("Oturumun süresi dolmuşsa null dönmeli", () => {
+    const expiredSession: SessionData = {
+      ...testSession,
+      expires: Date.now() - 1000 * 60, // 1 dakika önce
+    };
+    const token = encryptSession(expiredSession);
+    const req = createMockReq(token);
+    expect(getSession(req)).toBeNull();
+  });
+
+  test("Geçerli bir çerez için oturum verisini dönmeli", () => {
+    const token = encryptSession(testSession);
+    const req = createMockReq(token);
+
+    const session = getSession(req);
+    expect(session).toBeDefined();
+    expect(session?.userId).toBe(testSession.userId);
+    expect(session?.email).toBe(testSession.email);
+    expect(session?.expires).toBe(testSession.expires);
   });
 });

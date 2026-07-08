@@ -1,5 +1,5 @@
 // app/api/pillbox/share/route.ts
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 
 import { jsonNoStore } from "@/lib/http";
 import { getSession, verifyCSRF } from "@/lib/auth";

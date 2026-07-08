@@ -47,6 +47,7 @@ const PRIMARY_MODEL = process.env.GEMINI_MODEL ?? "gemini-2.5-flash-lite";
 const MODEL_CHAIN = Array.from(
   new Set(["gemini-2.5-flash-lite", PRIMARY_MODEL, "gemini-2.5-flash"])
 );
+let workingModelIndex = 0;
 
 const UNSAFE_PATTERNS_RAW = [
   "kullanmayın",
@@ -592,10 +593,14 @@ async function callGeminiWithPrompt(prompt: string): Promise<GeminiResult> {
   const runningTasks: Promise<GeminiResult>[] = [];
 
   for (let i = 0; i < MODEL_CHAIN.length; i++) {
-    const model = MODEL_CHAIN[i];
+    const actualIndex = (workingModelIndex + i) % MODEL_CHAIN.length;
+    const model = MODEL_CHAIN[actualIndex];
 
     // Start the current task
-    const taskPromise = executeGeminiChainTask(model, payload).catch((error) => {
+    const taskPromise = executeGeminiChainTask(model, payload).then((res) => {
+      workingModelIndex = actualIndex;
+      return res;
+    }).catch((error) => {
       const err = error instanceof Error ? error : new Error(String(error));
       console.warn(`[GEMINI] Model ${model} başarısız oldu: ${err.message}`);
       throw err;
@@ -638,10 +643,8 @@ async function callGeminiWithPrompt(prompt: string): Promise<GeminiResult> {
   // Promise.any ignores rejections unless ALL of them reject.
   try {
     return await Promise.any(runningTasks);
-  } catch (aggregateError) {
-    if (aggregateError instanceof AggregateError && aggregateError.errors.length > 0) {
-      throw aggregateError.errors[0]; // Throw the first error for test compatibility
-    }
+  } catch (error) {
+    console.error("[GEMINI] Tüm modeller başarısız oldu.");
     throw new Error("Tüm Gemini modelleri başarısız oldu.");
   }
 }
@@ -742,8 +745,13 @@ export async function* streamGeminiContent(prompt: string): AsyncGenerator<strin
   let lastError: Error | null = null;
 
   for (let i = 0; i < MODEL_CHAIN.length; i++) {
-    const model = MODEL_CHAIN[i];
-    const taskPromise = fetchModel(model).catch((err) => {
+    const actualIndex = (workingModelIndex + i) % MODEL_CHAIN.length;
+    const model = MODEL_CHAIN[actualIndex];
+
+    const taskPromise = fetchModel(model).then((res) => {
+      workingModelIndex = actualIndex;
+      return res;
+    }).catch((err) => {
         lastError = err instanceof Error ? err : new Error(String(err));
         console.warn(`[GEMINI STREAM] Model ${model} failed:`, err);
         throw err;
@@ -822,6 +830,7 @@ export async function* streamGeminiContent(prompt: string): AsyncGenerator<strin
         }
       }
   } finally {
+      if (typeof reader.releaseLock === 'function') reader.releaseLock();
       // Clean up abort controller when stream is finished or closed early
       controller.abort();
   }

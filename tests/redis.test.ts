@@ -119,22 +119,22 @@ describe('Redis API Resilience Tests', () => {
     // Mock Upstash Redis to throw on incr (connection timeout / offline)
     jest.doMock('@upstash/redis', () => {
       return {
-        Redis: (jest.fn() as any).mockImplementation(() => ({
-          incr: (jest.fn() as any).mockRejectedValue(new Error('Redis connection timeout')),
-          expire: (jest.fn() as any).mockResolvedValue(true),
+        Redis: (jest.fn()).mockImplementation(() => ({
+          incr: (jest.fn()).mockRejectedValue(new Error('Redis connection timeout')),
+          expire: (jest.fn()).mockResolvedValue(true),
         }))
       };
     });
 
     // Mock interactions DB calls
     jest.doMock('../lib/interactions', () => ({
-      findInteractionsDB: (jest.fn() as any).mockResolvedValue([{
+      findInteractionsDB: (jest.fn()).mockResolvedValue([{
         interaction: { id: 'test', severity: 'high', summary: 'Test summary' },
         drug1Name: 'Drug A',
         drug2Name: 'Drug B',
       }]),
-      checkAccumulationDB: (jest.fn() as any).mockResolvedValue([]),
-    resolveDrugsDB: (jest.fn() as any).mockResolvedValue([{}]),
+      checkAccumulationDB: (jest.fn()).mockResolvedValue([]),
+    resolveDrugsDB: (jest.fn()).mockResolvedValue([{}]),
     }));
 
     // Dynamically import check route
@@ -149,10 +149,10 @@ describe('Redis API Resilience Tests', () => {
     const res = await POST(req);
     const data = await res.json();
 
-    expect(res.status).toBe(200);
-    expect(data.interactions).toHaveLength(1);
+    expect(res.status).toBe(503);
+    expect(data.error).toBe("Hizmet şu anda kullanılamıyor. Lütfen daha sonra tekrar deneyin.");
     expect(consoleWarnSpy).toHaveBeenCalledWith(
-      '[Redis Rate Limiter] Resilient Fallback - Bypass due to Redis error:',
+      '[Redis Rate Limiter] Blocked request due to Redis error:',
       expect.any(Error)
     );
 
@@ -164,27 +164,27 @@ describe('Redis API Resilience Tests', () => {
     // Mock Upstash Redis to throw on get/incr
     jest.doMock('@upstash/redis', () => {
       return {
-        Redis: (jest.fn() as any).mockImplementation(() => ({
-          incr: (jest.fn() as any).mockResolvedValue(1),
-          expire: (jest.fn() as any).mockResolvedValue(true),
-          get: (jest.fn() as any).mockRejectedValue(new Error('Redis read timeout')),
-          set: (jest.fn() as any).mockRejectedValue(new Error('Redis write timeout')),
+        Redis: (jest.fn()).mockImplementation(() => ({
+          incr: (jest.fn()).mockResolvedValue(1),
+          expire: (jest.fn()).mockResolvedValue(true),
+          get: (jest.fn()).mockRejectedValue(new Error('Redis read timeout')),
+          set: (jest.fn()).mockRejectedValue(new Error('Redis write timeout')),
         }))
       };
     });
 
     // Mock Gemini call
     jest.doMock('../lib/gemini', () => ({
-      getInteractionContext: (jest.fn() as any).mockResolvedValue({
+      getInteractionContext: (jest.fn()).mockResolvedValue({
         interaction: { id: 'test', severity: 'high' },
         drug1Name: 'Drug A',
         drug2Name: 'Drug B',
       }),
-      callGeminiForInteraction: (jest.fn() as any).mockResolvedValue({
+      callGeminiForInteraction: (jest.fn()).mockResolvedValue({
         explanation: 'Resilient explanation directly from Gemini.',
         generatedAt: '12:00:00',
       }),
-      shouldUseFallback: (jest.fn() as any).mockReturnValue(false),
+      shouldUseFallback: (jest.fn()).mockReturnValue(false),
     }));
 
     const { POST } = await import('../app/api/explain/route');

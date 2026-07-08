@@ -1,7 +1,7 @@
 /**
  * @jest-environment jsdom
  */
-import React, { useRef } from "react";
+import { useRef } from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { useFocusTrap } from "../hooks/useFocusTrap";

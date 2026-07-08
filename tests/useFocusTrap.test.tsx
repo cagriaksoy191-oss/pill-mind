@@ -4,7 +4,6 @@
 import { renderHook } from '@testing-library/react';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import '@testing-library/jest-dom';
-import React, { useRef } from 'react';
 
 describe('useFocusTrap', () => {
   let container: HTMLDivElement;

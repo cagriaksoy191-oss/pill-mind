@@ -38,4 +38,29 @@ describe("Drug Accumulation & Overdose Warnings (Sprint 2)", () => {
     const warnings = checkAccumulation(["metformin", "amoksisilin"]);
     expect(warnings.length).toBe(0);
   });
+
+  test("geçersiz veya eksik girdilerde boş dizi dönmeli", () => {
+    expect(checkAccumulation([])).toEqual([]);
+    expect(checkAccumulation(["ibuprofen"])).toEqual([]);
+    expect(checkAccumulation(null as any)).toEqual([]);
+    expect(checkAccumulation(undefined as any)).toEqual([]);
+  });
+
+  test("aynı ilacın birden fazla kez (aynı ID) gönderilmesi durumunda aynı etken madde uyarısı vermeli", () => {
+    const warnings = checkAccumulation(["ibuprofen", "ibuprofen"]);
+    expect(warnings.length).toBeGreaterThan(0);
+    expect(warnings[0].type).toBe("active_ingredient");
+    expect(warnings[0].severity).toBe("high");
+    expect(warnings[0].triggerDrugs).toEqual(["İbuprofen", "İbuprofen"]);
+  });
+
+  test("veritabanında bulunmayan bilinmeyen ilaç ID'leri güvenle atlanmalı", () => {
+    // drugs.json'da olmayan "unknown_drug_1" ve "unknown_drug_2"
+    const warnings = checkAccumulation(["unknown_drug_1", "unknown_drug_2"]);
+    expect(warnings).toEqual([]);
+
+    // Bir bilinen, bir bilinmeyen ilaç
+    const warnings2 = checkAccumulation(["ibuprofen", "unknown_drug"]);
+    expect(warnings2).toEqual([]);
+  });
 });

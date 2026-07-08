@@ -186,27 +186,43 @@ export function checkAccumulation(drugIds: string[]): AccumulationWarning[] {
   }
 
   const warnings: AccumulationWarning[] = [];
-  const selectedDrugs: Drug[] = [];
+
+  const ingredientMap = new Map<string, { count: number; names: string[]; activeIngredient: string }>();
+  const groupMap = new Map<string, { count: number; names: string[]; groupName: string; uniqueIngredients: Set<string> }>();
 
   for (const id of drugIds) {
     const drug = drugsMap.get(id);
-    if (drug) {
-      selectedDrugs.push(drug);
-    }
-  }
+    if (!drug) continue;
 
-  // 1. Aynı Etken Madde Çakışması
-  const ingredientMap = new Map<string, { count: number; names: string[]; activeIngredient: string }>();
-  for (let i = 0; i < selectedDrugs.length; i++) {
-    const drug = selectedDrugs[i];
     const ingredientKey = drug.activeIngredient.toLowerCase().trim();
-    let data = ingredientMap.get(ingredientKey);
-    if (data === undefined) {
-      data = { count: 1, names: [drug.name], activeIngredient: drug.activeIngredient };
-      ingredientMap.set(ingredientKey, data);
+
+    // 1. Aynı Etken Madde Çakışması
+    let ingData = ingredientMap.get(ingredientKey);
+    if (ingData === undefined) {
+      ingData = { count: 1, names: [drug.name], activeIngredient: drug.activeIngredient };
+      ingredientMap.set(ingredientKey, ingData);
     } else {
-      data.count++;
-      data.names.push(drug.name);
+      ingData.count++;
+      ingData.names.push(drug.name);
+    }
+
+    // 2. Aynı Farmakolojik Grup
+    if (drug.pharmacologicalGroup) {
+      const groupKey = drug.pharmacologicalGroup.toUpperCase().trim();
+      let groupData = groupMap.get(groupKey);
+      if (groupData === undefined) {
+        groupData = {
+          count: 1,
+          names: [drug.name],
+          groupName: drug.pharmacologicalGroup,
+          uniqueIngredients: new Set([ingredientKey])
+        };
+        groupMap.set(groupKey, groupData);
+      } else {
+        groupData.count++;
+        groupData.names.push(drug.name);
+        groupData.uniqueIngredients.add(ingredientKey);
+      }
     }
   }
 
@@ -219,30 +235,6 @@ export function checkAccumulation(drugIds: string[]): AccumulationWarning[] {
         triggerDrugs: data.names,
         detail: `${data.names.join(" ve ")} ilaçlarının ikisi de ${data.activeIngredient} içermektedir.`
       });
-    }
-  }
-
-  // 2. Aynı Farmakolojik Grup
-  const groupMap = new Map<string, { count: number; names: string[]; groupName: string; uniqueIngredients: Set<string> }>();
-  for (let i = 0; i < selectedDrugs.length; i++) {
-    const drug = selectedDrugs[i];
-    if (drug.pharmacologicalGroup) {
-      const groupKey = drug.pharmacologicalGroup.toUpperCase().trim();
-      const ingredientKey = drug.activeIngredient.toLowerCase().trim();
-      let data = groupMap.get(groupKey);
-      if (data === undefined) {
-        data = {
-          count: 1,
-          names: [drug.name],
-          groupName: drug.pharmacologicalGroup,
-          uniqueIngredients: new Set([ingredientKey])
-        };
-        groupMap.set(groupKey, data);
-      } else {
-        data.count++;
-        data.names.push(drug.name);
-        data.uniqueIngredients.add(ingredientKey);
-      }
     }
   }
 
@@ -373,18 +365,40 @@ export async function checkAccumulationDB(drugIds: string[], resolvedDrugsCache?
 
     const warnings: AccumulationWarning[] = [];
 
-    // 1. Aynı Etken Madde Çakışması
     const ingredientMap = new Map<string, { count: number; names: string[]; activeIngredient: string }>();
+    const groupMap = new Map<string, { count: number; names: string[]; groupName: string; uniqueIngredients: Set<string> }>();
+
     for (let i = 0; i < resolvedDrugs.length; i++) {
       const drug = resolvedDrugs[i] as Drug;
       const ingredientKey = drug.activeIngredient.toLowerCase().trim();
-      let data = ingredientMap.get(ingredientKey);
-      if (data === undefined) {
-        data = { count: 1, names: [drug.name], activeIngredient: drug.activeIngredient };
-        ingredientMap.set(ingredientKey, data);
+
+      // 1. Aynı Etken Madde Çakışması
+      let ingData = ingredientMap.get(ingredientKey);
+      if (ingData === undefined) {
+        ingData = { count: 1, names: [drug.name], activeIngredient: drug.activeIngredient };
+        ingredientMap.set(ingredientKey, ingData);
       } else {
-        data.count++;
-        data.names.push(drug.name);
+        ingData.count++;
+        ingData.names.push(drug.name);
+      }
+
+      // 2. Aynı Farmakolojik Grup Birikimi
+      if (drug.pharmacologicalGroup) {
+        const groupKey = drug.pharmacologicalGroup.toUpperCase().trim();
+        let groupData = groupMap.get(groupKey);
+        if (groupData === undefined) {
+          groupData = {
+            count: 1,
+            names: [drug.name],
+            groupName: drug.pharmacologicalGroup,
+            uniqueIngredients: new Set([ingredientKey])
+          };
+          groupMap.set(groupKey, groupData);
+        } else {
+          groupData.count++;
+          groupData.names.push(drug.name);
+          groupData.uniqueIngredients.add(ingredientKey);
+        }
       }
     }
 
@@ -397,30 +411,6 @@ export async function checkAccumulationDB(drugIds: string[], resolvedDrugsCache?
           triggerDrugs: data.names,
           detail: `${data.names.join(" ve ")} ilaçlarının ikisi de ${data.activeIngredient} içermektedir.`
         });
-      }
-    }
-
-    // 2. Aynı Farmakolojik Grup Birikimi
-    const groupMap = new Map<string, { count: number; names: string[]; groupName: string; uniqueIngredients: Set<string> }>();
-    for (let i = 0; i < resolvedDrugs.length; i++) {
-      const drug = resolvedDrugs[i] as Drug;
-      if (drug.pharmacologicalGroup) {
-        const groupKey = drug.pharmacologicalGroup.toUpperCase().trim();
-        const ingredientKey = drug.activeIngredient.toLowerCase().trim();
-        let data = groupMap.get(groupKey);
-        if (data === undefined) {
-          data = {
-            count: 1,
-            names: [drug.name],
-            groupName: drug.pharmacologicalGroup,
-            uniqueIngredients: new Set([ingredientKey])
-          };
-          groupMap.set(groupKey, data);
-        } else {
-          data.count++;
-          data.names.push(drug.name);
-          data.uniqueIngredients.add(ingredientKey);
-        }
       }
     }
 
@@ -437,7 +427,7 @@ export async function checkAccumulationDB(drugIds: string[], resolvedDrugsCache?
     }
 
     return warnings;
-  } catch (error) {
+  } catch (error: unknown) {
     return checkAccumulation(drugIds);
   }
 }

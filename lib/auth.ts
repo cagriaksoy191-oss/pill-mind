@@ -86,7 +86,7 @@ export function getSession(req: NextRequest): SessionData | null {
  */
 export function verifyCSRF(req: Request): boolean {
   if (!req.headers) {
-    return true; // Test ortamlarında (jest mock) başlık yoksa pas geç
+    return false; // Fail secure: başlık yoksa isteği reddet
   }
 
   const origin = req.headers.get("origin");
@@ -110,7 +110,7 @@ export function verifyCSRF(req: Request): boolean {
   }
 
   if (!expectedOrigin) {
-    return true; // Hedef orijin doğrulanamıyorsa geçişe izin ver
+    return false; // Fail secure: hedefin orijini doğrulanamazsa isteği reddet
   }
 
   // Origin uyuşmazlığı kontrolü

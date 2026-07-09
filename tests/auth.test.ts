@@ -70,9 +70,14 @@ describe("CSRF / Origin Doğrulama Birim Testleri (CSRF & Cross-Origin Security 
     } as unknown as Request;
   };
 
-  test("Başlıklar (headers) eksik olduğunda fail-safe geçiş izni", () => {
+  test("Başlıklar (headers) eksik olduğunda fail-secure engelleme", () => {
     const req = {} as Request; // headers veya url yok
-    expect(verifyCSRF(req)).toBe(true);
+    expect(verifyCSRF(req)).toBe(false);
+  });
+
+test("Beklenen orijin (expectedOrigin) belirlenemediğinde fail-secure engelleme", () => {
+    const req = createMockReq({}, "invalid-url-to-fail-parsing");
+    expect(verifyCSRF(req)).toBe(false);
   });
 
   test("Aynı orijinden (same-origin) gelen isteklerin kabul edilmesi", () => {

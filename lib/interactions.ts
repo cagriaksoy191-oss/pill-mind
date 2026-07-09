@@ -708,11 +708,12 @@ export function findContraindications(drugIds: string[], patientContext?: Patien
   }
   
   if (patientContext && patientContext.diseases && Array.isArray(patientContext.diseases) && patientContext.diseases.length > 0) {
+    const patientDiseasesSet = new Set(patientContext.diseases);
     for (const drugId of Array.from(resolvedIds)) {
       const contras = contraindicationsMap.get(drugId);
       if (contras) {
         for (const contra of contras) {
-          if ((patientContext as any).diseases.includes(contra.diseaseIcd)) {
+          if (patientDiseasesSet.has(contra.diseaseIcd)) {
             const drug = drugsMap.get(contra.drugId);
             results.push({
               id: contra.id,

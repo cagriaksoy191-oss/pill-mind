@@ -1,4 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
+import { useInteractionExplanations } from "./useInteractionExplanations";
+import { useCoverageExplanation } from "./useCoverageExplanation";
 import { CheckResult, AccumulationWarning, ExplanationData } from "@/lib/interactions";
 
 export function useInteractions(selectedDrugIds: string[], patientContext?: any) {
@@ -10,20 +12,17 @@ export function useInteractions(selectedDrugIds: string[], patientContext?: any)
   const [isChecking, setIsChecking] = useState(false);
   const [checkingError, setCheckingError] = useState<string | null>(null);
 
-  // Individual interaction explanation states
-  const [explanations, setExplanations] = useState<Record<string, ExplanationData>>({});
-  const [loadingExplanations, setLoadingExplanations] = useState<Record<string, boolean>>({});
+  const { explanations, loadingExplanations, handleExplainRequested } = useInteractionExplanations();
+  const {
+    coverageExplanation,
+    setCoverageExplanation,
+    isCoverageLoading,
+    showCoveragePanel,
+    setShowCoveragePanel,
+    handleRequestCoverageExplanation,
+  } = useCoverageExplanation(selectedDrugIds);
 
-  // Global combination analysis states (Coverage)
-  const [coverageExplanation, setCoverageExplanation] = useState<{
-    explanation?: string;
-    source?: string;
-    generatedAt?: string;
-    error?: string;
-    reason?: string;
-  } | null>(null);
-  const [isCoverageLoading, setIsCoverageLoading] = useState(false);
-  const [showCoveragePanel, setShowCoveragePanel] = useState(false);
+
   const [isOffline, setIsOffline] = useState(false);
 
   // Load drugs list on mount (only offline handling)
@@ -115,204 +114,6 @@ export function useInteractions(selectedDrugIds: string[], patientContext?: any)
 
     checkInteractions();
   }, [selectedDrugIds, serializedContext]);
-
-  // Request detailed explanation for a single interaction card using SSE stream
-  const handleExplainRequested = useCallback(async (interactionId: string, _force: boolean) => {
-    if (loadingExplanations[interactionId]) return;
-
-    if (_force) {
-      console.info(`[PillMind Explain Engine] Force explanation requested for: ${interactionId}`);
-    }
-
-    setLoadingExplanations((prev) => ({ ...prev, [interactionId]: true }));
-    try {
-      const res = await fetch("/api/explain", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ interactionId, stream: true }),
-      });
-
-      if (!res.ok) {
-        throw new Error("Canlı AI açıklaması şu anda üretilemedi.");
-      }
-
-      const contentType = res.headers.get("Content-Type") || "";
-      if (contentType.includes("text/event-stream")) {
-        const reader = res.body?.getReader();
-        const decoder = new TextDecoder("utf-8");
-        let explanationText = "";
-
-        setExplanations((prev) => ({
-          ...prev,
-          [interactionId]: { source: "gemini_live", explanation: "" },
-        }));
-
-        while (reader) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          const chunk = decoder.decode(value);
-          const lines = chunk.split("\n");
-
-          for (const line of lines) {
-            if (line.startsWith("data: ")) {
-              const dataStr = line.slice(6).trim();
-              if (dataStr === "[DONE]") {
-                break;
-              }
-              try {
-                const dataObj = JSON.parse(dataStr);
-                if (dataObj.error) {
-                  setExplanations((prev) => ({
-                    ...prev,
-                    [interactionId]: {
-                      source: "error",
-                      error: dataObj.error,
-                      reason: dataObj.code === "UNSAFE_ALERT" || dataObj.code === "REJECTED" ? "safety_block" : "api_error",
-                    },
-                  }));
-                  return;
-                }
-
-                if (dataObj.chunk) {
-                  explanationText += dataObj.chunk;
-                  setExplanations((prev) => ({
-                    ...prev,
-                    [interactionId]: {
-                      source: "gemini_live",
-                      explanation: explanationText,
-                      generatedAt: dataObj.generatedAt,
-                    },
-                  }));
-                }
-
-                if (dataObj.done) {
-                  setExplanations((prev) => ({
-                    ...prev,
-                    [interactionId]: {
-                      source: "gemini_live",
-                      explanation: explanationText,
-                      generatedAt: dataObj.generatedAt,
-                    },
-                  }));
-                }
-              } catch {
-                // Ignore parsing errors on split chunks
-              }
-            }
-          }
-        }
-      } else {
-        const data = await res.json();
-        setExplanations((prev) => ({ ...prev, [interactionId]: data }));
-      }
-    } catch (err) {
-      console.error("[PillMind Explain Engine] Error:", err);
-      setExplanations((prev) => ({
-        ...prev,
-        [interactionId]: {
-          source: "error",
-          error: "Canlı AI açıklaması şu anda alınamadı. Lütfen tekrar deneyin.",
-          reason: "api_error",
-        },
-      }));
-    } finally {
-      setLoadingExplanations((prev) => ({ ...prev, [interactionId]: false }));
-    }
-  }, [loadingExplanations]);
-
-  // Request comprehensive combination analysis (Coverage) using SSE stream
-  const handleRequestCoverageExplanation = async () => {
-    if (selectedDrugIds.length < 2 || isCoverageLoading) return;
-
-    setIsCoverageLoading(true);
-    setShowCoveragePanel(true);
-    setCoverageExplanation(null);
-
-    try {
-      const res = await fetch("/api/explain", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ drugIds: selectedDrugIds, stream: true }),
-      });
-
-      if (!res.ok) {
-        throw new Error("Canlı AI kombinasyon analizi şu anda oluşturulamadı.");
-      }
-
-      const contentType = res.headers.get("Content-Type") || "";
-      if (contentType.includes("text/event-stream")) {
-        const reader = res.body?.getReader();
-        const decoder = new TextDecoder("utf-8");
-        let explanationText = "";
-
-        setCoverageExplanation({ source: "gemini_live", explanation: "" });
-
-        while (reader) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          const chunk = decoder.decode(value);
-          const lines = chunk.split("\n");
-
-          for (const line of lines) {
-            if (line.startsWith("data: ")) {
-              const dataStr = line.slice(6).trim();
-              if (dataStr === "[DONE]") {
-                break;
-              }
-              try {
-                const dataObj = JSON.parse(dataStr);
-                if (dataObj.error) {
-                  setCoverageExplanation({
-                    source: "error",
-                    error: dataObj.error,
-                    reason: dataObj.code === "UNSAFE_ALERT" || dataObj.code === "REJECTED" ? "safety_block" : "api_error",
-                  });
-                  return;
-                }
-
-                if (dataObj.chunk) {
-                  explanationText += dataObj.chunk;
-                  setCoverageExplanation({
-                    source: "gemini_live",
-                    explanation: explanationText,
-                    generatedAt: dataObj.generatedAt,
-                  });
-                }
-
-                if (dataObj.done) {
-                  setCoverageExplanation({
-                    source: "gemini_live",
-                    explanation: explanationText,
-                    generatedAt: dataObj.generatedAt,
-                  });
-                }
-              } catch {
-                // Ignore parsing errors on split chunks
-              }
-            }
-          }
-        }
-      } else {
-        const data = await res.json();
-        setCoverageExplanation(data);
-      }
-    } catch (err) {
-      console.error("[PillMind Coverage Engine] Error:", err);
-      setCoverageExplanation({
-        source: "error",
-        error: "Canlı AI kombinasyon analizi şu anda oluşturulamadı. Lütfen daha sonra tekrar deneyin.",
-        reason: "api_error",
-      });
-    } finally {
-      setIsCoverageLoading(false);
-    }
-  };
 
   return {
     interactions,

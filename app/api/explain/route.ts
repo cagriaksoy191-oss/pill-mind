@@ -446,7 +446,6 @@ export async function POST(request: Request) {
     // 2. IP-based Fail-safe Rate Limiter via Upstash Redis
     if (redis) {
       try {
-        // Security Fix: Mitigated IP Spoofing via Insecure x-forwarded-for Header Access by centrally validating and extracting the correct IP.
         // Secure IP resolution, avoiding untrusted headers like x-forwarded-for or x-real-ip
         const ip = getClientIp(request);
         const rateLimitKey = `ratelimit:explain:${ip}`;

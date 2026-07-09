@@ -105,10 +105,12 @@ export function fuzzySearchDrugs<
     return items.map((item) => ({ item, score: 0 }));
   }
 
+
   const results: FuzzyResult<T>[] = [];
 
   for (const item of items) {
     let normalized = normalizedCache.get(item);
+
     if (!normalized) {
       normalized = {
         name: normalizeTurkish(item.name),
@@ -124,12 +126,14 @@ export function fuzzySearchDrugs<
       ? calculateScore(q, normalized.category) * 0.5
       : 0;
 
+
     const bestScore = Math.max(nameScore, ingredientScore, categoryScore);
 
     if (bestScore > 0) {
       results.push({ item, score: bestScore });
     }
   }
+
 
   return results.sort((a, b) => b.score - a.score);
 }
@@ -151,10 +155,16 @@ function calculateScore(q: string, t: string): number {
     return subSeqScore;
   }
 
+
   if (q.length >= 3) {
-    const distance = levenshteinDistance(q, t);
     const maxLen = Math.max(q.length, t.length);
+    if (Math.abs(q.length - t.length) > maxLen * 0.4) {
+      return 0;
+    }
+
+    const distance = levenshteinDistance(q, t);
     const similarity = 1 - distance / maxLen;
+
     if (similarity > 0.6) {
       return Math.round(similarity * 150);
     }

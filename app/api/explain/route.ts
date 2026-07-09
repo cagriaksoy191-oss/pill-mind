@@ -271,15 +271,17 @@ async function handleInteractionStream(interactionId: string) {
     new ReadableStream({
       async start(controller) {
         const encoder = new TextEncoder();
-        let buffer = "";
+        const chunks: string[] = [];
+        let windowBuffer = "";
 
         try {
           const streamGenerator = streamGeminiContent(prompt);
           for await (const chunk of streamGenerator) {
-            buffer += chunk;
+            chunks.push(chunk);
+            windowBuffer += chunk;
 
             // Chunk-level regex check
-            if (!isOutputSafe(buffer)) {
+            if (!isOutputSafe(windowBuffer)) {
               controller.enqueue(encoder.encode(`data: ${JSON.stringify({
                 error: "AI çıktısı klinik güvenlik kurallarını (regex) ihlal ediyor.",
                 code: "UNSAFE_ALERT",
@@ -289,10 +291,12 @@ async function handleInteractionStream(interactionId: string) {
               return;
             }
 
+            windowBuffer = windowBuffer.slice(-200);
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({ chunk })}\n\n`));
           }
 
           // Stream finished. Run Reviewer Agent
+          const buffer = chunks.join("");
           const isSafe = await runReviewerAgent(buffer);
           if (!isSafe) {
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({
@@ -373,24 +377,28 @@ async function handleCoverageStream(drugIds: string[]) {
     new ReadableStream({
       async start(controller) {
         const encoder = new TextEncoder();
-        let buffer = "";
+        const chunks: string[] = [];
+        let windowBuffer = "";
 
         try {
           const streamGenerator = streamGeminiContent(prompt);
           for await (const chunk of streamGenerator) {
-            buffer += chunk;
+            chunks.push(chunk);
+            windowBuffer += chunk;
 
             // Chunk-level regex check
-            if (!isOutputSafe(buffer)) {
+            if (!isOutputSafe(windowBuffer)) {
               controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: "AI çıktısı klinik güvenlik kurallarını (regex) ihlal ediyor.", code: "UNSAFE_ALERT" })}\n\n`));
               controller.close();
               return;
             }
 
+            windowBuffer = windowBuffer.slice(-200);
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({ chunk })}\n\n`));
           }
 
           // Stream finished. Run Reviewer Agent
+          const buffer = chunks.join("");
           const isSafe = await runReviewerAgent(buffer);
           if (!isSafe) {
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: "AI çıktısı klinik güvenlik kurallarını (Reviewer Agent) ihlal ediyor.", code: "REJECTED" })}\n\n`));

@@ -38,26 +38,6 @@ export function decryptSession(token: string): SessionData | null {
   try {
     const parts = token.split(":");
     
-    // Eski format (3 parça: iv:authTag:encrypted) - Geriye dönük uyumluluk için
-    if (parts.length === 3) {
-      const iv = Buffer.from(parts[0], "hex");
-      const authTag = Buffer.from(parts[1], "hex");
-      const encryptedText = parts[2];
-
-      if (iv.length !== 12 || authTag.length !== 16) {
-        return null;
-      }
-
-      const key = crypto.scryptSync(getJwtSecret(), "salt", 32);
-      const decipher = crypto.createDecipheriv("aes-256-gcm", key, iv);
-      decipher.setAuthTag(authTag);
-
-      let decrypted = decipher.update(encryptedText, "hex", "utf8");
-      decrypted += decipher.final("utf8");
-
-      return JSON.parse(decrypted) as SessionData;
-    }
-    
     // Yeni format (4 parça: salt:iv:authTag:encrypted)
     if (parts.length === 4) {
       const salt = Buffer.from(parts[0], "hex");

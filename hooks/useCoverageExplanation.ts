@@ -36,6 +36,7 @@ export function useCoverageExplanation(selectedDrugIds: string[]) {
         const reader = res.body?.getReader();
         const decoder = new TextDecoder("utf-8");
         let explanationText = "";
+        let buffer = "";
 
         setCoverageExplanation({ source: "gemini_live", explanation: "" });
 
@@ -44,9 +45,13 @@ export function useCoverageExplanation(selectedDrugIds: string[]) {
           if (done) break;
 
           const chunk = decoder.decode(value);
-          const lines = chunk.split("\n");
+          buffer += chunk;
 
-          for (const line of lines) {
+          let newlineIdx;
+          let lastIdx = 0;
+          while ((newlineIdx = buffer.indexOf("\n", lastIdx)) !== -1) {
+            const line = buffer.slice(lastIdx, newlineIdx);
+            lastIdx = newlineIdx + 1;
             if (line.startsWith("data: ")) {
               const dataStr = line.slice(6).trim();
               if (dataStr === "[DONE]") {
@@ -84,6 +89,7 @@ export function useCoverageExplanation(selectedDrugIds: string[]) {
               }
             }
           }
+          buffer = buffer.slice(lastIdx);
         }
       } else {
         const data = await res.json();

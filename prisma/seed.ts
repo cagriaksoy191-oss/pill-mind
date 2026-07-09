@@ -26,6 +26,21 @@ interface InteractionMock {
   evidenceLevel?: string;
 }
 
+
+async function chunkedCreateMany<T>(
+  model: { createMany: (args: { data: T[] }) => Promise<{ count: number }> },
+  data: T[],
+  chunkSize = 5000
+): Promise<{ count: number }> {
+  let count = 0;
+  for (let i = 0; i < data.length; i += chunkSize) {
+    const chunk = data.slice(i, i + chunkSize);
+    const result = await model.createMany({ data: chunk });
+    count += result.count;
+  }
+  return { count };
+}
+
 async function main() {
   console.log("🌱 Veritabanı tohumlama işlemi başladı...");
 
@@ -81,7 +96,7 @@ async function main() {
     });
     ingredientMap[ingredientName] = id;
   }
-  await prisma.ingredient.createMany({ data: ingredientsToCreate });
+  await chunkedCreateMany(prisma.ingredient, ingredientsToCreate);
   console.log(`🧪 ${ingredientsToCreate.length} adet Ingredient (Etken Madde) oluşturuldu.`);
 
   // İlaç Sınıflarını oluştur
@@ -99,7 +114,7 @@ async function main() {
     });
     classMap[category] = id;
   }
-  await prisma.drugClass.createMany({ data: classesToCreate });
+  await chunkedCreateMany(prisma.drugClass, classesToCreate);
   console.log(`🏷️ ${classesToCreate.length} adet DrugClass oluşturuldu.`);
 
   for (const item of drugsData) {
@@ -207,20 +222,20 @@ async function main() {
 
   if (drugsToCreate.length > 0) {
     const startDrugs = performance.now();
-    await prisma.drug.createMany({ data: drugsToCreate });
+    await chunkedCreateMany(prisma.drug, drugsToCreate);
     const endDrugs = performance.now();
     console.log(`⚡ Inserted drugs in ${(endDrugs - startDrugs).toFixed(2)}ms`);
   }
 
   if (brandNamesToCreate.length > 0) {
     const startBrandNames = performance.now();
-    await prisma.brandName.createMany({ data: brandNamesToCreate });
+    await chunkedCreateMany(prisma.brandName, brandNamesToCreate);
     const endBrandNames = performance.now();
     console.log(`⚡ Inserted brand names in ${(endBrandNames - startBrandNames).toFixed(2)}ms`);
   }
 
   if (drugAliasesToCreate.length > 0) {
-    await prisma.drugAlias.createMany({ data: drugAliasesToCreate });
+    await chunkedCreateMany(prisma.drugAlias, drugAliasesToCreate);
     console.log(`⚡ ${drugAliasesToCreate.length} adet DrugAlias tohumlandı.`);
   }
 
@@ -339,41 +354,39 @@ async function main() {
 
   if (interactionsToCreate.length > 0) {
     const startInteractions = performance.now();
-    const result = await prisma.drugInteraction.createMany({
-      data: interactionsToCreate,
-    });
+    const result = await chunkedCreateMany(prisma.drugInteraction, interactionsToCreate);
     const endInteractions = performance.now();
     console.log(`⚡ Inserted drug interactions in ${(endInteractions - startInteractions).toFixed(2)}ms`);
     interactionCount = result.count;
   }
 
   if (evidencesToCreate.length > 0) {
-    await prisma.interactionEvidence.createMany({ data: evidencesToCreate });
+    await chunkedCreateMany(prisma.interactionEvidence, evidencesToCreate);
     console.log(`⚡ ${evidencesToCreate.length} adet InteractionEvidence tohumlandı.`);
   }
 
   if (mechanismsToCreate.length > 0) {
-    await prisma.interactionMechanism.createMany({ data: mechanismsToCreate });
+    await chunkedCreateMany(prisma.interactionMechanism, mechanismsToCreate);
     console.log(`⚡ ${mechanismsToCreate.length} adet InteractionMechanism tohumlandı.`);
   }
 
   // 4. Besin Etkileşimlerini Ekle
   const foodFilePath = path.join(process.cwd(), "data", "foodInteractions.json");
   const foodData = JSON.parse(fs.readFileSync(foodFilePath, "utf-8"));
-  const foodToCreate = foodData.map((f: any) => ({
+  const foodToCreate = foodData.map((f: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) => ({
     id: f.id,
     drugId: drugIdMap[f.drugId] || f.drugId,
     substance: f.substance,
     effect: f.effect,
     severity: f.severity === "HIGH" ? Severity.HIGH : f.severity === "MEDIUM" ? Severity.MEDIUM : Severity.LOW,
   }));
-  await prisma.foodInteraction.createMany({ data: foodToCreate });
+  await chunkedCreateMany(prisma.foodInteraction, foodToCreate);
   console.log(`🥗 ${foodToCreate.length} adet besin etkileşimi eklendi.`);
 
   // 5. Kontrendikasyonları Ekle
   const contraFilePath = path.join(process.cwd(), "data", "contraindications.json");
   const contraData = JSON.parse(fs.readFileSync(contraFilePath, "utf-8"));
-  const contraToCreate = contraData.map((c: any) => ({
+  const contraToCreate = contraData.map((c: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) => ({
     id: c.id,
     drugId: drugIdMap[c.drugId] || c.drugId,
     diseaseIcd: c.diseaseIcd,
@@ -381,7 +394,7 @@ async function main() {
     effect: c.effect,
     severity: c.severity === "HIGH" ? Severity.HIGH : c.severity === "MEDIUM" ? Severity.MEDIUM : Severity.LOW,
   }));
-  await prisma.contraindication.createMany({ data: contraToCreate });
+  await chunkedCreateMany(prisma.contraindication, contraToCreate);
   console.log(`❌ ${contraToCreate.length} adet kontrendikasyon eklendi.`);
 
   // Örnek ClinicalReview ekle

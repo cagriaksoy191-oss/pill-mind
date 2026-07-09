@@ -24,8 +24,7 @@ function normalizeTurkish(text: string): string {
     .trim();
 }
 
-let levenshteinPrevRow = new Uint16Array(64);
-let levenshteinCurrRow = new Uint16Array(64);
+let levenshteinCache = new Uint16Array(64);
 
 function levenshteinDistance(s1: string, s2: string): number {
   const len1 = s1.length;
@@ -34,35 +33,31 @@ function levenshteinDistance(s1: string, s2: string): number {
   if (len1 === 0) return len2;
   if (len2 === 0) return len1;
 
-  if (levenshteinPrevRow.length < len2 + 1) {
-    const newSize = Math.max(levenshteinPrevRow.length * 2, len2 + 1);
-    levenshteinPrevRow = new Uint16Array(newSize);
-    levenshteinCurrRow = new Uint16Array(newSize);
+  if (levenshteinCache.length < len2 + 1) {
+    const newSize = Math.max(levenshteinCache.length * 2, len2 + 1);
+    levenshteinCache = new Uint16Array(newSize);
   }
 
-  let pRow = levenshteinPrevRow;
-  let cRow = levenshteinCurrRow;
+  const cache = levenshteinCache;
 
   for (let j = 0; j <= len2; j++) {
-    pRow[j] = j;
+    cache[j] = j;
   }
 
   for (let i = 1; i <= len1; i++) {
-    cRow[0] = i;
+    let prev = i;
     const char1 = s1.charCodeAt(i - 1);
     for (let j = 1; j <= len2; j++) {
       const cost = char1 === s2.charCodeAt(j - 1) ? 0 : 1;
-      const del = pRow[j] + 1;
-      const ins = cRow[j - 1] + 1;
-      const sub = pRow[j - 1] + cost;
-
-      cRow[j] = del < ins ? (del < sub ? del : sub) : ins < sub ? ins : sub;
+      const sub = cache[j - 1] + cost;
+      cache[j - 1] = prev;
+      const del = cache[j] + 1;
+      const ins = prev + 1;
+      prev = del < ins ? (del < sub ? del : sub) : ins < sub ? ins : sub;
     }
-    const temp = pRow;
-    pRow = cRow;
-    cRow = temp;
+    cache[len2] = prev;
   }
-  return pRow[len2];
+  return cache[len2];
 }
 
 function matchSubsequence(query: string, target: string): number {

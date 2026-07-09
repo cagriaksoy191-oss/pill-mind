@@ -42,9 +42,6 @@ export async function POST(request: Request) {
       const hash = crypto.createHmac('sha256', getJwtSecret()).update(`${cleanEmail}:${generatedOtp}:${expires}`).digest('hex');
       const newOtpToken = `${expires}:${hash}`;
 
-      // Simüle edilen e-posta gönderimi (Gerçek uygulamada Mailgun, SendGrid vb. ile gönderilir)
-      console.log(`[SIMULATED EMAIL] To: ${cleanEmail} | Your OTP is: ${generatedOtp}`);
-
       return NextResponse.json({
         success: true,
         isOtpRequired: true,

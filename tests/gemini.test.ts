@@ -505,6 +505,16 @@ Bu bir hekim yönlendirmesidir.`;
     expect(formatExplanation(input)).toBe(expected);
   });
 
+  it("should handle empty or whitespace-only array elements in hastalaraOneriler", () => {
+    const input = {
+      hastalaraOneriler: ["", "  ", "Valid advice", "   \n", "Another advice"]
+    } as any;
+
+    const expected = `**Önemli Belirtiler ve Öneriler:**\n• Valid advice\n• Another advice`;
+
+    expect(formatExplanation(input)).toBe(expected);
+  });
+
 });
 
 describe("buildInteractionStreamPrompt", () => {

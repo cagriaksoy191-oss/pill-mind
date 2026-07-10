@@ -4,6 +4,7 @@ import crypto from "crypto";
 
 import { prisma } from "@/lib/prisma";
 import { encryptSession, verifyCSRF } from "@/lib/auth";
+import * as Sentry from "@sentry/nextjs";
 
 
 const getJwtSecret = () => {
@@ -120,7 +121,7 @@ export async function POST(request: Request) {
 
     return response;
   } catch (error) {
-    console.error("[PillMind Login Endpoint Error]:", error);
+    Sentry.captureException(error);
     return NextResponse.json(
       { error: "Giriş yapılırken sistemsel bir hata oluştu." },
       { status: 500 }

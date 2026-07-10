@@ -104,7 +104,8 @@ export function verifyCSRF(req: Request): boolean {
   if (!expectedOrigin) {
     const host = req.headers.get("host") || req.headers.get("x-forwarded-host");
     const proto = req.headers.get("x-forwarded-proto") || "http";
-    if (host) {
+    const ALLOWED_HOSTS = ["localhost:3000"];
+    if (host && ALLOWED_HOSTS.includes(host)) {
       expectedOrigin = `${proto}://${host}`;
     }
   }

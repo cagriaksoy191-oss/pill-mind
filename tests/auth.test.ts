@@ -112,6 +112,19 @@ test("Beklenen orijin (expectedOrigin) belirlenemediğinde fail-secure engelleme
     expect(verifyCSRF(req)).toBe(true);
   });
 
+  test("host header rejects invalid origin protecting against host header injection", () => {
+    const req = {
+      headers: {
+        get: (name) => {
+          if (name === "host") return "evil.com";
+          if (name === "x-forwarded-proto") return "http";
+          return null;
+        }
+      }
+    } as unknown as Request;
+    expect(verifyCSRF(req)).toBe(false);
+  });
+
   test("Aynı orijinden (same-origin) gelen isteklerin kabul edilmesi", () => {
     const req = createMockReq({
       origin: "http://localhost:3000",

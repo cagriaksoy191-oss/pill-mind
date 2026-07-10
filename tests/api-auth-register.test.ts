@@ -1,6 +1,11 @@
 import { POST } from "@/app/api/auth/register/route";
 import { prisma } from "@/lib/prisma";
 import { verifyCSRF } from "@/lib/auth";
+import * as Sentry from "@sentry/nextjs";
+
+jest.mock("@sentry/nextjs", () => ({
+  captureException: jest.fn(),
+}));
 
 jest.mock("@/lib/auth", () => ({
   verifyCSRF: jest.fn().mockReturnValue(true),
@@ -27,7 +32,6 @@ describe("POST /api/auth/register", () => {
   };
 
   it("should return 500 if an internal error occurs (e.g., db failure)", async () => {
-    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
     // Simulating database error during findUnique
     (prisma.user.findUnique as jest.Mock).mockRejectedValue(new Error("Database connection failed"));
@@ -38,13 +42,11 @@ describe("POST /api/auth/register", () => {
     expect(res.status).toBe(500);
     const data = await res.json();
     expect(data.error).toBe("Kayıt sırasında sistemsel bir hata oluştu.");
-    expect(consoleSpy).toHaveBeenCalled();
+    expect(Sentry.captureException).toHaveBeenCalled();
 
-    consoleSpy.mockRestore();
   });
 
   it("should return 500 if an internal error occurs during user creation", async () => {
-    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
     // Simulating no user exists
     (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
@@ -57,9 +59,8 @@ describe("POST /api/auth/register", () => {
     expect(res.status).toBe(500);
     const data = await res.json();
     expect(data.error).toBe("Kayıt sırasında sistemsel bir hata oluştu.");
-    expect(consoleSpy).toHaveBeenCalled();
+    expect(Sentry.captureException).toHaveBeenCalled();
 
-    consoleSpy.mockRestore();
   });
 
   it("should successfully register a new user", async () => {

@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/nextjs';
 import { POST } from "@/app/api/admin/review/route";
 import { NextRequest } from "next/server";
 import { getSession, verifyCSRF } from "@/lib/auth";
@@ -181,7 +182,7 @@ describe("POST /api/admin/review", () => {
   });
 
   it("should return 500 if an internal error occurs", async () => {
-    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const sentrySpy = jest.spyOn(Sentry, 'captureException').mockImplementation(() => 'mock' as unknown as void);
     (verifyCSRF as jest.Mock).mockReturnValue(true);
     (getSession as jest.Mock).mockResolvedValue({ userId: "admin-1", email: "admin@test.com" });
     (prisma.user.findUnique as jest.Mock).mockResolvedValue({ role: "ADMIN" });
@@ -194,6 +195,6 @@ describe("POST /api/admin/review", () => {
     const data = await res.json();
     expect(data.error).toBe("Onay durumu güncellenirken sistemsel bir hata oluştu.");
 
-    consoleSpy.mockRestore();
+    sentrySpy.mockRestore();
   });
 });

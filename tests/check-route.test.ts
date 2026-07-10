@@ -15,8 +15,13 @@ jest.mock("@/lib/redis", () => ({
   },
 }));
 
+jest.mock("@sentry/nextjs", () => ({
+  captureException: jest.fn(),
+}));
+
 describe("POST /api/check", () => {
   beforeEach(() => {
+    jest.spyOn(console, 'error').mockImplementation(() => {});
     jest.clearAllMocks();
   });
 
@@ -74,7 +79,9 @@ describe("POST /api/check", () => {
     const data = await res.json();
 
     expect(res.status).toBe(400);
-    expect(data).toEqual({ error: "Tek seferde en fazla 50 ilaç kontrol edilebilir." });
+    expect(data).toEqual({
+      error: "Tek seferde en fazla 50 ilaç kontrol edilebilir.",
+    });
   });
 
   it("should return 400 if drugIds contains invalid types", async () => {
@@ -106,7 +113,9 @@ describe("POST /api/check", () => {
   });
 
   it("should return 500 if findInteractionsDB throws an error", async () => {
-    (findInteractionsDB as jest.Mock).mockRejectedValueOnce(new Error("DB Error"));
+    (findInteractionsDB as jest.Mock).mockRejectedValueOnce(
+      new Error("DB Error"),
+    );
 
     const req = new Request("http://localhost/api/check", {
       method: "POST",
@@ -118,6 +127,7 @@ describe("POST /api/check", () => {
     const data = await res.json();
 
     expect(res.status).toBe(500);
+    expect(console.error).toHaveBeenCalled();
     expect(data).toEqual({ error: "Kontrol sırasında bir hata oluştu." });
   });
 
@@ -134,7 +144,9 @@ describe("POST /api/check", () => {
     const data = await res.json();
 
     expect(res.status).toBe(429);
-    expect(data).toEqual({ error: "Çok fazla istek gönderildi. Lütfen bir dakika bekleyin." });
+    expect(data).toEqual({
+      error: "Çok fazla istek gönderildi. Lütfen bir dakika bekleyin.",
+    });
   });
 
   it("should return 200 and interactions if request is valid", async () => {
@@ -164,10 +176,16 @@ describe("POST /api/check", () => {
       accumulationWarnings: [],
       foodInteractions: [],
       contraindications: [],
-      polypharmacyReport: { score: 2, level: "low", message: "", beersWarnings: [] },
+      polypharmacyReport: {
+        score: 2,
+        level: "low",
+        message: "",
+        beersWarnings: [],
+      },
       checkedDrugs: ["drug-1", "drug-2"],
       totalFound: 1,
-      disclaimer: "Bu sonuçlar sınırlı bir demo veri setine dayanabilir ve tıbbi tavsiye niteliği taşımaz.",
+      disclaimer:
+        "Bu sonuçlar sınırlı bir demo veri setine dayanabilir ve tıbbi tavsiye niteliği taşımaz.",
     });
   });
 });

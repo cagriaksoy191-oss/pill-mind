@@ -244,7 +244,7 @@ export function shouldUseFallback(): boolean {
   return DEMO_MODE || !GEMINI_API_KEY;
 }
 
-function normalizeExplanation(text: string) {
+export function normalizeExplanation(text: string) {
   return text
     .replace(/\r/g, "")
     .replace(/^merhaba[,!\s]*/i, "")
@@ -257,7 +257,7 @@ export function isOutputSafe(text: string): boolean {
   return !UNSAFE_PATTERNS.some((pattern) => pattern.test(text));
 }
 
-function isExplanationComplete(text: string): boolean {
+export function isExplanationComplete(text: string): boolean {
   const normalized = text.replace(/\s+/g, " ").trim();
 
   if (normalized.length < 100) return false;

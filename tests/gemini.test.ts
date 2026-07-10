@@ -1,4 +1,4 @@
-import { getCoverageContext, getInteractionContext, formatExplanation, buildInteractionStreamPrompt, isOutputSafe , UNSAFE_PATTERNS} from "../lib/gemini";
+import { getCoverageContext, getInteractionContext, formatExplanation, buildInteractionStreamPrompt, isOutputSafe , UNSAFE_PATTERNS, normalizeExplanation, isExplanationComplete} from "../lib/gemini";
 
 describe("getCoverageContext", () => {
   it("should return null when an empty array is provided", () => {
@@ -57,6 +57,54 @@ describe("getInteractionContext", () => {
   });
 });
 
+
+describe("normalizeExplanation", () => {
+  it("should remove carriage returns", () => {
+    expect(normalizeExplanation("Hello\r\nWorld")).toBe("Hello\nWorld");
+  });
+
+  it("should remove leading greeting patterns like 'merhaba' and 'selam'", () => {
+    expect(normalizeExplanation("Merhaba, bu bir test.")).toBe("bu bir test.");
+    expect(normalizeExplanation("Selam! nasılsın?")).toBe("nasılsın?");
+    expect(normalizeExplanation("merhaba  test")).toBe("test");
+    expect(normalizeExplanation("selam test")).toBe("test");
+  });
+
+  it("should replace 3 or more newlines with double newlines", () => {
+    expect(normalizeExplanation("Line 1\n\n\nLine 2")).toBe("Line 1\n\nLine 2");
+    expect(normalizeExplanation("Line 1\n\n\n\nLine 2")).toBe("Line 1\n\nLine 2");
+  });
+
+  it("should trim leading and trailing whitespace", () => {
+    expect(normalizeExplanation("  test string  ")).toBe("test string");
+  });
+
+  it("should handle combinations of all rules", () => {
+    expect(normalizeExplanation("Merhaba! \r\n\n\n  Test message \n\n\n End  ")).toBe("Test message \n\n End");
+  });
+});
+describe("isExplanationComplete", () => {
+  it("should return false if normalized string is less than 100 characters", () => {
+    const shortText = "a".repeat(99);
+    expect(isExplanationComplete(shortText)).toBe(false);
+  });
+
+  it("should return false if there are fewer than 15 words, even if length >= 100", () => {
+    // 10 words, each 10 chars long + spaces = > 100 chars
+    const fewWordsText = "abcdefghij ".repeat(10).trim();
+    expect(isExplanationComplete(fewWordsText)).toBe(false);
+  });
+
+  it("should return true if length >= 100 and words >= 15", () => {
+    const validText = "This is a completely valid string that is definitely long enough and has more than fifteen words in it to pass the test completely.";
+    expect(isExplanationComplete(validText)).toBe(true);
+  });
+
+  it("should handle multiple spaces when splitting into words", () => {
+    const validTextWithSpaces = "This    is  a completely   valid string that   is definitely long enough   and has   more than fifteen words in it to pass the test completely.";
+    expect(isExplanationComplete(validTextWithSpaces)).toBe(true);
+  });
+});
 describe("shouldUseFallback", () => {
   const originalEnv = process.env;
 

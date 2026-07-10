@@ -235,38 +235,28 @@ async function handleCoverage(drugIds: unknown) {
   }
 }
 
-async function handleInteractionStream(interactionId: string) {
-  const ctx = await getInteractionContext(interactionId);
-  if (!ctx) {
-    return jsonNoStore({ error: "Bu etkileşim için canlı açıklama üretilemedi." }, 404);
-  }
 
-  const isHighSeverity = ctx.interaction.severity === "high" || ctx.interaction.severity === "HIGH";
-  const cacheKey = `explanation:v3:interaction:${interactionId}:data:${SNAPSHOT_VERSION}:schema:${SCHEMA_VERSION}:locale:tr`;
-
-  const cached = await getCachedExplanation(cacheKey);
-  if (cached) {
-    return new Response(
-      new ReadableStream({
-        start(controller) {
-          const encoder = new TextEncoder();
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ chunk: cached.explanation, source: "cache", generatedAt: cached.generatedAt })}\n\n`));
-          controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
-          controller.close();
-        }
-      }),
-      {
-        headers: {
-          "Content-Type": "text/event-stream",
-          "Cache-Control": "no-cache, no-transform",
-          "Connection": "keep-alive",
-        }
+function createCachedStreamResponse(cached: CachedExplanation) {
+  return new Response(
+    new ReadableStream({
+      start(controller) {
+        const encoder = new TextEncoder();
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ chunk: cached.explanation, source: "cache", generatedAt: cached.generatedAt })}\n\n`));
+        controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
+        controller.close();
       }
-    );
-  }
+    }),
+    {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache, no-transform",
+        "Connection": "keep-alive",
+      }
+    }
+  );
+}
 
-  const prompt = buildInteractionStreamPrompt(ctx);
-
+function createLiveStreamResponse(prompt: string, cacheKey: string, isHighSeverity: boolean) {
   return new Response(
     new ReadableStream({
       async start(controller) {
@@ -341,6 +331,24 @@ async function handleInteractionStream(interactionId: string) {
   );
 }
 
+async function handleInteractionStream(interactionId: string) {
+  const ctx = await getInteractionContext(interactionId);
+  if (!ctx) {
+    return jsonNoStore({ error: "Bu etkileşim için canlı açıklama üretilemedi." }, 404);
+  }
+
+  const isHighSeverity = ctx.interaction.severity === "high" || ctx.interaction.severity === "HIGH";
+  const cacheKey = `explanation:v3:interaction:${interactionId}:data:${SNAPSHOT_VERSION}:schema:${SCHEMA_VERSION}:locale:tr`;
+
+  const cached = await getCachedExplanation(cacheKey);
+  if (cached) {
+    return createCachedStreamResponse(cached);
+  }
+
+  const prompt = buildInteractionStreamPrompt(ctx);
+  return createLiveStreamResponse(prompt, cacheKey, isHighSeverity);
+}
+
 async function handleCoverageStream(drugIds: string[]) {
   const ctx = getCoverageContext(drugIds);
   if (!ctx) {
@@ -352,87 +360,11 @@ async function handleCoverageStream(drugIds: string[]) {
 
   const cached = await getCachedExplanation(cacheKey);
   if (cached) {
-    return new Response(
-      new ReadableStream({
-        start(controller) {
-          const encoder = new TextEncoder();
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ chunk: cached.explanation, source: "cache", generatedAt: cached.generatedAt })}\n\n`));
-          controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
-          controller.close();
-        }
-      }),
-      {
-        headers: {
-          "Content-Type": "text/event-stream",
-          "Cache-Control": "no-cache, no-transform",
-          "Connection": "keep-alive",
-        }
-      }
-    );
+    return createCachedStreamResponse(cached);
   }
 
   const prompt = buildCoverageStreamPrompt(ctx);
-
-  return new Response(
-    new ReadableStream({
-      async start(controller) {
-        const encoder = new TextEncoder();
-        const chunks: string[] = [];
-        let windowBuffer = "";
-
-        try {
-          const streamGenerator = streamGeminiContent(prompt);
-          for await (const chunk of streamGenerator) {
-            chunks.push(chunk);
-            windowBuffer += chunk;
-
-            // Chunk-level regex check
-            if (!isOutputSafe(windowBuffer)) {
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: "AI çıktısı klinik güvenlik kurallarını (regex) ihlal ediyor.", code: "UNSAFE_ALERT" })}\n\n`));
-              controller.close();
-              return;
-            }
-
-            windowBuffer = windowBuffer.slice(-200);
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ chunk })}\n\n`));
-          }
-
-          // Stream finished. Run Reviewer Agent
-          const buffer = chunks.join("");
-          const isSafe = await runReviewerAgent(buffer);
-          if (!isSafe) {
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: "AI çıktısı klinik güvenlik kurallarını (Reviewer Agent) ihlal ediyor.", code: "REJECTED" })}\n\n`));
-            controller.close();
-            return;
-          }
-
-          // Safe! Cache the result
-          const generatedAt = new Intl.DateTimeFormat("tr-TR", {
-            hour: "2-digit",
-            minute: "2-digit",
-            second: "2-digit",
-          }).format(new Date());
-
-          await setCachedExplanation(cacheKey, { explanation: buffer, generatedAt });
-
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true, generatedAt })}\n\n`));
-          controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
-          controller.close();
-        } catch (error) {
-          console.error("[Stream Error]", error);
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: "Canlı AI açıklaması şu anda üretilemedi.", code: "API_ERROR" })}\n\n`));
-          controller.close();
-        }
-      }
-    }),
-    {
-      headers: {
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache, no-transform",
-        "Connection": "keep-alive",
-      }
-    }
-  );
+  return createLiveStreamResponse(prompt, cacheKey, false);
 }
 
 export async function POST(request: Request) {

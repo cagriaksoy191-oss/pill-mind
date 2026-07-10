@@ -65,4 +65,37 @@ describe("Fuzzy Search Birim Testleri (Turkish Fuzzy Search)", () => {
     expect(results.length).toBeGreaterThan(0);
     expect(results[0].item.name).toBe("Aspirin");
   });
+
+  test("Alt dize eşleşme puanlaması (Substring Matching)", () => {
+    // "raspin" is a pure substring of "Coraspin" but does not start with it
+    const results = fuzzySearchDrugs("raspin", mockDrugs);
+    expect(results.length).toBeGreaterThan(0);
+    expect(results[0].item.name).toBe("Coraspin");
+  });
+
+  test("Benzerlik puanlaması (Similarity > 0.6)", () => {
+    // "aspiry" has a high Levenshtein similarity to "Aspirin" (>0.6)
+    // distance is 2, maxLen is 7, similarity is 5/7 = 0.71
+    const results = fuzzySearchDrugs("aspiry", mockDrugs);
+    expect(results.length).toBeGreaterThan(0);
+    expect(results[0].item.name).toBe("Aspirin");
+  });
+
+  test("Levenshtein önbellek genişletme (Levenshtein Cache Resize)", () => {
+    const longMockDrugs = [
+      {
+        id: "long1",
+        name: "A".repeat(65),
+        activeIngredient: "B".repeat(65),
+        category: "C".repeat(65),
+      }
+    ];
+    // Need a query that falls through to Levenshtein distance on a target string length > 64.
+    // Query length doesn't have to be > 64, target length > 64 triggers it, but we need similarity to hit.
+    // We can use a query with length > 64 and a slight typo to trigger similarity score or at least run the cache logic.
+    const longQuery = "A".repeat(64) + "X";
+    const results = fuzzySearchDrugs(longQuery, longMockDrugs);
+    expect(results.length).toBeGreaterThan(0);
+    expect(results[0].item.name.length).toBe(65);
+  });
 });

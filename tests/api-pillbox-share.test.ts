@@ -51,7 +51,7 @@ describe("POST /api/pillbox/share", () => {
 
   it("should return 401 if user is not authenticated", async () => {
     (verifyCSRF as jest.Mock).mockReturnValue(true);
-    (getSession as jest.Mock).mockReturnValue(null);
+    (getSession as jest.Mock).mockResolvedValue(null);
 
     const req = createMockRequest();
     const res = await POST(req);
@@ -63,7 +63,7 @@ describe("POST /api/pillbox/share", () => {
 
   it("should return 400 if drugIds is missing", async () => {
     (verifyCSRF as jest.Mock).mockReturnValue(true);
-    (getSession as jest.Mock).mockReturnValue({ userId: "user-1", email: "test@test.com" });
+    (getSession as jest.Mock).mockResolvedValue({ userId: "user-1", email: "test@test.com" });
 
     const req = createMockRequest({});
     const res = await POST(req);
@@ -75,7 +75,7 @@ describe("POST /api/pillbox/share", () => {
 
   it("should return 400 if drugIds is not an array", async () => {
     (verifyCSRF as jest.Mock).mockReturnValue(true);
-    (getSession as jest.Mock).mockReturnValue({ userId: "user-1", email: "test@test.com" });
+    (getSession as jest.Mock).mockResolvedValue({ userId: "user-1", email: "test@test.com" });
 
     const req = createMockRequest({ drugIds: "not-an-array" });
     const res = await POST(req);
@@ -87,7 +87,7 @@ describe("POST /api/pillbox/share", () => {
 
   it("should return 400 if drugIds is empty", async () => {
     (verifyCSRF as jest.Mock).mockReturnValue(true);
-    (getSession as jest.Mock).mockReturnValue({ userId: "user-1", email: "test@test.com" });
+    (getSession as jest.Mock).mockResolvedValue({ userId: "user-1", email: "test@test.com" });
 
     const req = createMockRequest({ drugIds: [] });
     const res = await POST(req);
@@ -99,7 +99,7 @@ describe("POST /api/pillbox/share", () => {
 
   it("should return 200 and create a share link successfully", async () => {
     (verifyCSRF as jest.Mock).mockReturnValue(true);
-    (getSession as jest.Mock).mockReturnValue({ userId: "user-1", email: "test@test.com" });
+    (getSession as jest.Mock).mockResolvedValue({ userId: "user-1", email: "test@test.com" });
 
     const mockToken = "mocked-token-hash";
     (crypto.randomBytes as jest.Mock).mockReturnValue({
@@ -147,7 +147,7 @@ describe("POST /api/pillbox/share", () => {
   it("should return 500 if an internal error occurs", async () => {
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     (verifyCSRF as jest.Mock).mockReturnValue(true);
-    (getSession as jest.Mock).mockReturnValue({ userId: "user-1", email: "test@test.com" });
+    (getSession as jest.Mock).mockResolvedValue({ userId: "user-1", email: "test@test.com" });
 
     (prisma.pillboxShare.create as jest.Mock).mockRejectedValue(new Error("Database error"));
 

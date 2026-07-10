@@ -53,7 +53,7 @@ describe("POST /api/admin/review", () => {
 
   it("should return 401 if user is not authenticated", async () => {
     (verifyCSRF as jest.Mock).mockReturnValue(true);
-    (getSession as jest.Mock).mockReturnValue(null);
+    (getSession as jest.Mock).mockResolvedValue(null);
 
     const req = createMockRequest();
     const res = await POST(req);
@@ -65,7 +65,7 @@ describe("POST /api/admin/review", () => {
 
   it("should return 403 if user is not found", async () => {
     (verifyCSRF as jest.Mock).mockReturnValue(true);
-    (getSession as jest.Mock).mockReturnValue({ userId: "user-1", email: "test@test.com" });
+    (getSession as jest.Mock).mockResolvedValue({ userId: "user-1", email: "test@test.com" });
     (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
 
     const req = createMockRequest();
@@ -78,7 +78,7 @@ describe("POST /api/admin/review", () => {
 
   it("should return 403 if user role is not ADMIN or CLINICAL_REVIEWER", async () => {
     (verifyCSRF as jest.Mock).mockReturnValue(true);
-    (getSession as jest.Mock).mockReturnValue({ userId: "user-1", email: "test@test.com" });
+    (getSession as jest.Mock).mockResolvedValue({ userId: "user-1", email: "test@test.com" });
     (prisma.user.findUnique as jest.Mock).mockResolvedValue({ role: "USER" });
 
     const req = createMockRequest();
@@ -91,7 +91,7 @@ describe("POST /api/admin/review", () => {
 
   it("should return 400 if interactionId or status is missing", async () => {
     (verifyCSRF as jest.Mock).mockReturnValue(true);
-    (getSession as jest.Mock).mockReturnValue({ userId: "admin-1", email: "admin@test.com" });
+    (getSession as jest.Mock).mockResolvedValue({ userId: "admin-1", email: "admin@test.com" });
     (prisma.user.findUnique as jest.Mock).mockResolvedValue({ role: "ADMIN" });
 
     const req = createMockRequest({ interactionId: "interaction-1" }); // missing status
@@ -104,7 +104,7 @@ describe("POST /api/admin/review", () => {
 
   it("should return 400 if status is invalid", async () => {
     (verifyCSRF as jest.Mock).mockReturnValue(true);
-    (getSession as jest.Mock).mockReturnValue({ userId: "admin-1", email: "admin@test.com" });
+    (getSession as jest.Mock).mockResolvedValue({ userId: "admin-1", email: "admin@test.com" });
     (prisma.user.findUnique as jest.Mock).mockResolvedValue({ role: "ADMIN" });
 
     const req = createMockRequest({ interactionId: "interaction-1", status: "INVALID_STATUS" });
@@ -117,7 +117,7 @@ describe("POST /api/admin/review", () => {
 
   it("should return 404 if interaction is not found", async () => {
     (verifyCSRF as jest.Mock).mockReturnValue(true);
-    (getSession as jest.Mock).mockReturnValue({ userId: "admin-1", email: "admin@test.com" });
+    (getSession as jest.Mock).mockResolvedValue({ userId: "admin-1", email: "admin@test.com" });
     (prisma.user.findUnique as jest.Mock).mockResolvedValue({ role: "ADMIN" });
     (prisma.drugInteraction.findUnique as jest.Mock).mockResolvedValue(null);
 
@@ -131,7 +131,7 @@ describe("POST /api/admin/review", () => {
 
   it("should successfully process review and return 200", async () => {
     (verifyCSRF as jest.Mock).mockReturnValue(true);
-    (getSession as jest.Mock).mockReturnValue({ userId: "admin-1", email: "admin@test.com" });
+    (getSession as jest.Mock).mockResolvedValue({ userId: "admin-1", email: "admin@test.com" });
     (prisma.user.findUnique as jest.Mock).mockResolvedValue({ role: "ADMIN" });
     (prisma.drugInteraction.findUnique as jest.Mock).mockResolvedValue({ id: "interaction-1" });
 
@@ -183,7 +183,7 @@ describe("POST /api/admin/review", () => {
   it("should return 500 if an internal error occurs", async () => {
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     (verifyCSRF as jest.Mock).mockReturnValue(true);
-    (getSession as jest.Mock).mockReturnValue({ userId: "admin-1", email: "admin@test.com" });
+    (getSession as jest.Mock).mockResolvedValue({ userId: "admin-1", email: "admin@test.com" });
     (prisma.user.findUnique as jest.Mock).mockResolvedValue({ role: "ADMIN" });
     (prisma.drugInteraction.findUnique as jest.Mock).mockRejectedValue(new Error("Database error"));
 

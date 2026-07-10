@@ -26,7 +26,7 @@ describe("GET /api/pillbox/list", () => {
   };
 
   it("should return 401 if user is not authenticated", async () => {
-    (getSession as jest.Mock).mockReturnValue(null);
+    (getSession as jest.Mock).mockResolvedValue(null);
 
     const req = createMockRequest();
     const res = await GET(req);
@@ -37,7 +37,7 @@ describe("GET /api/pillbox/list", () => {
   });
 
   it("should return 200 and the list of pillboxes successfully", async () => {
-    (getSession as jest.Mock).mockReturnValue({ userId: "user-1", email: "test@test.com", expires: Date.now() + 10000 });
+    (getSession as jest.Mock).mockResolvedValue({ userId: "user-1", email: "test@test.com", expires: Date.now() + 10000 });
 
     const mockPillboxes = [
       { id: "pillbox-1", userId: "user-1", name: "My Pillbox", drugIds: ["drug-1"], createdAt: new Date() },
@@ -64,7 +64,7 @@ describe("GET /api/pillbox/list", () => {
 
   it("should return 500 if an internal error occurs", async () => {
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-    (getSession as jest.Mock).mockReturnValue({ userId: "user-1", email: "test@test.com", expires: Date.now() + 10000 });
+    (getSession as jest.Mock).mockResolvedValue({ userId: "user-1", email: "test@test.com", expires: Date.now() + 10000 });
     (prisma.savedPillbox.findMany as jest.Mock).mockRejectedValue(new Error("Database error"));
 
     const req = createMockRequest();

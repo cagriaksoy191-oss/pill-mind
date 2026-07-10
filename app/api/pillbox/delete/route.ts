@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const session = getSession(request);
+    const session = await getSession(request);
     if (!session) {
       return NextResponse.json(
         { error: "Kutu silme yetkiniz bulunmuyor. Lütfen önce giriş yapın." },

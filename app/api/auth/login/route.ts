@@ -96,7 +96,7 @@ export async function POST(request: Request) {
 
     // 7 Günlük oturum süresi belirlenir
     const expiresAt = Date.now() + 1000 * 60 * 60 * 24 * 7;
-    const sessionToken = encryptSession({
+    const sessionToken = await encryptSession({
       userId: user.id,
       email: user.email,
       expires: expiresAt,

@@ -56,7 +56,25 @@ describe("AES-256 Oturum Güvenliği Birim Testleri (Session Cryptography Unit T
 
     expect(decrypted).toBeDefined();
     expect(decrypted?.expires).toBeLessThan(Date.now()); // Süresinin geçmiş olduğu teyit edilir
+  })
+  test("Malformed token lengths return null (Length Check)", () => {
+    const token = encryptSession(testSession);
+    const parts = token.split(":");
+    // Make salt length invalid (1 byte instead of 16)
+    parts[0] = "ab";
+    const decrypted = decryptSession(parts.join(":"));
+    expect(decrypted).toBeNull();
   });
+
+  test("Invalid crypto operations are caught and return null (Catch block)", () => {
+    const token = encryptSession(testSession);
+    const parts = token.split(":");
+    // Provide a valid length auth tag, but completely wrong (16 bytes = 32 hex chars)
+    parts[2] = Buffer.alloc(16).toString("hex");
+    const decrypted = decryptSession(parts.join(":"));
+    expect(decrypted).toBeNull();
+  });
+;
 });
 
 describe("CSRF / Origin Doğrulama Birim Testleri (CSRF & Cross-Origin Security Unit Tests)", () => {
@@ -78,6 +96,20 @@ describe("CSRF / Origin Doğrulama Birim Testleri (CSRF & Cross-Origin Security 
 test("Beklenen orijin (expectedOrigin) belirlenemediğinde fail-secure engelleme", () => {
     const req = createMockReq({}, "invalid-url-to-fail-parsing");
     expect(verifyCSRF(req)).toBe(false);
+  });
+
+  test("host header allows valid origin when url is missing", () => {
+    const req = {
+      headers: {
+        get: (name) => {
+          if (name === "host") return "localhost:3000";
+          if (name === "x-forwarded-proto") return "http";
+          if (name === "origin") return "http://localhost:3000";
+          return null;
+        }
+      }
+    } as unknown as Request;
+    expect(verifyCSRF(req)).toBe(true);
   });
 
   test("Aynı orijinden (same-origin) gelen isteklerin kabul edilmesi", () => {

@@ -9,69 +9,71 @@ describe("AES-256 Oturum Güvenliği Birim Testleri (Session Cryptography Unit T
     expires: Date.now() + 1000 * 60 * 60, // 1 Saat sonra
   };
 
-  test("Oturum şifreleme ve deşifre etme simetrisi (Symmetry Check)", () => {
+  test("Oturum şifreleme ve deşifre etme simetrisi (Symmetry Check)", async () => {
     // 1. Şifreleme işlemi
-    const token = encryptSession(testSession);
+    const token = await encryptSession(testSession);
     expect(token).toBeDefined();
     expect(typeof token).toBe("string");
     expect(token).not.toEqual(JSON.stringify(testSession)); // Şifrelenmiş metin açık veri olmamalıdır
 
     // 2. Şifre çözme işlemi
-    const decrypted = decryptSession(token);
+    const decrypted = await decryptSession(token);
     expect(decrypted).toBeDefined();
     expect(decrypted?.userId).toBe(testSession.userId);
     expect(decrypted?.email).toBe(testSession.email);
     expect(decrypted?.expires).toBe(testSession.expires);
   });
 
-  test("Bozuk veya kurcalanmış token'ların güvenle yakalanması (Integrity Protection)", () => {
-    const token = encryptSession(testSession);
+  test("Bozuk veya kurcalanmış token'ların güvenle yakalanması (Integrity Protection)", async () => {
+    const token = await encryptSession(testSession);
 
     // Token'ın sonuna rastgele karakterler ekleyerek bütünlüğü bozuyoruz
     const corruptedToken = token + "ab12";
 
     let decrypted = null;
-    expect(() => {
-      decrypted = decryptSession(corruptedToken);
-    }).not.toThrow(); // Kriptografik hata sistemi çökertmemeli, sessizce null dönmelidir
+    try {
+      decrypted = await decryptSession(corruptedToken);
+    } catch (e) {
+      fail("Kriptografik hata sistemi çökertmemeli, sessizce null dönmelidir");
+    }
 
     expect(decrypted).toBeNull();
   });
 
-  test("Geçersiz veya tamamen rastgele token'lar için null dönmesi (Invalid Token Handlers)", () => {
+  test("Geçersiz veya tamamen rastgele token'lar için null dönmesi (Invalid Token Handlers)", async () => {
     const fakeToken = "completely-random-non-hex-token";
-    const decrypted = decryptSession(fakeToken);
+    const decrypted = await decryptSession(fakeToken);
     expect(decrypted).toBeNull();
   });
 
-  test("Zaman aşımına uğramış oturumların tespiti için süre kontrolü (Session Expiry Mechanics)", () => {
+  test("Zaman aşımına uğramış oturumların tespiti için süre kontrolü (Session Expiry Mechanics)", async () => {
     const expiredSession: SessionData = {
       userId: "expired-user-uuid",
       email: "eski@pillmind.com",
       expires: Date.now() - 1000 * 60, // 1 dakika önce sona erdi
     };
 
-    const token = encryptSession(expiredSession);
-    const decrypted = decryptSession(token);
+    const token = await encryptSession(expiredSession);
+    const decrypted = await decryptSession(token);
 
     expect(decrypted).toBeDefined();
     expect(decrypted?.expires).toBeLessThan(Date.now()); // Süresinin geçmiş olduğu teyit edilir
   })
-  test("Malformed token lengths return null (Length Check)", () => {
-    const token = encryptSession(testSession);
+  test("Malformed token lengths return null (Length Check)", async () => {
+    const token = await encryptSession(testSession);
     const parts = token.split(":");
     // Make salt length invalid (1 byte instead of 16)
     parts[0] = "ab";
-    const decrypted = decryptSession(parts.join(":"));
+    const decrypted = await decryptSession(parts.join(":"));
     expect(decrypted).toBeNull();
   });
 
-  test("Invalid crypto operations are caught and return null (Catch block)", () => {
-    const token = encryptSession(testSession);
+  test("Invalid crypto operations are caught and return null (Catch block)", async () => {
+    const token = await encryptSession(testSession);
     const parts = token.split(":");
     // Provide a valid length auth tag, but completely wrong (16 bytes = 32 hex chars)
     parts[2] = Buffer.alloc(16).toString("hex");
-    const decrypted = decryptSession(parts.join(":"));
+    const decrypted = await decryptSession(parts.join(":"));
     expect(decrypted).toBeNull();
   });
 ;
@@ -88,17 +90,17 @@ describe("CSRF / Origin Doğrulama Birim Testleri (CSRF & Cross-Origin Security 
     } as unknown as Request;
   };
 
-  test("Başlıklar (headers) eksik olduğunda fail-secure engelleme", () => {
+  test("Başlıklar (headers) eksik olduğunda fail-secure engelleme", async () => {
     const req = {} as Request; // headers veya url yok
     expect(verifyCSRF(req)).toBe(false);
   });
 
-test("Beklenen orijin (expectedOrigin) belirlenemediğinde fail-secure engelleme", () => {
+test("Beklenen orijin (expectedOrigin) belirlenemediğinde fail-secure engelleme", async () => {
     const req = createMockReq({}, "invalid-url-to-fail-parsing");
     expect(verifyCSRF(req)).toBe(false);
   });
 
-  test("host header allows valid origin when url is missing", () => {
+  test("host header allows valid origin when url is missing", async () => {
     const req = {
       headers: {
         get: (name) => {
@@ -112,7 +114,7 @@ test("Beklenen orijin (expectedOrigin) belirlenemediğinde fail-secure engelleme
     expect(verifyCSRF(req)).toBe(true);
   });
 
-  test("host header rejects invalid origin protecting against host header injection", () => {
+  test("host header rejects invalid origin protecting against host header injection", async () => {
     const req = {
       headers: {
         get: (name) => {
@@ -125,7 +127,7 @@ test("Beklenen orijin (expectedOrigin) belirlenemediğinde fail-secure engelleme
     expect(verifyCSRF(req)).toBe(false);
   });
 
-  test("Aynı orijinden (same-origin) gelen isteklerin kabul edilmesi", () => {
+  test("Aynı orijinden (same-origin) gelen isteklerin kabul edilmesi", async () => {
     const req = createMockReq({
       origin: "http://localhost:3000",
       referer: "http://localhost:3000/kontrol",
@@ -133,21 +135,21 @@ test("Beklenen orijin (expectedOrigin) belirlenemediğinde fail-secure engelleme
     expect(verifyCSRF(req)).toBe(true);
   });
 
-  test("Çapraz orijinden (cross-origin) gelen Origin başlığı eşleşmediğinde engelleme (Origin Mismatch)", () => {
+  test("Çapraz orijinden (cross-origin) gelen Origin başlığı eşleşmediğinde engelleme (Origin Mismatch)", async () => {
     const req = createMockReq({
       origin: "http://hacker-domain.com",
     });
     expect(verifyCSRF(req)).toBe(false);
   });
 
-  test("Çapraz orijinden gelen Referer başlığı eşleşmediğinde engelleme (Referer Mismatch)", () => {
+  test("Çapraz orijinden gelen Referer başlığı eşleşmediğinde engelleme (Referer Mismatch)", async () => {
     const req = createMockReq({
       referer: "http://hacker-domain.com/landing",
     });
     expect(verifyCSRF(req)).toBe(false);
   });
 
-  test("Referer formatı bozuk veya geçersiz olduğunda engelleme", () => {
+  test("Referer formatı bozuk veya geçersiz olduğunda engelleme", async () => {
     const req = createMockReq({
       referer: "invalid-url-string-not-http",
     });
@@ -159,13 +161,13 @@ test("Beklenen orijin (expectedOrigin) belirlenemediğinde fail-secure engelleme
 describe("E-posta Doğrulama Güvenliği (Email Validation Security)", () => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-  test("Geçerli e-posta adreslerini kabul etmeli", () => {
+  test("Geçerli e-posta adreslerini kabul etmeli", async () => {
     expect(emailRegex.test("test@example.com")).toBe(true);
     expect(emailRegex.test("user.name+tag@domain.co.uk")).toBe(true);
     expect(emailRegex.test("123@123.com")).toBe(true);
   });
 
-  test("Geçersiz e-posta adreslerini reddetmeli", () => {
+  test("Geçersiz e-posta adreslerini reddetmeli", async () => {
     expect(emailRegex.test("")).toBe(false);
     expect(emailRegex.test("plainaddress")).toBe(false);
     expect(emailRegex.test("@no-local-part.com")).toBe(false);
@@ -194,31 +196,31 @@ describe("getSession (Oturum Okuma Birim Testleri)", () => {
     } as unknown as NextRequest;
   };
 
-  test("Çerez (cookie) yoksa null dönmeli", () => {
+  test("Çerez (cookie) yoksa null dönmeli", async () => {
     const req = createMockReq();
-    expect(getSession(req)).toBeNull();
+    expect(await getSession(req)).toBeNull();
   });
 
-  test("Çerez geçersizse veya deşifre edilemiyorsa null dönmeli", () => {
+  test("Çerez geçersizse veya deşifre edilemiyorsa null dönmeli", async () => {
     const req = createMockReq("invalid-token-string");
-    expect(getSession(req)).toBeNull();
+    expect(await getSession(req)).toBeNull();
   });
 
-  test("Oturumun süresi dolmuşsa null dönmeli", () => {
+  test("Oturumun süresi dolmuşsa null dönmeli", async () => {
     const expiredSession: SessionData = {
       ...testSession,
       expires: Date.now() - 1000 * 60, // 1 dakika önce
     };
-    const token = encryptSession(expiredSession);
+    const token = await encryptSession(expiredSession);
     const req = createMockReq(token);
-    expect(getSession(req)).toBeNull();
+    expect(await getSession(req)).toBeNull();
   });
 
-  test("Geçerli bir çerez için oturum verisini dönmeli", () => {
-    const token = encryptSession(testSession);
+  test("Geçerli bir çerez için oturum verisini dönmeli", async () => {
+    const token = await encryptSession(testSession);
     const req = createMockReq(token);
 
-    const session = getSession(req);
+    const session = await getSession(req);
     expect(session).toBeDefined();
     expect(session?.userId).toBe(testSession.userId);
     expect(session?.email).toBe(testSession.email);

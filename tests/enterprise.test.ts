@@ -165,7 +165,7 @@ describe("PillMind 3.0 Enterprise and FHIR API Tests", () => {
 
   describe("Pillbox Share POST (/api/pillbox/share)", () => {
     it("should require authentication to create a share", async () => {
-      (getSession as jest.Mock).mockReturnValue(null);
+      (getSession as jest.Mock).mockResolvedValue(null);
 
       const req = createMockRequest({ drugIds: ["aspirin", "warfarin"] });
       const res = await createShare(req);
@@ -173,7 +173,7 @@ describe("PillMind 3.0 Enterprise and FHIR API Tests", () => {
     });
 
     it("should generate a 24h expiration token and save to PillboxShare", async () => {
-      (getSession as jest.Mock).mockReturnValue({ userId: "user-1", email: "dr@pillmind.com" });
+      (getSession as jest.Mock).mockResolvedValue({ userId: "user-1", email: "dr@pillmind.com" });
       const mockShare = { id: "share-123", token: "mocktoken123", drugIds: ["aspirin", "warfarin"], expiresAt: new Date(Date.now() + 86400000) };
       (prisma.pillboxShare.create as jest.Mock).mockResolvedValue(mockShare);
 
@@ -248,7 +248,7 @@ describe("PillMind 3.0 Enterprise and FHIR API Tests", () => {
 
   describe("Clinical Approval (POST /api/admin/review)", () => {
     it("should return 401 if admin reviewer is not authenticated", async () => {
-      (getSession as jest.Mock).mockReturnValue(null);
+      (getSession as jest.Mock).mockResolvedValue(null);
 
       const req = createMockRequest({ interactionId: "int-1", status: "VERIFIED" });
       const res = await submitReview(req);
@@ -256,7 +256,7 @@ describe("PillMind 3.0 Enterprise and FHIR API Tests", () => {
     });
 
     it("should return 403 if the authenticated user is not an authorized reviewer", async () => {
-      (getSession as jest.Mock).mockReturnValue({ userId: "user-1", email: "hasta@pillmind.com" });
+      (getSession as jest.Mock).mockResolvedValue({ userId: "user-1", email: "hasta@pillmind.com" });
       (prisma.user.findUnique as jest.Mock).mockResolvedValue({ role: "USER" });
 
       const req = createMockRequest({ interactionId: "int-1", status: "VERIFIED" });
@@ -267,7 +267,7 @@ describe("PillMind 3.0 Enterprise and FHIR API Tests", () => {
     });
 
     it("should update status, create clinical review record, and log action", async () => {
-      (getSession as jest.Mock).mockReturnValue({ userId: "admin-1", email: "admin@pillmind.com" });
+      (getSession as jest.Mock).mockResolvedValue({ userId: "admin-1", email: "admin@pillmind.com" });
       (prisma.user.findUnique as jest.Mock).mockResolvedValue({ role: "ADMIN" });
       (prisma.drugInteraction.findUnique as jest.Mock).mockResolvedValue({ id: "int-1", severity: "high" });
       (prisma.drugInteraction.update as jest.Mock).mockResolvedValue({ id: "int-1", verificationStatus: "VERIFIED" });

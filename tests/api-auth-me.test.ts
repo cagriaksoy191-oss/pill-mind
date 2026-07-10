@@ -12,7 +12,7 @@ describe("GET /api/auth/me", () => {
   });
 
   it("should return 401 when no session exists", async () => {
-    (getSession as jest.Mock).mockReturnValue(null);
+    (getSession as jest.Mock).mockResolvedValue(null);
 
     const req = {
       method: "GET",
@@ -31,7 +31,7 @@ describe("GET /api/auth/me", () => {
       email: "test@example.com",
       expires: Date.now() + 10000,
     };
-    (getSession as jest.Mock).mockReturnValue(mockSession);
+    (getSession as jest.Mock).mockResolvedValue(mockSession);
 
     const req = {
       method: "GET",
@@ -52,7 +52,7 @@ describe("GET /api/auth/me", () => {
 
   it("should return 401 when session is expired or invalid (getSession returns null)", async () => {
     // If session is expired, getSession itself handles returning null based on our lib/auth.ts implementation
-    (getSession as jest.Mock).mockReturnValue(null);
+    (getSession as jest.Mock).mockResolvedValue(null);
 
     const req = {
       method: "GET",

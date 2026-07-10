@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Auth check
-    const session = getSession(request);
+    const session = await getSession(request);
     if (!session) {
       return jsonNoStore(
         { error: "Klinik onay işlemi gerçekleştirmek için lütfen giriş yapın." },

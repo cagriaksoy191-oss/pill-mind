@@ -30,7 +30,7 @@ describe("POST /api/pillbox/delete", () => {
   };
 
   it("should return 401 if user is not authenticated", async () => {
-    (getSession as jest.Mock).mockReturnValue(null);
+    (getSession as jest.Mock).mockResolvedValue(null);
 
     const req = createMockRequest({ id: "pillbox-1" });
     const res = await POST(req);
@@ -41,7 +41,7 @@ describe("POST /api/pillbox/delete", () => {
   });
 
   it("should return 400 if pillbox ID is missing", async () => {
-    (getSession as jest.Mock).mockReturnValue({ userId: "user-1", email: "test@test.com", expires: Date.now() + 10000 });
+    (getSession as jest.Mock).mockResolvedValue({ userId: "user-1", email: "test@test.com", expires: Date.now() + 10000 });
 
     const req = createMockRequest({});
     const res = await POST(req);
@@ -52,7 +52,7 @@ describe("POST /api/pillbox/delete", () => {
   });
 
   it("should return 404 if pillbox is not found", async () => {
-    (getSession as jest.Mock).mockReturnValue({ userId: "user-1", email: "test@test.com", expires: Date.now() + 10000 });
+    (getSession as jest.Mock).mockResolvedValue({ userId: "user-1", email: "test@test.com", expires: Date.now() + 10000 });
     (prisma.savedPillbox.findUnique as jest.Mock).mockResolvedValue(null);
 
     const req = createMockRequest({ id: "pillbox-1" });
@@ -65,7 +65,7 @@ describe("POST /api/pillbox/delete", () => {
   });
 
   it("should return 404 if user tries to delete another user's pillbox", async () => {
-    (getSession as jest.Mock).mockReturnValue({ userId: "user-1", email: "test@test.com", expires: Date.now() + 10000 });
+    (getSession as jest.Mock).mockResolvedValue({ userId: "user-1", email: "test@test.com", expires: Date.now() + 10000 });
     (prisma.savedPillbox.findUnique as jest.Mock).mockResolvedValue({ id: "pillbox-1", userId: "user-2" });
 
     const req = createMockRequest({ id: "pillbox-1" });
@@ -77,7 +77,7 @@ describe("POST /api/pillbox/delete", () => {
   });
 
   it("should return 200 and delete the pillbox successfully", async () => {
-    (getSession as jest.Mock).mockReturnValue({ userId: "user-1", email: "test@test.com", expires: Date.now() + 10000 });
+    (getSession as jest.Mock).mockResolvedValue({ userId: "user-1", email: "test@test.com", expires: Date.now() + 10000 });
     (prisma.savedPillbox.findUnique as jest.Mock).mockResolvedValue({ id: "pillbox-1", userId: "user-1" });
     (prisma.savedPillbox.delete as jest.Mock).mockResolvedValue({});
 
@@ -92,7 +92,7 @@ describe("POST /api/pillbox/delete", () => {
 
   it("should return 500 if an internal error occurs", async () => {
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-    (getSession as jest.Mock).mockReturnValue({ userId: "user-1", email: "test@test.com", expires: Date.now() + 10000 });
+    (getSession as jest.Mock).mockResolvedValue({ userId: "user-1", email: "test@test.com", expires: Date.now() + 10000 });
     (prisma.savedPillbox.findUnique as jest.Mock).mockRejectedValue(new Error("Database error"));
 
     const req = createMockRequest({ id: "pillbox-1" });

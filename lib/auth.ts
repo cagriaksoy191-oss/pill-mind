@@ -1,6 +1,9 @@
 // lib/auth.ts
 import { NextRequest } from "next/server";
 import crypto from "crypto";
+import { promisify } from "util";
+
+const scryptAsync = promisify(crypto.scrypt);
 
 const getJwtSecret = () => {
   if (!process.env.JWT_SECRET) throw new Error("JWT_SECRET is not set");
@@ -16,9 +19,9 @@ export interface SessionData {
 /**
  * AES-256-GCM (AEAD) algoritmasıyla oturum verisini şifreler
  */
-export function encryptSession(data: SessionData): string {
+export async function encryptSession(data: SessionData): Promise<string> {
   const salt = crypto.randomBytes(16); // Dinamik salt
-  const key = crypto.scryptSync(getJwtSecret(), salt, 32);
+  const key = (await scryptAsync(getJwtSecret(), salt, 32)) as Buffer;
   const iv = crypto.randomBytes(12); // GCM için dinamik 12-byte IV
   const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
   
@@ -34,7 +37,7 @@ export function encryptSession(data: SessionData): string {
 /**
  * Oturum şifresini çözerek doğrular (AEAD bütünlük kontrolü içerir)
  */
-export function decryptSession(token: string): SessionData | null {
+export async function decryptSession(token: string): Promise<SessionData | null> {
   try {
     const parts = token.split(":");
     
@@ -49,7 +52,7 @@ export function decryptSession(token: string): SessionData | null {
         return null;
       }
 
-      const key = crypto.scryptSync(getJwtSecret(), salt, 32);
+      const key = (await scryptAsync(getJwtSecret(), salt, 32)) as Buffer;
       const decipher = crypto.createDecipheriv("aes-256-gcm", key, iv);
       decipher.setAuthTag(authTag);
 
@@ -68,10 +71,10 @@ export function decryptSession(token: string): SessionData | null {
 /**
  * Request içerisindeki çerezden (cookie) oturum durumunu okur
  */
-export function getSession(req: NextRequest): SessionData | null {
+export async function getSession(req: NextRequest): Promise<SessionData | null> {
   const cookie = req.cookies.get("session");
   if (!cookie) return null;
-  const session = decryptSession(cookie.value);
+  const session = await decryptSession(cookie.value);
   if (!session) return null;
 
   // Zaman aşımı kontrolü

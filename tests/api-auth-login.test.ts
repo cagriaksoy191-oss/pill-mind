@@ -1,6 +1,7 @@
 process.env.JWT_SECRET = 'test-secret';
 import crypto from "crypto";
 import { POST } from "@/app/api/auth/login/route";
+import * as Sentry from "@sentry/nextjs";
 import { prisma } from "@/lib/prisma";
 
 jest.mock("@/lib/auth", () => ({
@@ -91,9 +92,10 @@ describe("POST /api/auth/login", () => {
   });
 
   it("should return 500 if an internal error occurs (e.g., db failure)", async () => {
-    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
 
     // Simulating database error
+    const sentrySpy = jest.spyOn(Sentry, "captureException").mockImplementation(() => "mock-id");
     (prisma.user.findUnique as jest.Mock).mockRejectedValue(new Error("Database connection failed"));
 
     const expires = Date.now() + 300000;
@@ -108,9 +110,10 @@ describe("POST /api/auth/login", () => {
     expect(res.status).toBe(500);
     const data = await res.json();
     expect(data.error).toBe("Giriş yapılırken sistemsel bir hata oluştu.");
-    expect(consoleSpy).toHaveBeenCalled();
+    expect(sentrySpy).toHaveBeenCalled();
 
-    consoleSpy.mockRestore();
+    sentrySpy.mockRestore();
+    jest.restoreAllMocks();
   });
 
 });

@@ -62,10 +62,12 @@ export async function GET(
 
     // Process clinical interactions dynamically on-the-fly
     const resolvedDrugsCache = await resolveDrugsDB(share.drugIds);
-    const interactions = await findInteractionsDB(share.drugIds, resolvedDrugsCache);
-    const accumulationWarnings = await checkAccumulationDB(share.drugIds, resolvedDrugsCache);
-    const foodInteractions = await findFoodInteractionsDB(share.drugIds, resolvedDrugsCache);
-    const contraindications = await findContraindicationsDB(share.drugIds, undefined, resolvedDrugsCache); // salt-okunur varsayılan boş patientContext
+    const [interactions, accumulationWarnings, foodInteractions, contraindications] = await Promise.all([
+      findInteractionsDB(share.drugIds, resolvedDrugsCache),
+      checkAccumulationDB(share.drugIds, resolvedDrugsCache),
+      findFoodInteractionsDB(share.drugIds, resolvedDrugsCache),
+      findContraindicationsDB(share.drugIds, undefined, resolvedDrugsCache) // salt-okunur varsayılan boş patientContext
+    ]);
 
     return NextResponse.json({
       success: true,

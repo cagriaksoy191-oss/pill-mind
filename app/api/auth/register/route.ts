@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyCSRF } from "@/lib/auth";
+import * as Sentry from "@sentry/nextjs";
 
 export async function POST(request: Request) {
   try {
@@ -49,7 +50,7 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
-    console.error("[PillMind Register Endpoint Error]:", error);
+    Sentry.captureException(error);
     return NextResponse.json(
       { error: "Kayıt sırasında sistemsel bir hata oluştu." },
       { status: 500 }

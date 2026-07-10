@@ -1,4 +1,5 @@
 // app/api/admin/review/route.ts
+import * as Sentry from "@sentry/nextjs";
 import { NextRequest } from "next/server";
 
 import { jsonNoStore } from "@/lib/http";
@@ -115,7 +116,7 @@ export async function POST(request: NextRequest) {
       review,
     });
   } catch (error) {
-    console.error("[Clinical Review Endpoint Error]:", error);
+    Sentry.captureException(error);
     return jsonNoStore(
       { error: "Onay durumu güncellenirken sistemsel bir hata oluştu." },
       500

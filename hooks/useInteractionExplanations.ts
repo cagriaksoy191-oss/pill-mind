@@ -1,5 +1,82 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, Dispatch, SetStateAction } from "react";
 import { ExplanationData } from "@/lib/interactions";
+
+async function processEventStream(
+  reader: ReadableStreamDefaultReader<Uint8Array> | undefined,
+  interactionId: string,
+  setExplanations: Dispatch<SetStateAction<Record<string, ExplanationData>>>
+) {
+  if (!reader) return;
+  const decoder = new TextDecoder("utf-8");
+  let explanationText = "";
+  let buffer = "";
+
+  setExplanations((prev) => ({
+    ...prev,
+    [interactionId]: { source: "gemini_live", explanation: "" },
+  }));
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    const chunk = decoder.decode(value);
+    buffer += chunk;
+
+    let newlineIdx;
+    let lastIdx = 0;
+    while ((newlineIdx = buffer.indexOf("\n", lastIdx)) !== -1) {
+      const line = buffer.slice(lastIdx, newlineIdx);
+      lastIdx = newlineIdx + 1;
+      if (line.startsWith("data: ")) {
+        const dataStr = line.slice(6).trim();
+        if (dataStr === "[DONE]") {
+          break;
+        }
+        try {
+          const dataObj = JSON.parse(dataStr);
+          if (dataObj.error) {
+            setExplanations((prev) => ({
+              ...prev,
+              [interactionId]: {
+                source: "error",
+                error: dataObj.error,
+                reason: dataObj.code === "UNSAFE_ALERT" || dataObj.code === "REJECTED" ? "safety_block" : "api_error",
+              },
+            }));
+            return;
+          }
+
+          if (dataObj.chunk) {
+            explanationText += dataObj.chunk;
+            setExplanations((prev) => ({
+              ...prev,
+              [interactionId]: {
+                source: "gemini_live",
+                explanation: explanationText,
+                generatedAt: dataObj.generatedAt,
+              },
+            }));
+          }
+
+          if (dataObj.done) {
+            setExplanations((prev) => ({
+              ...prev,
+              [interactionId]: {
+                source: "gemini_live",
+                explanation: explanationText,
+                generatedAt: dataObj.generatedAt,
+              },
+            }));
+          }
+        } catch {
+          // Ignore parsing errors on split chunks
+        }
+      }
+    }
+    buffer = buffer.slice(lastIdx);
+  }
+}
 
 export function useInteractionExplanations() {
   const [explanations, setExplanations] = useState<Record<string, ExplanationData>>({});
@@ -29,75 +106,7 @@ export function useInteractionExplanations() {
       const contentType = res.headers.get("Content-Type") || "";
       if (contentType.includes("text/event-stream")) {
         const reader = res.body?.getReader();
-        const decoder = new TextDecoder("utf-8");
-        let explanationText = "";
-        let buffer = "";
-
-        setExplanations((prev) => ({
-          ...prev,
-          [interactionId]: { source: "gemini_live", explanation: "" },
-        }));
-
-        while (reader) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          const chunk = decoder.decode(value);
-          buffer += chunk;
-
-          let newlineIdx;
-          let lastIdx = 0;
-          while ((newlineIdx = buffer.indexOf("\n", lastIdx)) !== -1) {
-            const line = buffer.slice(lastIdx, newlineIdx);
-            lastIdx = newlineIdx + 1;
-            if (line.startsWith("data: ")) {
-              const dataStr = line.slice(6).trim();
-              if (dataStr === "[DONE]") {
-                break;
-              }
-              try {
-                const dataObj = JSON.parse(dataStr);
-                if (dataObj.error) {
-                  setExplanations((prev) => ({
-                    ...prev,
-                    [interactionId]: {
-                      source: "error",
-                      error: dataObj.error,
-                      reason: dataObj.code === "UNSAFE_ALERT" || dataObj.code === "REJECTED" ? "safety_block" : "api_error",
-                    },
-                  }));
-                  return;
-                }
-
-                if (dataObj.chunk) {
-                  explanationText += dataObj.chunk;
-                  setExplanations((prev) => ({
-                    ...prev,
-                    [interactionId]: {
-                      source: "gemini_live",
-                      explanation: explanationText,
-                      generatedAt: dataObj.generatedAt,
-                    },
-                  }));
-                }
-
-                if (dataObj.done) {
-                  setExplanations((prev) => ({
-                    ...prev,
-                    [interactionId]: {
-                      source: "gemini_live",
-                      explanation: explanationText,
-                      generatedAt: dataObj.generatedAt,
-                    },
-                  }));
-                }
-              } catch {
-                // Ignore parsing errors on split chunks
-              }
-            }
-          }
-          buffer = buffer.slice(lastIdx);
-        }
+        await processEventStream(reader, interactionId, setExplanations);
       } else {
         const data = await res.json();
         setExplanations((prev) => ({ ...prev, [interactionId]: data }));

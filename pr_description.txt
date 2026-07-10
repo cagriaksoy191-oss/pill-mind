@@ -1,0 +1,8 @@
+🎯 **What:**
+Fixed a Host Header Injection vulnerability in the CSRF verification middleware (`verifyCSRF`). The code previously trusted any arbitrary `Host` or `X-Forwarded-Host` header as a fallback for the expected origin.
+
+⚠️ **Risk:**
+If left unfixed, an attacker could manipulate the `Host` header in their request to bypass the CSRF protection. This could allow malicious cross-origin requests to be accepted as legitimate, potentially compromising user sessions or performing unauthorized actions.
+
+🛡️ **Solution:**
+Implemented a strict `ALLOWED_HOSTS` whitelist (`["localhost:3000"]`). The `verifyCSRF` function now validates the incoming `host` header against this whitelist before trusting it to construct the `expectedOrigin`.

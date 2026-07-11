@@ -92,7 +92,7 @@ describe("PillMind 3.0 Enterprise and FHIR API Tests", () => {
       ];
       (prisma.drug.findMany as jest.Mock).mockResolvedValue(mockDrugs);
 
-      const res = await getMedications();
+      const res = await getMedications(new Request("http://localhost/api/fhir/medication"));
       expect(res.status).toBe(200);
 
       const body = await res.json();

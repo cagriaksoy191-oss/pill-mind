@@ -48,7 +48,7 @@ describe("GET /api/fhir/medication", () => {
       }
     ]);
 
-    const res = await GET();
+    const res = await GET(new Request("http://localhost/api/fhir/medication"));
     const data = await res.json();
 
     expect(res.status).toBe(200);
@@ -87,7 +87,7 @@ describe("GET /api/fhir/medication", () => {
       }
     ]);
 
-    const res = await GET();
+    const res = await GET(new Request("http://localhost/api/fhir/medication"));
     const data = await res.json();
 
     expect(res.status).toBe(200);
@@ -109,7 +109,7 @@ describe("GET /api/fhir/medication", () => {
       throw new Error("Unexpected Failure");
     });
 
-    const res = await GET();
+    const res = await GET(new Request("http://localhost/api/fhir/medication"));
     const data = await res.json();
 
     expect(res.status).toBe(500);
@@ -117,5 +117,22 @@ describe("GET /api/fhir/medication", () => {
     expect(data.issue[0].severity).toBe("error");
     expect(data.issue[0].code).toBe("exception");
     expect(data.issue[0].diagnostics).toBe("Unexpected Failure");
+    });
+
+  it("should parse _count and _offset and pass to findMany", async () => {
+    const { prisma } = require("@/lib/prisma");
+    (prisma.drug.findMany as jest.Mock).mockResolvedValue([]);
+
+    const req = new Request("http://localhost/api/fhir/medication?_count=10&_offset=20");
+    await GET(req);
+
+    expect(prisma.drug.findMany).toHaveBeenCalledWith({
+      take: 10,
+      skip: 20,
+      include: {
+        ingredient: true
+      }
+    });
   });
+
 });

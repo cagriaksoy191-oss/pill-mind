@@ -15,19 +15,39 @@ type PrismaDrugWithIngredient = {
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    let take = 50;
+    let skip = 0;
+
+    if (searchParams.has("_count")) {
+      const countParam = parseInt(searchParams.get("_count") as string, 10);
+      if (!isNaN(countParam) && countParam > 0) {
+        take = Math.min(countParam, 500);
+      }
+    }
+
+    if (searchParams.has("_offset")) {
+      const offsetParam = parseInt(searchParams.get("_offset") as string, 10);
+      if (!isNaN(offsetParam) && offsetParam >= 0) {
+        skip = offsetParam;
+      }
+    }
+
     let drugsList: PrismaDrugWithIngredient[] = [];
     try {
       const { prisma } = await import("@/lib/prisma");
       drugsList = await prisma.drug.findMany({
+        take,
+        skip,
         include: {
           ingredient: true
         }
       });
     } catch {
       // Fallback
-      drugsList = getAllDrugs().map(d => ({
+      drugsList = getAllDrugs().slice(skip, skip + take).map(d => ({
         id: d.id,
         name: d.name,
         activeIngredient: d.activeIngredient,

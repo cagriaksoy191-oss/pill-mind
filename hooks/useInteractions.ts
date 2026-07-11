@@ -3,6 +3,34 @@ import { useInteractionExplanations } from "./useInteractionExplanations";
 import { useCoverageExplanation } from "./useCoverageExplanation";
 import { CheckResult, AccumulationWarning, ExplanationData } from "@/lib/interactions";
 
+
+const fetchApiInteractions = async (drugIds: string[], patientContext: any) => {
+  const res = await fetch("/api/check", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ drugIds, patientContext }),
+  });
+
+  if (!res.ok) {
+    throw new Error("Etkileşim taraması yapılırken sunucu hatası oluştu.");
+  }
+
+  return await res.json();
+};
+
+const fetchLocalInteractions = async (drugIds: string[], patientContext: any) => {
+  const { findInteractions, checkAccumulation, findFoodInteractions, findContraindications, checkPolypharmacyAndBeers } = await import("@/lib/interactions");
+  return {
+    interactions: findInteractions(drugIds),
+    accumulationWarnings: checkAccumulation(drugIds),
+    foodInteractions: findFoodInteractions(drugIds),
+    contraindications: findContraindications(drugIds, patientContext),
+    polypharmacyReport: checkPolypharmacyAndBeers(drugIds, patientContext),
+  };
+};
+
 export function useInteractions(selectedDrugIds: string[], patientContext?: any) {
   const [interactions, setInteractions] = useState<CheckResult[]>([]);
   const [accumulationWarnings, setAccumulationWarnings] = useState<AccumulationWarning[]>([]);
@@ -51,57 +79,43 @@ export function useInteractions(selectedDrugIds: string[], patientContext?: any)
 
   const serializedContext = JSON.stringify(patientContext);
 
+  const resetState = () => {
+    setInteractions([]);
+    setAccumulationWarnings([]);
+    setFoodInteractions([]);
+    setContraindications([]);
+    setPolypharmacyReport(null);
+    setCoverageExplanation(null);
+    setShowCoveragePanel(false);
+    setCheckingError(null);
+  };
+
+  const applyResults = (data: any) => {
+    setInteractions(data.interactions || []);
+    setAccumulationWarnings(data.accumulationWarnings || []);
+    setFoodInteractions(data.foodInteractions || []);
+    setContraindications(data.contraindications || []);
+    setPolypharmacyReport(data.polypharmacyReport || null);
+  };
+
   // Automatically check interactions when selected drugs change
   useEffect(() => {
     const checkInteractions = async () => {
       if (selectedDrugIds.length < 2) {
-        setInteractions([]);
-        setAccumulationWarnings([]);
-        setFoodInteractions([]);
-        setContraindications([]);
-        setPolypharmacyReport(null);
-        setCoverageExplanation(null);
-        setShowCoveragePanel(false);
-        setCheckingError(null);
+        resetState();
         return;
       }
 
       setIsChecking(true);
       setCheckingError(null);
       try {
-        const res = await fetch("/api/check", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ drugIds: selectedDrugIds, patientContext }),
-        });
-
-        if (!res.ok) {
-          throw new Error("Etkileşim taraması yapılırken sunucu hatası oluştu.");
-        }
-
-        const data = await res.json();
-        setInteractions(data.interactions || []);
-        setAccumulationWarnings(data.accumulationWarnings || []);
-        setFoodInteractions(data.foodInteractions || []);
-        setContraindications(data.contraindications || []);
-        setPolypharmacyReport(data.polypharmacyReport || null);
+        const data = await fetchApiInteractions(selectedDrugIds, patientContext);
+        applyResults(data);
       } catch (err) {
         console.warn("[PillMind Check Engine] Sunucu API hatası veya ağ kaybı, çevrimdışı yerel tarama çekirdeği devreye alınıyor:", err);
         try {
-          const { findInteractions, checkAccumulation, findFoodInteractions, findContraindications, checkPolypharmacyAndBeers } = await import("@/lib/interactions");
-          const localResults = findInteractions(selectedDrugIds);
-          const localAccumulation = checkAccumulation(selectedDrugIds);
-          const localFood = findFoodInteractions(selectedDrugIds);
-          const localContra = findContraindications(selectedDrugIds, patientContext);
-          const localPoly = checkPolypharmacyAndBeers(selectedDrugIds, patientContext);
-
-          setInteractions(localResults);
-          setAccumulationWarnings(localAccumulation);
-          setFoodInteractions(localFood);
-          setContraindications(localContra);
-          setPolypharmacyReport(localPoly);
+          const localData = await fetchLocalInteractions(selectedDrugIds, patientContext);
+          applyResults(localData);
           setCheckingError(null);
         } catch (localErr) {
           console.error("Local fallback failed:", localErr);

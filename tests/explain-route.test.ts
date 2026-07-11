@@ -22,6 +22,10 @@ jest.mock("@/lib/gemini", () => ({
   getInteractionContext: jest.fn(),
   callGeminiForInteraction: jest.fn(),
   callGeminiForCoverage: jest.fn(),
+    buildInteractionStreamPrompt: jest.fn().mockReturnValue("mock prompt"),
+    buildCoverageStreamPrompt: jest.fn().mockReturnValue("mock prompt"),
+    streamGeminiContent: jest.fn(),
+    runReviewerAgent: jest.fn().mockResolvedValue(true),
   getCoverageContext: jest.fn(),
 }));
 
@@ -322,4 +326,118 @@ describe("POST /api/explain", () => {
       fakeRedisError
     );
   });
+
+  it("should return 400 when neither interactionId nor drugIds are provided", async () => {
+    const req = new Request("http://localhost/api/explain", {
+      method: "POST",
+      body: JSON.stringify({ otherField: "test" }),
+      headers: { "Content-Type": "application/json" }
+    });
+
+    const res = await POST(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(data).toEqual({ error: "interactionId veya en az 2 drugId alanı gereklidir." });
+  });
+
+  it("should return 400 when interactionId is invalid (stream=true)", async () => {
+    const req = new Request("http://localhost/api/explain", {
+      method: "POST",
+      body: JSON.stringify({ interactionId: "", stream: true }),
+      headers: { "Content-Type": "application/json" }
+    });
+
+    const res = await POST(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(data).toEqual({ error: "Geçersiz veya aşırı uzun interactionId." });
+  });
+
+  it("should return 400 when drugIds is invalid array (stream=true)", async () => {
+    const req = new Request("http://localhost/api/explain", {
+      method: "POST",
+      body: JSON.stringify({ drugIds: ["only-one"], stream: true }),
+      headers: { "Content-Type": "application/json" }
+    });
+
+    const res = await POST(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(data).toEqual({ error: "drugIds 2 ila 10 adet geçerli kimlik içeren bir dizi olmalıdır." });
+  });
+
+
+
+  it("should handle valid interactionId with stream=true", async () => {
+    (getInteractionContext as jest.Mock).mockResolvedValue({
+      interaction: { id: "test", severity: "high" },
+      drug1Name: "DrugA",
+      drug2Name: "DrugB",
+      drug1Ingredient: "IngA",
+      drug2Ingredient: "IngB"
+    });
+
+    (redis!.get as jest.Mock).mockResolvedValue(null);
+
+    const originalGemini = jest.requireMock('@/lib/gemini');
+    if (originalGemini && originalGemini.buildInteractionStreamPrompt) {
+        originalGemini.buildInteractionStreamPrompt.mockReturnValue("mock prompt");
+    }
+
+    // We also need to mock streamGeminiContent properly as an async generator
+    if (originalGemini && originalGemini.streamGeminiContent) {
+        async function* mockStream() { yield "test"; }
+        originalGemini.streamGeminiContent.mockReturnValue(mockStream());
+    }
+    if (originalGemini && originalGemini.runReviewerAgent) {
+        originalGemini.runReviewerAgent.mockResolvedValue(true);
+    }
+
+    const req = new Request("http://localhost/api/explain", {
+      method: "POST",
+      body: JSON.stringify({ interactionId: "valid-id", stream: true }),
+      headers: { "Content-Type": "application/json" }
+    });
+
+    const res = await POST(req);
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Content-Type")).toBe("text/event-stream");
+  });
+
+  it("should handle valid drugIds with stream=true", async () => {
+    (getCoverageContext as jest.Mock).mockReturnValue({
+      drugs: [{ id: "drug1", name: "Drug1" }, { id: "drug2", name: "Drug2" }],
+      combinations: []
+    });
+
+    (redis!.get as jest.Mock).mockResolvedValue(null);
+
+    const originalGemini = jest.requireMock('@/lib/gemini');
+    if (originalGemini && originalGemini.buildCoverageStreamPrompt) {
+        originalGemini.buildCoverageStreamPrompt.mockReturnValue("mock prompt");
+    }
+    if (originalGemini && originalGemini.streamGeminiContent) {
+        async function* mockStream() { yield "test"; }
+        originalGemini.streamGeminiContent.mockReturnValue(mockStream());
+    }
+    if (originalGemini && originalGemini.runReviewerAgent) {
+        originalGemini.runReviewerAgent.mockResolvedValue(true);
+    }
+
+    const req = new Request("http://localhost/api/explain", {
+      method: "POST",
+      body: JSON.stringify({ drugIds: ["drug1", "drug2"], stream: true }),
+      headers: { "Content-Type": "application/json" }
+    });
+
+    const res = await POST(req);
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Content-Type")).toBe("text/event-stream");
+  });
+
 });

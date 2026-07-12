@@ -49,7 +49,8 @@ export async function GET(
     const resolvedDrugsCache = await resolveDrugsDB(share.drugIds);
 
     // Retrieve drug records for display names
-    let drugs: { id: string, name: string, [key: string]: unknown }[] = [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let drugs: any[] = [];
     if (resolvedDrugsCache && Array.isArray(resolvedDrugsCache) && resolvedDrugsCache.length > 0) {
       drugs = resolvedDrugsCache.filter((d: { id: string, name: string, [key: string]: unknown }) => share.drugIds.includes(d.id));
     }

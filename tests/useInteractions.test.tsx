@@ -360,4 +360,42 @@ describe("useInteractions hook", () => {
     });
   });
 
+
+  it("handleExplainRequested should handle JSON parsing errors gracefully on split chunks", async () => {
+    const { result } = renderHook(() => useInteractions(stableDrugs));
+
+    // Simulate a chunk that gets split across multiple read() calls
+    const mockChunks = [
+        'data: {"chunk": "First part ',
+        'and second part"}\n\n',
+        'data: {"done": true, "generatedAt": "2024-01-03"}\n\n',
+        'data: [DONE]\n\n'
+    ];
+
+    let chunkIndex = 0;
+    const mockReader = {
+        read: jest.fn().mockImplementation(() => {
+            if (chunkIndex < mockChunks.length) {
+                return Promise.resolve({ done: false, value: new TextEncoder().encode(mockChunks[chunkIndex++].replace(/\\n/g, '\n')) });
+            }
+            return Promise.resolve({ done: true, value: undefined });
+        })
+    };
+
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      headers: new Headers({ "Content-Type": "text/event-stream" }),
+      body: { getReader: () => mockReader },
+    });
+
+    await act(async () => {
+      await result.current.handleExplainRequested("int1", true);
+    });
+
+    expect(result.current.explanations["int1"]).toEqual({
+      source: "gemini_live",
+      explanation: "First part and second part",
+      generatedAt: "2024-01-03"
+    });
+  });
 });

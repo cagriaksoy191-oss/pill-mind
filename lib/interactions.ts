@@ -268,7 +268,9 @@ export async function findInteractionsDB(drugIds: string[], resolvedDrugsCache?:
     const { prisma } = await import("@/lib/prisma");
 
     // 1. İlaçları ve Marka/Alias adlarını çöz
-    const resolvedDrugs = (resolvedDrugsCache as Drug[]) ?? await prisma.drug.findMany({
+    const resolvedDrugs = (resolvedDrugsCache && Array.isArray(resolvedDrugsCache) && resolvedDrugsCache.length > 0)
+      ? (resolvedDrugsCache as Drug[])
+      : await prisma.drug.findMany({
       where: {
         OR: [
           { id: { in: drugIds } },
@@ -353,12 +355,16 @@ export async function checkAccumulationDB(drugIds: string[], resolvedDrugsCache?
   try {
     const { prisma } = await import("@/lib/prisma");
 
-    const resolvedDrugs = (resolvedDrugsCache as Drug[]) ?? await prisma.drug.findMany({
+    const resolvedDrugs = (resolvedDrugsCache && Array.isArray(resolvedDrugsCache) && resolvedDrugsCache.length > 0)
+      ? (resolvedDrugsCache as Drug[])
+      : await prisma.drug.findMany({
       where: {
         OR: [
           { id: { in: drugIds } },
           { name: { in: drugIds } },
-          { brandNames: { some: { name: { in: drugIds } } } }
+          { brandNames: { some: { name: { in: drugIds } } } },
+          { aliases: { some: { alias: { in: drugIds } } } },
+          { aliases: { some: { normalizedAlias: { in: drugIds } } } }
         ]
       }
     });
@@ -633,7 +639,9 @@ export async function findFoodInteractionsDB(drugIds: string[], resolvedDrugsCac
   }
   try {
     const { prisma } = await import("@/lib/prisma");
-    const resolvedDrugs = (resolvedDrugsCache as Drug[]) ?? await prisma.drug.findMany({
+    const resolvedDrugs = (resolvedDrugsCache && Array.isArray(resolvedDrugsCache) && resolvedDrugsCache.length > 0)
+      ? (resolvedDrugsCache as Drug[])
+      : await prisma.drug.findMany({
       where: {
         OR: [
           { id: { in: drugIds } },
@@ -710,7 +718,9 @@ export async function findContraindicationsDB(drugIds: string[], patientContext?
 
   try {
     const { prisma } = await import("@/lib/prisma");
-    const resolvedDrugs = (resolvedDrugsCache as Drug[]) ?? await prisma.drug.findMany({
+    const resolvedDrugs = (resolvedDrugsCache && Array.isArray(resolvedDrugsCache) && resolvedDrugsCache.length > 0)
+      ? (resolvedDrugsCache as Drug[])
+      : await prisma.drug.findMany({
       where: {
         OR: [
           { id: { in: drugIds } },

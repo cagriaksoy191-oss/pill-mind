@@ -45,23 +45,37 @@ export async function GET(
       );
     }
 
+    // Process clinical interactions dynamically on-the-fly and fetch drug cache
+    const resolvedDrugsCache = await resolveDrugsDB(share.drugIds);
+
     // Retrieve drug records for display names
-    let drugs = [];
-    try {
-      drugs = await prisma.drug.findMany({
-        where: {
-          id: { in: share.drugIds },
-        },
-      });
-    } catch {
-      // Fallback using curated local data
-      const { getAllDrugs } = await import("@/lib/interactions");
-      const localDrugs = getAllDrugs();
-      drugs = localDrugs.filter(d => share.drugIds.includes(d.id));
+    let drugs: { id: string, name: string, [key: string]: unknown }[] = [];
+    if (resolvedDrugsCache && Array.isArray(resolvedDrugsCache) && resolvedDrugsCache.length > 0) {
+      drugs = resolvedDrugsCache.filter((d: { id: string, name: string, [key: string]: unknown }) => share.drugIds.includes(d.id));
     }
 
-    // Process clinical interactions dynamically on-the-fly
-    const resolvedDrugsCache = await resolveDrugsDB(share.drugIds);
+    // Fallback if cache missed the exact IDs or failed
+    if (drugs.length === 0 && share.drugIds.length > 0) {
+      try {
+        drugs = await prisma.drug.findMany({
+          where: {
+            id: { in: share.drugIds },
+          },
+        });
+      } catch {
+        // Fallback using curated local data
+        const { getAllDrugs } = await import("@/lib/interactions");
+        const localDrugs = getAllDrugs();
+        drugs = localDrugs.filter((d: { id: string, name: string, [key: string]: unknown }) => share.drugIds.includes(d.id));
+      }
+    }
+    // De-duplicate final drugs list to be absolutely sure
+    const uniqueDrugs = new Map();
+    for (const d of drugs) {
+       uniqueDrugs.set(d.id, d);
+    }
+    drugs = Array.from(uniqueDrugs.values());
+
     const [interactions, accumulationWarnings, foodInteractions, contraindications] = await Promise.all([
       findInteractionsDB(share.drugIds, resolvedDrugsCache),
       checkAccumulationDB(share.drugIds, resolvedDrugsCache),

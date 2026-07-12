@@ -887,7 +887,9 @@ describe("checkAccumulationDB", () => {
         OR: [
           { id: { in: ["parol", "minoset"] } },
           { name: { in: ["parol", "minoset"] } },
-          { brandNames: { some: { name: { in: ["parol", "minoset"] } } } }
+          { brandNames: { some: { name: { in: ["parol", "minoset"] } } } },
+          { aliases: { some: { alias: { in: ["parol", "minoset"] } } } },
+          { aliases: { some: { normalizedAlias: { in: ["parol", "minoset"] } } } }
         ]
       }
     });

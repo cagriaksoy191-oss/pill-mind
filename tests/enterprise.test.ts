@@ -222,6 +222,10 @@ describe("PillMind 3.0 Enterprise and FHIR API Tests", () => {
     });
 
     it("should return read-only report details if token is valid", async () => {
+      (resolveDrugsDB as jest.Mock).mockResolvedValue([
+        { id: "aspirin", name: "Aspirin" },
+        { id: "warfarin", name: "Warfarin" },
+      ]);
       const mockValidShare = {
         token: "valid123",
         drugIds: ["aspirin", "warfarin"],

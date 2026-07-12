@@ -52,7 +52,7 @@ export async function GET(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let drugs: any[] = [];
     if (resolvedDrugsCache && Array.isArray(resolvedDrugsCache) && resolvedDrugsCache.length > 0) {
-      drugs = resolvedDrugsCache.filter((d: { id: string, name: string, [key: string]: unknown }) => share.drugIds.includes(d.id));
+      drugs = resolvedDrugsCache.filter((d: any) => share.drugIds.includes(d.id));
     }
 
     // Fallback if cache missed the exact IDs or failed
@@ -67,7 +67,7 @@ export async function GET(
         // Fallback using curated local data
         const { getAllDrugs } = await import("@/lib/interactions");
         const localDrugs = getAllDrugs();
-        drugs = localDrugs.filter((d: { id: string, name: string, [key: string]: unknown }) => share.drugIds.includes(d.id));
+        drugs = localDrugs.filter((d: any) => share.drugIds.includes(d.id));
       }
     }
     // De-duplicate final drugs list to be absolutely sure

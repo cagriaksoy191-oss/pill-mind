@@ -16,8 +16,8 @@ interface Evidence {
 interface Mechanism {
   type: string;
   mechanism: string;
-  pharmacokinetic: string;
-  pharmacodynamic: string;
+  pharmacokinetic: boolean;
+  pharmacodynamic: boolean;
 }
 
 interface InteractionRecord {
@@ -400,7 +400,7 @@ ${(() => {
   for (let i = 0; i < len; i++) {
     const m = mecs[i];
     if (i > 0) str += "\n";
-    str += "- Tür: " + m.type + ", Detay: " + m.mechanism + ", Farmakokinetik: " + m.pharmacokinetic + ", Farmakodinamik: " + m.pharmacodynamic;
+    str += "- Tür: " + m.type + ", Detay: " + m.mechanism + ", Farmakokinetik: " + (m.pharmacokinetic ? "Evet" : "Hayır") + ", Farmakodinamik: " + (m.pharmacodynamic ? "Evet" : "Hayır");
   }
   return str;
 })()}

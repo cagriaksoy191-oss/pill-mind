@@ -33,7 +33,7 @@ export interface Drug {
   name: string;
   activeIngredient: string;
   category: string;
-  pharmacologicalGroup?: string;
+  pharmacologicalGroup?: string | null;
 }
 
 export interface RawInteraction {

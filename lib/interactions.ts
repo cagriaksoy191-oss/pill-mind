@@ -58,6 +58,14 @@ export interface RawContraindication {
   effect: string;
 }
 
+
+export interface InteractionMechanism {
+  type: string;
+  mechanism: string;
+  pharmacokinetic?: boolean;
+  pharmacodynamic?: boolean;
+}
+
 export interface Interaction {
   id: string;
   drug1: string;
@@ -70,7 +78,7 @@ export interface Interaction {
   evidenceLevel?: string;
   clinicalDetail?: string;
   evidences?: unknown[];
-  mechanisms?: unknown[];
+  mechanisms?: InteractionMechanism[];
 }
 
 export interface CheckResult {

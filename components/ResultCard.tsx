@@ -1,16 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { getSeverityLabel, getDrugClinicalMetadata } from "@/lib/interactions";
+import { getSeverityLabel, getDrugClinicalMetadata, InteractionMechanism } from "@/lib/interactions";
 import ExplanationDrawer from "./ExplanationDrawer";
 import { getGlassColors } from "@/lib/theme";
-
-export interface InteractionMechanism {
-  type: string;
-  mechanism: string;
-  pharmacokinetic?: boolean;
-  pharmacodynamic?: boolean;
-}
 
 interface ResultCardProps {
   drug1Id?: string;

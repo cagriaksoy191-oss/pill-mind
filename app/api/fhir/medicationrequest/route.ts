@@ -1,5 +1,6 @@
 // app/api/fhir/medicationrequest/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { getSession, verifyCSRF } from "@/lib/auth";
 import { findInteractionsDB, checkAccumulationDB, findFoodInteractionsDB, findContraindicationsDB, resolveDrugsDB, PatientContext } from "@/lib/interactions";
 
 
@@ -79,8 +80,37 @@ function parseFhirRequest(body: FhirRequestBody): { drugIds: string[], patientCo
   return { drugIds, patientContext };
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
+    // CSRF check
+    if (!verifyCSRF(request)) {
+      return NextResponse.json({
+        resourceType: "OperationOutcome",
+        issue: [
+          {
+            severity: "error",
+            code: "security",
+            diagnostics: "Güvenlik doğrulaması başarısız oldu (CSRF engellendi)."
+          }
+        ]
+      }, { status: 403 });
+    }
+
+    // Auth check
+    const session = await getSession(request);
+    if (!session) {
+      return NextResponse.json({
+        resourceType: "OperationOutcome",
+        issue: [
+          {
+            severity: "error",
+            code: "security",
+            diagnostics: "Yetkisiz erişim. Lütfen giriş yapın."
+          }
+        ]
+      }, { status: 401 });
+    }
+
     const body = await request.json();
     const { drugIds, patientContext } = parseFhirRequest(body);
 

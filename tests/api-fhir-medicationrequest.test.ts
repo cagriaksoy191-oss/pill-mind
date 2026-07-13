@@ -1,4 +1,5 @@
 import { POST } from "../app/api/fhir/medicationrequest/route";
+import { getSession, verifyCSRF } from "@/lib/auth";
 import {
   findInteractionsDB,
   checkAccumulationDB,
@@ -6,6 +7,11 @@ import {
   findContraindicationsDB,
   resolveDrugsDB
 } from "@/lib/interactions";
+
+jest.mock("@/lib/auth", () => ({
+  getSession: jest.fn(),
+  verifyCSRF: jest.fn(),
+}));
 
 jest.mock("@/lib/interactions", () => ({
   findInteractionsDB: jest.fn(),
@@ -16,12 +22,22 @@ jest.mock("@/lib/interactions", () => ({
 }));
 
 describe("POST /api/fhir/medicationrequest", () => {
+  const createMockRequest = (url: string, init?: RequestInit) => {
+    const req = new Request(url, init) as any;
+    req.cookies = {
+      get: jest.fn()
+    };
+    return req;
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
+    (verifyCSRF as jest.Mock).mockReturnValue(true);
+    (getSession as jest.Mock).mockResolvedValue({ userId: "user-1", email: "test@test.com" });
   });
 
   it("should return 400 OperationOutcome if drugIds length is less than 2", async () => {
-    const req = new Request("http://localhost/api/fhir/medicationrequest", {
+    const req = createMockRequest("http://localhost/api/fhir/medicationrequest", {
       method: "POST",
       body: JSON.stringify({
         resourceType: "Parameters",
@@ -50,7 +66,7 @@ describe("POST /api/fhir/medicationrequest", () => {
     (findFoodInteractionsDB as jest.Mock).mockResolvedValueOnce([]);
     (findContraindicationsDB as jest.Mock).mockResolvedValueOnce([]);
 
-    const req = new Request("http://localhost/api/fhir/medicationrequest", {
+    const req = createMockRequest("http://localhost/api/fhir/medicationrequest", {
       method: "POST",
       body: JSON.stringify({
         resourceType: "Parameters",
@@ -88,7 +104,7 @@ describe("POST /api/fhir/medicationrequest", () => {
     (findFoodInteractionsDB as jest.Mock).mockResolvedValueOnce([]);
     (findContraindicationsDB as jest.Mock).mockResolvedValueOnce([]);
 
-    const req = new Request("http://localhost/api/fhir/medicationrequest", {
+    const req = createMockRequest("http://localhost/api/fhir/medicationrequest", {
       method: "POST",
       body: JSON.stringify({
         resourceType: "Parameters",
@@ -118,7 +134,7 @@ describe("POST /api/fhir/medicationrequest", () => {
     (findFoodInteractionsDB as jest.Mock).mockResolvedValueOnce([]);
     (findContraindicationsDB as jest.Mock).mockResolvedValueOnce([]);
 
-    const req = new Request("http://localhost/api/fhir/medicationrequest", {
+    const req = createMockRequest("http://localhost/api/fhir/medicationrequest", {
       method: "POST",
       body: JSON.stringify({
         resourceType: "Bundle",
@@ -146,7 +162,7 @@ describe("POST /api/fhir/medicationrequest", () => {
   });
 
   it("should parse single MedicationRequest (returns 400 because < 2 drugs)", async () => {
-    const req = new Request("http://localhost/api/fhir/medicationrequest", {
+    const req = createMockRequest("http://localhost/api/fhir/medicationrequest", {
       method: "POST",
       body: JSON.stringify({
         resourceType: "MedicationRequest",
@@ -162,7 +178,7 @@ describe("POST /api/fhir/medicationrequest", () => {
   it("should return 500 if an error occurs during processing", async () => {
     (resolveDrugsDB as jest.Mock).mockRejectedValueOnce(new Error("Database error"));
 
-    const req = new Request("http://localhost/api/fhir/medicationrequest", {
+    const req = createMockRequest("http://localhost/api/fhir/medicationrequest", {
       method: "POST",
       body: JSON.stringify({
         resourceType: "Parameters",
@@ -185,7 +201,7 @@ describe("POST /api/fhir/medicationrequest", () => {
   });
 
   it("should return 500 if JSON parsing of request body fails", async () => {
-    const req = new Request("http://localhost/api/fhir/medicationrequest", {
+    const req = createMockRequest("http://localhost/api/fhir/medicationrequest", {
       method: "POST",
       body: "invalid-json",
       headers: { "Content-Type": "application/json" },

@@ -6,8 +6,30 @@ import { findInteractionsDB, checkAccumulationDB, findFoodInteractionsDB, findCo
 
 export const dynamic = "force-dynamic";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function parseFhirRequest(body: any): { drugIds: string[], patientContext: PatientContext | undefined } {
+export interface FhirRequestBody {
+  resourceType?: string;
+  parameter?: Array<{
+    name?: string;
+    valueString?: string;
+  }>;
+  entry?: Array<{
+    resource?: {
+      resourceType?: string;
+      medicationReference?: {
+        reference?: string;
+      };
+      medicationCodeableConcept?: {
+        text?: string;
+      };
+    };
+  }>;
+  medicationReference?: {
+    reference?: string;
+  };
+}
+
+
+function parseFhirRequest(body: FhirRequestBody): { drugIds: string[], patientContext: PatientContext | undefined } {
   let drugIds: string[] = [];
   let patientContext: PatientContext | undefined = undefined;
 

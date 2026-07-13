@@ -96,64 +96,113 @@ describe("CSRF / Origin Doğrulama Birim Testleri (CSRF & Cross-Origin Security 
   });
 
 test("Beklenen orijin (expectedOrigin) belirlenemediğinde fail-secure engelleme", async () => {
+    const originalEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = "production";
     const req = createMockReq({}, "invalid-url-to-fail-parsing");
     expect(verifyCSRF(req)).toBe(false);
+    process.env.NODE_ENV = originalEnv;
   });
 
-  test("host header allows valid origin when url is missing", async () => {
+  test("uses environment variable NEXT_PUBLIC_APP_URL for expectedOrigin", async () => {
+    const originalEnv = process.env.NEXT_PUBLIC_APP_URL;
+    process.env.NEXT_PUBLIC_APP_URL = "https://pillmind.com";
     const req = {
       headers: {
-        get: (name) => {
-          if (name === "host") return "localhost:3000";
-          if (name === "x-forwarded-proto") return "http";
-          if (name === "origin") return "http://localhost:3000";
+        get: (name: string) => {
+          if (name === "origin") return "https://pillmind.com";
           return null;
         }
       }
     } as unknown as Request;
     expect(verifyCSRF(req)).toBe(true);
+    if (originalEnv === undefined) {
+      delete process.env.NEXT_PUBLIC_APP_URL;
+    } else {
+      process.env.NEXT_PUBLIC_APP_URL = originalEnv;
+    }
   });
 
-  test("host header rejects invalid origin protecting against host header injection", async () => {
+  test("uses environment variable APP_URL for expectedOrigin", async () => {
+    const originalNextEnv = process.env.NEXT_PUBLIC_APP_URL;
+    const originalEnv = process.env.APP_URL;
+    delete process.env.NEXT_PUBLIC_APP_URL;
+    process.env.APP_URL = "https://pillmind.com";
     const req = {
       headers: {
-        get: (name) => {
-          if (name === "host") return "evil.com";
-          if (name === "x-forwarded-proto") return "http";
+        get: (name: string) => {
+          if (name === "origin") return "https://pillmind.com";
           return null;
         }
       }
     } as unknown as Request;
-    expect(verifyCSRF(req)).toBe(false);
+    expect(verifyCSRF(req)).toBe(true);
+    if (originalEnv === undefined) {
+      delete process.env.APP_URL;
+    } else {
+      process.env.APP_URL = originalEnv;
+    }
+    if (originalNextEnv === undefined) {
+      delete process.env.NEXT_PUBLIC_APP_URL;
+    } else {
+      process.env.NEXT_PUBLIC_APP_URL = originalNextEnv;
+    }
   });
 
   test("Aynı orijinden (same-origin) gelen isteklerin kabul edilmesi", async () => {
+    const originalEnv = process.env.NEXT_PUBLIC_APP_URL;
+    process.env.NEXT_PUBLIC_APP_URL = "http://localhost:3000";
     const req = createMockReq({
       origin: "http://localhost:3000",
       referer: "http://localhost:3000/kontrol",
     });
     expect(verifyCSRF(req)).toBe(true);
+    if (originalEnv === undefined) {
+      delete process.env.NEXT_PUBLIC_APP_URL;
+    } else {
+      process.env.NEXT_PUBLIC_APP_URL = originalEnv;
+    }
   });
 
   test("Çapraz orijinden (cross-origin) gelen Origin başlığı eşleşmediğinde engelleme (Origin Mismatch)", async () => {
+    const originalEnv = process.env.NEXT_PUBLIC_APP_URL;
+    process.env.NEXT_PUBLIC_APP_URL = "http://localhost:3000";
     const req = createMockReq({
       origin: "http://hacker-domain.com",
     });
     expect(verifyCSRF(req)).toBe(false);
+    if (originalEnv === undefined) {
+      delete process.env.NEXT_PUBLIC_APP_URL;
+    } else {
+      process.env.NEXT_PUBLIC_APP_URL = originalEnv;
+    }
   });
 
   test("Çapraz orijinden gelen Referer başlığı eşleşmediğinde engelleme (Referer Mismatch)", async () => {
+    const originalEnv = process.env.NEXT_PUBLIC_APP_URL;
+    process.env.NEXT_PUBLIC_APP_URL = "http://localhost:3000";
     const req = createMockReq({
       referer: "http://hacker-domain.com/landing",
     });
     expect(verifyCSRF(req)).toBe(false);
+    if (originalEnv === undefined) {
+      delete process.env.NEXT_PUBLIC_APP_URL;
+    } else {
+      process.env.NEXT_PUBLIC_APP_URL = originalEnv;
+    }
   });
 
   test("Referer formatı bozuk veya geçersiz olduğunda engelleme", async () => {
+    const originalEnv = process.env.NEXT_PUBLIC_APP_URL;
+    process.env.NEXT_PUBLIC_APP_URL = "http://localhost:3000";
     const req = createMockReq({
       referer: "invalid-url-string-not-http",
     });
     expect(verifyCSRF(req)).toBe(false);
+    if (originalEnv === undefined) {
+      delete process.env.NEXT_PUBLIC_APP_URL;
+    } else {
+      process.env.NEXT_PUBLIC_APP_URL = originalEnv;
+    }
   });
 });
 

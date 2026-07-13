@@ -95,21 +95,17 @@ export function verifyCSRF(req: Request): boolean {
   const origin = req.headers.get("origin");
   const referer = req.headers.get("referer");
 
-  let expectedOrigin = "";
-  if (req.url) {
-    try {
-      expectedOrigin = new URL(req.url).origin;
-    } catch {
-      // url parse hatası
-    }
+  let expectedOrigin = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || "";
+
+  if (!expectedOrigin && process.env.NODE_ENV !== "production") {
+    expectedOrigin = "http://localhost:3000";
   }
 
-  if (!expectedOrigin) {
-    const host = req.headers.get("host") || req.headers.get("x-forwarded-host");
-    const proto = req.headers.get("x-forwarded-proto") || "http";
-    const ALLOWED_HOSTS = ["localhost:3000"];
-    if (host && ALLOWED_HOSTS.includes(host)) {
-      expectedOrigin = `${proto}://${host}`;
+  if (expectedOrigin) {
+    try {
+      expectedOrigin = new URL(expectedOrigin).origin;
+    } catch {
+      // URL format is invalid, keep it as is or handle it
     }
   }
 

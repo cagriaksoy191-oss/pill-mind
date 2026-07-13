@@ -4,7 +4,7 @@ import { POST as createShare } from "@/app/api/pillbox/share/route";
 import { GET as getShare } from "@/app/api/pillbox/share/[token]/route";
 import { POST as submitReview } from "@/app/api/admin/review/route";
 import { NextRequest } from "next/server";
-import { getSession } from "@/lib/auth";
+import { getSession, verifyCSRF } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { writeAuditLog } from "@/lib/audit";
 import {
@@ -65,7 +65,7 @@ describe("PillMind 3.0 Enterprise and FHIR API Tests", () => {
   });
 
   const createMockRequest = (body: Record<string, any> | null, method = "POST", url = "http://localhost:3000") => {
-    const req = new Request(url, { method, body: body ? JSON.stringify(body) : undefined }) as any;
+    const req = new Request(url, { method, body: body && (method === "POST" || method === "PUT" || method === "PATCH") ? JSON.stringify(body) : undefined }) as any;
     req.cookies = {
       get: jest.fn().mockReturnValue({ value: "mock-session-cookie" }),
     };
@@ -75,6 +75,10 @@ describe("PillMind 3.0 Enterprise and FHIR API Tests", () => {
   };
 
   describe("HL7 FHIR Medication (GET /api/fhir/medication)", () => {
+    beforeEach(() => {
+      (getSession as jest.Mock).mockResolvedValue({ userId: "user-1", email: "test@pillmind.com" });
+      (verifyCSRF as jest.Mock).mockReturnValue(true);
+    });
     it("should map drugs to FHIR Medication resources with RxNorm/ATC codes", async () => {
       const mockDrugs = [
         {
@@ -90,7 +94,7 @@ describe("PillMind 3.0 Enterprise and FHIR API Tests", () => {
       ];
       (prisma.drug.findMany as jest.Mock).mockResolvedValue(mockDrugs);
 
-      const res = await getMedications(new Request("http://localhost/api/fhir/medication"));
+      const res = await getMedications(createMockRequest(null, "GET", "http://localhost/api/fhir/medication"));
       expect(res.status).toBe(200);
 
       const body = await res.json();

@@ -1,5 +1,6 @@
 // app/api/fhir/medication/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { getSession, verifyCSRF } from "@/lib/auth";
 import { getAllDrugs } from "@/lib/interactions";
 
 
@@ -15,8 +16,37 @@ type PrismaDrugWithIngredient = {
 
 export const dynamic = "force-dynamic";
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
+    // CSRF check
+    if (!verifyCSRF(request)) {
+      return NextResponse.json({
+        resourceType: "OperationOutcome",
+        issue: [
+          {
+            severity: "error",
+            code: "security",
+            diagnostics: "Güvenlik doğrulaması başarısız oldu (CSRF engellendi)."
+          }
+        ]
+      }, { status: 403 });
+    }
+
+    // Auth check
+    const session = await getSession(request);
+    if (!session) {
+      return NextResponse.json({
+        resourceType: "OperationOutcome",
+        issue: [
+          {
+            severity: "error",
+            code: "security",
+            diagnostics: "Yetkisiz erişim. Lütfen giriş yapın."
+          }
+        ]
+      }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     let take = 50;
     let skip = 0;

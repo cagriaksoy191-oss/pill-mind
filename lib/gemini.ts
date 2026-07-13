@@ -2,6 +2,24 @@
 import interactionsData from "@/data/interactions.json";
 import drugsData from "@/data/drugs.json";
 
+
+interface Evidence {
+  source: {
+    id: string;
+    title: string;
+    url: string;
+  };
+  evidenceLevel: string;
+  summary: string;
+}
+
+interface Mechanism {
+  type: string;
+  mechanism: string;
+  pharmacokinetic: boolean;
+  pharmacodynamic: boolean;
+}
+
 interface InteractionRecord {
   id: string;
   drug1: string;
@@ -9,10 +27,8 @@ interface InteractionRecord {
   severity: string;
   summary: string;
   source: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  evidences?: any[];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  mechanisms?: any[];
+  evidences?: Evidence[];
+  mechanisms?: Mechanism[];
 }
 
 interface DrugRecord {
@@ -368,8 +384,7 @@ ${(() => {
   const len = evs.length;
   let str = "";
   for (let i = 0; i < len; i++) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const e = evs[i] as any;
+    const e = evs[i];
     if (i > 0) str += "\n";
     str += "- Kaynak ID: " + e.source.id + ", Başlık: " + e.source.title + ", URL: " + e.source.url + ", Seviye: " + e.evidenceLevel + ", Özet: " + e.summary;
   }
@@ -383,10 +398,9 @@ ${(() => {
   const len = mecs.length;
   let str = "";
   for (let i = 0; i < len; i++) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const m = mecs[i] as any;
+    const m = mecs[i];
     if (i > 0) str += "\n";
-    str += "- Tür: " + m.type + ", Detay: " + m.mechanism + ", Farmakokinetik: " + m.pharmacokinetic + ", Farmakodinamik: " + m.pharmacodynamic;
+    str += "- Tür: " + m.type + ", Detay: " + m.mechanism + ", Farmakokinetik: " + (m.pharmacokinetic ? "Evet" : "Hayır") + ", Farmakodinamik: " + (m.pharmacodynamic ? "Evet" : "Hayır");
   }
   return str;
 })()}

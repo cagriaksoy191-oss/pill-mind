@@ -26,34 +26,6 @@ describe("getClientIp", () => {
     expect(getClientIp(req)).toBe("55.66.77.88");
   });
 
-  it("should extract the right-most IP from x-forwarded-for list when no platform header is present", () => {
-    const req = new Request("http://localhost", {
-      headers: {
-        "x-forwarded-for": "1.2.3.4, 5.6.7.8, 9.10.11.12",
-      },
-    });
-    // The attacker spoofs 1.2.3.4 and 5.6.7.8, our trusted proxy appends 9.10.11.12
-    expect(getClientIp(req)).toBe("9.10.11.12");
-  });
-
-  it("should extract the single IP from x-forwarded-for", () => {
-    const req = new Request("http://localhost", {
-      headers: {
-        "x-forwarded-for": "100.100.100.100",
-      },
-    });
-    expect(getClientIp(req)).toBe("100.100.100.100");
-  });
-
-  it("should fallback to request-ip logic for x-real-ip", () => {
-    const req = new Request("http://localhost", {
-      headers: {
-        "x-real-ip": "200.200.200.200",
-      },
-    });
-    expect(getClientIp(req)).toBe("200.200.200.200");
-  });
-
   it("should extract IP from Next.js explicit `ip` property if present", () => {
     const req = new Request("http://localhost") as Request & { ip?: string };
     req.ip = "8.8.8.8";

@@ -65,15 +65,13 @@ describe("PillMind 3.0 Enterprise and FHIR API Tests", () => {
   });
 
   const createMockRequest = (body: Record<string, any> | null, method = "POST", url = "http://localhost:3000") => {
-    return {
-      method,
-      url,
-      nextUrl: new URL(url),
-      json: jest.fn().mockResolvedValue(body),
-      cookies: {
-        get: jest.fn().mockReturnValue({ value: "mock-session-cookie" }),
-      },
-    } as unknown as NextRequest;
+    const req = new Request(url, { method, body: body ? JSON.stringify(body) : undefined }) as any;
+    req.cookies = {
+      get: jest.fn().mockReturnValue({ value: "mock-session-cookie" }),
+    };
+    req.json = jest.fn().mockResolvedValue(body);
+    req.nextUrl = new URL(url);
+    return req;
   };
 
   describe("HL7 FHIR Medication (GET /api/fhir/medication)", () => {
@@ -119,6 +117,10 @@ describe("PillMind 3.0 Enterprise and FHIR API Tests", () => {
   });
 
   describe("HL7 FHIR MedicationRequest (POST /api/fhir/medicationrequest)", () => {
+    beforeEach(() => {
+      (getSession as jest.Mock).mockResolvedValue({ userId: "user-1", email: "test@test.com" });
+    });
+
     it("should process FHIR Parameters payload and return interaction counts", async () => {
       const fhirPayload = {
         resourceType: "Parameters",

@@ -9,6 +9,7 @@ export interface PatientContext {
   renalRisk: boolean;
   hepaticRisk: boolean;
   diseases: string[];
+  [key: string]: unknown;
 }
 
 interface PatientProfileBarProps {

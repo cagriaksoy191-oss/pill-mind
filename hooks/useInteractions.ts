@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { useInteractionExplanations } from "./useInteractionExplanations";
 import { useCoverageExplanation } from "./useCoverageExplanation";
-import { CheckResult, AccumulationWarning, ExplanationData } from "@/lib/interactions";
+import { CheckResult, AccumulationWarning, ExplanationData, FoodInteractionResult, ContraindicationResult, PolypharmacyReport, PatientContext } from "@/lib/interactions";
 
 
-const fetchApiInteractions = async (drugIds: string[], patientContext: any) => {
+const fetchApiInteractions = async (drugIds: string[], patientContext: PatientContext | undefined) => {
   const res = await fetch("/api/check", {
     method: "POST",
     headers: {
@@ -20,7 +20,7 @@ const fetchApiInteractions = async (drugIds: string[], patientContext: any) => {
   return await res.json();
 };
 
-const fetchLocalInteractions = async (drugIds: string[], patientContext: any) => {
+const fetchLocalInteractions = async (drugIds: string[], patientContext: PatientContext | undefined) => {
   const { findInteractions, checkAccumulation, findFoodInteractions, findContraindications, checkPolypharmacyAndBeers } = await import("@/lib/interactions");
   return {
     interactions: findInteractions(drugIds),
@@ -31,12 +31,12 @@ const fetchLocalInteractions = async (drugIds: string[], patientContext: any) =>
   };
 };
 
-export function useInteractions(selectedDrugIds: string[], patientContext?: any) {
+export function useInteractions(selectedDrugIds: string[], patientContext?: PatientContext) {
   const [interactions, setInteractions] = useState<CheckResult[]>([]);
   const [accumulationWarnings, setAccumulationWarnings] = useState<AccumulationWarning[]>([]);
-  const [foodInteractions, setFoodInteractions] = useState<any[]>([]);
-  const [contraindications, setContraindications] = useState<any[]>([]);
-  const [polypharmacyReport, setPolypharmacyReport] = useState<any | null>(null);
+  const [foodInteractions, setFoodInteractions] = useState<FoodInteractionResult[]>([]);
+  const [contraindications, setContraindications] = useState<ContraindicationResult[]>([]);
+  const [polypharmacyReport, setPolypharmacyReport] = useState<PolypharmacyReport | null>(null);
   const [isChecking, setIsChecking] = useState(false);
   const [checkingError, setCheckingError] = useState<string | null>(null);
 
@@ -90,7 +90,7 @@ export function useInteractions(selectedDrugIds: string[], patientContext?: any)
     setCheckingError(null);
   };
 
-  const applyResults = (data: any) => {
+  const applyResults = (data: { interactions?: CheckResult[], accumulationWarnings?: AccumulationWarning[], foodInteractions?: FoodInteractionResult[], contraindications?: ContraindicationResult[], polypharmacyReport?: PolypharmacyReport | null }) => {
     setInteractions(data.interactions || []);
     setAccumulationWarnings(data.accumulationWarnings || []);
     setFoodInteractions(data.foodInteractions || []);

@@ -9,6 +9,11 @@ jest.mock("@/lib/prisma", () => ({
   },
 }));
 
+jest.mock("@/lib/auth", () => ({
+  getSession: jest.fn().mockResolvedValue({ userId: "test-user", email: "test@example.com", expires: Date.now() + 10000 }),
+  verifyCSRF: jest.fn().mockReturnValue(true),
+}));
+
 jest.mock("@/lib/interactions", () => ({
   getAllDrugs: jest.fn(),
 }));
@@ -48,7 +53,9 @@ describe("GET /api/fhir/medication", () => {
       }
     ]);
 
-    const res = await GET(new Request("http://localhost/api/fhir/medication"));
+    const req = new Request("http://localhost/api/fhir/medication") as any;
+    req.cookies = { get: jest.fn().mockReturnValue({ value: "mock-session-cookie" }) };
+    const res = await GET(req);
     const data = await res.json();
 
     expect(res.status).toBe(200);
@@ -87,7 +94,9 @@ describe("GET /api/fhir/medication", () => {
       }
     ]);
 
-    const res = await GET(new Request("http://localhost/api/fhir/medication"));
+    const req = new Request("http://localhost/api/fhir/medication") as any;
+    req.cookies = { get: jest.fn().mockReturnValue({ value: "mock-session-cookie" }) };
+    const res = await GET(req);
     const data = await res.json();
 
     expect(res.status).toBe(200);
@@ -109,7 +118,9 @@ describe("GET /api/fhir/medication", () => {
       throw new Error("Unexpected Failure");
     });
 
-    const res = await GET(new Request("http://localhost/api/fhir/medication"));
+    const req = new Request("http://localhost/api/fhir/medication") as any;
+    req.cookies = { get: jest.fn().mockReturnValue({ value: "mock-session-cookie" }) };
+    const res = await GET(req);
     const data = await res.json();
 
     expect(res.status).toBe(500);
@@ -123,7 +134,8 @@ describe("GET /api/fhir/medication", () => {
     const { prisma } = require("@/lib/prisma");
     (prisma.drug.findMany as jest.Mock).mockResolvedValue([]);
 
-    const req = new Request("http://localhost/api/fhir/medication?_count=10&_offset=20");
+    const req = new Request("http://localhost/api/fhir/medication?_count=10&_offset=20") as any;
+    req.cookies = { get: jest.fn().mockReturnValue({ value: "mock-session-cookie" }) };
     await GET(req);
 
     expect(prisma.drug.findMany).toHaveBeenCalledWith({

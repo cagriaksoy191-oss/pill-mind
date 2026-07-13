@@ -49,6 +49,15 @@ export interface RawInteraction {
   clinicalDetail?: string;
 }
 
+export interface RawContraindication {
+  id: string;
+  drugId: string;
+  diseaseIcd: string;
+  diseaseName: string;
+  severity: string;
+  effect: string;
+}
+
 export interface Interaction {
   id: string;
   drug1: string;
@@ -60,8 +69,8 @@ export interface Interaction {
   verificationStatus?: string;
   evidenceLevel?: string;
   clinicalDetail?: string;
-  evidences?: any[];
-  mechanisms?: any[];
+  evidences?: unknown[];
+  mechanisms?: unknown[];
 }
 
 export interface CheckResult {
@@ -110,8 +119,8 @@ for (const d of drugsData as Drug[]) {
 }
 
 
-const contraindicationsMap = new Map<string, any[]>();
-for (const contra of (contraindicationsData as any[])) {
+const contraindicationsMap = new Map<string, RawContraindication[]>();
+for (const contra of (contraindicationsData as RawContraindication[])) {
   if (!contraindicationsMap.has(contra.drugId)) {
     contraindicationsMap.set(contra.drugId, []);
   }
@@ -433,7 +442,7 @@ export async function checkAccumulationDB(drugIds: string[], resolvedDrugsCache?
     }
 
     return warnings;
-  } catch (error: unknown) {
+  } catch {
     return checkAccumulation(drugIds);
   }
 }
@@ -708,7 +717,7 @@ export interface PatientContext {
   renalRisk?: boolean;
   hepaticRisk?: boolean;
   ageGroup?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export async function findContraindicationsDB(drugIds: string[], patientContext?: PatientContext, resolvedDrugsCache?: unknown[]): Promise<ContraindicationResult[]> {
@@ -762,7 +771,7 @@ export interface PolypharmacyReport {
   beersWarnings: string[];
 }
 
-export function checkPolypharmacyAndBeers(drugIds: string[], patientContext?: any): PolypharmacyReport {
+export function checkPolypharmacyAndBeers(drugIds: string[], patientContext?: PatientContext): PolypharmacyReport {
   const score = drugIds.length;
   let level: "low" | "medium" | "high" = "low";
   let message = "Güvenli ilaç yükü. İlaç kombinasyonunuz polifarmasi sınırının altındadır.";

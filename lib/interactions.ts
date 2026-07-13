@@ -981,3 +981,14 @@ function checkHepaticContraindications(drugId: string, drugName: string, meta: D
     }
   }
 }
+
+export function getDrugsByIds(ids: string[]): Drug[] {
+  const result: Drug[] = [];
+  for (const id of ids) {
+    const drug = drugsMap.get(id);
+    if (drug) {
+      result.push(drug);
+    }
+  }
+  return result;
+}

@@ -65,9 +65,8 @@ export async function GET(
         });
       } catch {
         // Fallback using curated local data
-        const { getAllDrugs } = await import("@/lib/interactions");
-        const localDrugs = getAllDrugs();
-        drugs = localDrugs.filter((d: any) => share.drugIds.includes(d.id));
+        const { getDrugsByIds } = await import("@/lib/interactions");
+        drugs = getDrugsByIds(share.drugIds);
       }
     }
     // De-duplicate final drugs list to be absolutely sure

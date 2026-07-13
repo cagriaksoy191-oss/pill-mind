@@ -26,7 +26,7 @@ jest.mock("@/lib/interactions", () => ({
   checkAccumulationDB: jest.fn(),
   findFoodInteractionsDB: jest.fn(),
   findContraindicationsDB: jest.fn(),
-  getAllDrugs: jest.fn(),
+  getDrugsByIds: jest.fn(),
 }));
 
 describe("GET /api/pillbox/share/[token]", () => {
@@ -119,11 +119,10 @@ describe("GET /api/pillbox/share/[token]", () => {
     (prisma.drug.findMany as jest.Mock).mockRejectedValue(new Error("Database offline"));
 
     // Mock local data
-    const { getAllDrugs } = jest.requireMock("@/lib/interactions");
-    getAllDrugs.mockReturnValue([
+    const { getDrugsByIds } = jest.requireMock("@/lib/interactions");
+    getDrugsByIds.mockReturnValue([
       { id: "drug-1", name: "Local Aspirin" },
-      { id: "drug-2", name: "Local Paracetamol" },
-      { id: "drug-3", name: "Other" }
+      { id: "drug-2", name: "Local Paracetamol" }
     ]);
 
     const mockResolvedDrugsCache = new Map();

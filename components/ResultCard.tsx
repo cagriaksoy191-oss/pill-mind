@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { getSeverityLabel, getDrugClinicalMetadata } from "@/lib/interactions";
+import { getSeverityLabel, getDrugClinicalMetadata, InteractionMechanism } from "@/lib/interactions";
 import ExplanationDrawer from "./ExplanationDrawer";
 import { getGlassColors } from "@/lib/theme";
 
@@ -20,8 +20,7 @@ interface ResultCardProps {
   clinicalDetail?: string;
   evidences?: // eslint-disable-next-line @typescript-eslint/no-explicit-any
   any[];
-  mechanisms?: // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  any[];
+  mechanisms?: InteractionMechanism[];
   explanationData?: {
     explanation?: string;
     source?: string;
@@ -145,8 +144,7 @@ export default function ResultCard({
               <div>
                 <span className="font-bold text-slate-900 dark:text-slate-100">Farmakolojik Mekanizma Detayları:</span>
                 <ul className="list-disc pl-4 mt-0.5 flex flex-col gap-1.5">
-                  {// eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  mechanisms.map((m: any, index: number) => (
+                  {mechanisms.map((m: InteractionMechanism, index: number) => (
                     <li key={index}>
                       <span className="font-semibold">{m.type}:</span> {m.mechanism} 
                       {m.pharmacokinetic && <span className="ml-1 text-[9px] bg-indigo-500/10 text-indigo-400 px-1 py-0.2 rounded">Farmakokinetik</span>}

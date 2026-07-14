@@ -1,5 +1,6 @@
 
 import { jsonNoStore } from "@/lib/http";
+import * as Sentry from "@sentry/nextjs";
 import {
   callGeminiForCoverage,
   callGeminiForInteraction,
@@ -408,7 +409,7 @@ export async function POST(request: Request) {
         }
       } catch (redisErr) {
         // Fail-safe: If Redis is down, log it but let the application continue
-        console.warn("[Redis Rate Limiter] Blocked request due to Redis error:", redisErr);
+        Sentry.captureException(redisErr);
         return jsonNoStore(
           {
             error: "Hizmet şu anda kullanılamıyor. Lütfen daha sonra tekrar deneyin.",

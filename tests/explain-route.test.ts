@@ -1,5 +1,6 @@
 import { POST } from "../app/api/explain/route";
 import { redis } from "@/lib/redis";
+import * as Sentry from "@sentry/nextjs";
 import {
   shouldUseFallback,
   getInteractionContext,
@@ -33,11 +34,13 @@ describe("POST /api/explain", () => {
   let consoleWarnSpy: jest.SpyInstance;
   let consoleInfoSpy: jest.SpyInstance;
   let consoleErrorSpy: jest.SpyInstance;
+  let sentryCaptureExceptionSpy: jest.SpyInstance;
 
   beforeEach(() => {
     jest.clearAllMocks();
     consoleWarnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
     consoleInfoSpy = jest.spyOn(console, "info").mockImplementation(() => {});
+    sentryCaptureExceptionSpy = jest.spyOn(Sentry, "captureException").mockImplementation(() => "sentry-id");
     consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
 
     // Default rate limit bypass
@@ -321,8 +324,7 @@ describe("POST /api/explain", () => {
 
     expect(res.status).toBe(503);
     expect(data.error).toBe("Hizmet şu anda kullanılamıyor. Lütfen daha sonra tekrar deneyin.");
-    expect(consoleWarnSpy).toHaveBeenCalledWith(
-      "[Redis Rate Limiter] Blocked request due to Redis error:",
+    expect(Sentry.captureException).toHaveBeenCalledWith(
       fakeRedisError
     );
   });

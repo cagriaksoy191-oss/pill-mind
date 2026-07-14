@@ -32,31 +32,35 @@ async function checkAuthorization(request: NextRequest): Promise<{ errorResponse
   return { session };
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function validateInput(body: any): {
+function validateInput(body: unknown): {
   errorResponse?: NextResponse;
   interactionId?: string;
   uppercaseStatus?: string;
   notes?: string;
   evidenceSourceId?: string
 } {
-  const { interactionId, status, notes, evidenceSourceId } = body as {
-    interactionId: string;
-    status: string;
-    notes?: string;
-    evidenceSourceId?: string;
-  };
+  if (typeof body !== "object" || body === null) {
+    return { errorResponse: jsonNoStore({ error: "Geçersiz istek formatı." }, 400) };
+  }
 
-  if (!interactionId || !status) {
+  const { interactionId, status, notes, evidenceSourceId } = body as Record<string, unknown>;
+
+  if (typeof interactionId !== "string" || !interactionId || typeof status !== "string" || !status) {
     return { errorResponse: jsonNoStore({ error: "interactionId ve status parametreleri zorunludur." }, 400) };
   }
+
+
+
+
+  const notesStr = typeof notes === "string" ? notes : undefined;
+  const evidenceSourceIdStr = typeof evidenceSourceId === "string" ? evidenceSourceId : undefined;
 
   const uppercaseStatus = status.toUpperCase();
   if (uppercaseStatus !== "VERIFIED" && uppercaseStatus !== "PENDING" && uppercaseStatus !== "DEPRECATED") {
     return { errorResponse: jsonNoStore({ error: "Geçersiz durum değeri. (VERIFIED, PENDING veya DEPRECATED olmalıdır)" }, 400) };
   }
 
-  return { interactionId, uppercaseStatus, notes, evidenceSourceId };
+  return { interactionId, uppercaseStatus, notes: notesStr, evidenceSourceId: evidenceSourceIdStr };
 }
 
 async function processReview(

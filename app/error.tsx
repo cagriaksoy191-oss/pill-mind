@@ -53,7 +53,7 @@ export default function Error({
         <div className="mt-6 bg-slate-900/50 rounded-xl p-4 border border-white/5 text-left text-xs font-mono text-slate-400 max-h-24 overflow-y-auto">
           <span className="text-red-400/80 font-bold block mb-1">Durum Kodu (Digest):</span>
           {error.digest || "Bilinmeyen Kayıt"}
-          <span className="text-slate-500 block mt-2">Detay: {error.message || "Çalışma zamanı uyuşmazlığı."}</span>
+          <span className="text-slate-500 block mt-2">Detay: Çalışma zamanı uyuşmazlığı.</span>
         </div>
 
         {/* Aksiyon Butonları */}

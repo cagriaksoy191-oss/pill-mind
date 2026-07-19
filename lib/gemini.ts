@@ -381,28 +381,14 @@ Doğrulanmış Veritabanı Kanıtları:
 ${(() => {
   const evs = ctx.interaction.evidences;
   if (!evs || evs.length === 0) return "Bulunmuyor";
-  const len = evs.length;
-  let str = "";
-  for (let i = 0; i < len; i++) {
-    const e = evs[i];
-    if (i > 0) str += "\n";
-    str += "- Kaynak ID: " + e.source.id + ", Başlık: " + e.source.title + ", URL: " + e.source.url + ", Seviye: " + e.evidenceLevel + ", Özet: " + e.summary;
-  }
-  return str;
+  return evs.map((e) => "- Kaynak ID: " + e.source.id + ", Başlık: " + e.source.title + ", URL: " + e.source.url + ", Seviye: " + e.evidenceLevel + ", Özet: " + e.summary).join("\n");
 })()}
 
 Doğrulanmış Veritabanı Mekanizmaları:
 ${(() => {
   const mecs = ctx.interaction.mechanisms;
   if (!mecs || mecs.length === 0) return "Bulunmuyor";
-  const len = mecs.length;
-  let str = "";
-  for (let i = 0; i < len; i++) {
-    const m = mecs[i];
-    if (i > 0) str += "\n";
-    str += "- Tür: " + m.type + ", Detay: " + m.mechanism + ", Farmakokinetik: " + (m.pharmacokinetic ? "Evet" : "Hayır") + ", Farmakodinamik: " + (m.pharmacodynamic ? "Evet" : "Hayır");
-  }
-  return str;
+  return mecs.map((m) => "- Tür: " + m.type + ", Detay: " + m.mechanism + ", Farmakokinetik: " + (m.pharmacokinetic ? "Evet" : "Hayır") + ", Farmakodinamik: " + (m.pharmacodynamic ? "Evet" : "Hayır")).join("\n");
 })()}
 
 JSON şemasındaki 'sourceIds' alanını mutlaka yukarıda listelenen Kaynak ID'leri (UUID formatında) ile doldur. 'kaynakOzeti' kısmında ise sadece bu kanıtlara dayalı bir özet yaz.

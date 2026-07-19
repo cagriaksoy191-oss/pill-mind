@@ -70,11 +70,7 @@ export async function GET(
       }
     }
     // De-duplicate final drugs list to be absolutely sure
-    const uniqueDrugs = new Map();
-    for (const d of drugs) {
-       uniqueDrugs.set(d.id, d);
-    }
-    drugs = Array.from(uniqueDrugs.values());
+    drugs = Array.from(new Map(drugs.map(d => [d.id, d])).values());
 
     const [interactions, accumulationWarnings, foodInteractions, contraindications] = await Promise.all([
       findInteractionsDB(share.drugIds, resolvedDrugsCache),

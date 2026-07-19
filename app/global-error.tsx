@@ -52,7 +52,7 @@ export default function GlobalError({
           <div className="mt-6 bg-slate-900/50 rounded-xl p-4 border border-white/5 text-left text-xs font-mono text-slate-400 max-h-24 overflow-y-auto">
             <span className="text-red-400/80 font-bold block mb-1">Durum Kodu (Digest):</span>
             {error.digest || "Kök Katman Hatası"}
-            <span className="text-slate-500 block mt-2">Detay: {error.message || "Root layout execution mismatch."}</span>
+            <span className="text-slate-500 block mt-2">Detay: Root layout execution mismatch.</span>
           </div>
 
           {/* Aksiyon Butonları */}

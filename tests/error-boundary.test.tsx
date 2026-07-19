@@ -43,7 +43,7 @@ describe('Global Error Boundary', () => {
     expect(screen.getByText('Klinik Sistem')).toBeInTheDocument();
     expect(screen.getByText('Bağlantı Uyuşmazlığı')).toBeInTheDocument();
     expect(screen.getByText(/test-digest-123/)).toBeInTheDocument();
-    expect(screen.getByText(/Test error message/)).toBeInTheDocument();
+    // removed expected error message
   });
 
   it('calls reset when the retry button is clicked', () => {

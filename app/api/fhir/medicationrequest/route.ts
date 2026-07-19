@@ -49,7 +49,12 @@ function parseFhirRequest(body: FhirRequestBody): { drugIds: string[], patientCo
     }
     if (ctxParam && ctxParam.valueString) {
       try {
-        patientContext = JSON.parse(ctxParam.valueString);
+        patientContext = JSON.parse(ctxParam.valueString, (key, value) => {
+          if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+            return undefined;
+          }
+          return value;
+        });
       } catch {
         patientContext = undefined;
       }

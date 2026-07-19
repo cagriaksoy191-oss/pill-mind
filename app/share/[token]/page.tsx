@@ -24,8 +24,8 @@ interface Interaction {
   verificationStatus?: string;
   evidenceLevel?: string;
   clinicalDetail?: string;
-  evidences?: any[];
-  mechanisms?: any[];
+  evidences?: unknown[];
+  mechanisms?: { type: string; mechanism: string; pharmacokinetic?: boolean; pharmacodynamic?: boolean; }[];
 }
 
 interface CheckResult {
@@ -59,7 +59,7 @@ interface SharedData {
   interactions: CheckResult[];
   accumulationWarnings: AccumulationWarning[];
   foodInteractions: FoodInteraction[];
-  contraindications: any[];
+  contraindications: unknown[];
   createdAt: string;
   expiresAt: string;
 }

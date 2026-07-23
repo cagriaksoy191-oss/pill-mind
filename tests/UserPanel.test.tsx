@@ -287,6 +287,55 @@ describe("UserPanel Component", () => {
     consoleSpy.mockRestore();
   });
 
+
+  it("handles logout API error response", async () => {
+    (global.fetch as jest.Mock).mockImplementation((url: string) => {
+      if (url === "/api/auth/me") {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            authenticated: true,
+            user: { id: "1", email: "test@example.com" },
+          }),
+        });
+      }
+      if (url === "/api/pillbox/list") {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ pillboxes: [] }),
+        });
+      }
+      if (url === "/api/auth/logout") {
+        return Promise.resolve({ ok: false });
+      }
+      return Promise.reject(new Error("not found"));
+    });
+
+    render(
+      <UserPanel selectedDrugIds={[]} onLoadPillbox={mockOnLoadPillbox} />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("👤 test")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText("👤 test"));
+
+    await waitFor(() => {
+      expect(screen.getByText("🚪 Çıkış Yap")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText("🚪 Çıkış Yap"));
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith("/api/auth/logout", { method: "POST" });
+    });
+
+    // Ensure state didn't change (we should still see user and not see login button)
+    expect(screen.queryByText("🔐 Giriş Yap")).not.toBeInTheDocument();
+    expect(screen.getByText("👤 test")).toBeInTheDocument();
+  });
+
   it("handles opening and closing AuthModal", async () => {
     (global.fetch as jest.Mock).mockResolvedValueOnce({
       ok: true,

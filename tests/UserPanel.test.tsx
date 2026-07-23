@@ -695,4 +695,65 @@ describe("UserPanel Component", () => {
     consoleSpy.mockRestore();
   });
 
+  it("handles delete box network error gracefully", async () => {
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    (global.fetch as jest.Mock).mockImplementation((url: string) => {
+      if (url === "/api/auth/me") {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            authenticated: true,
+            user: { id: "1", email: "test@example.com" },
+          }),
+        });
+      }
+      if (url === "/api/pillbox/list") {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            pillboxes: [
+              {
+                id: "box-1",
+                name: "Morning Meds",
+                drugIds: ["d1", "d2"],
+                createdAt: "2023-10-01T00:00:00.000Z",
+              },
+            ],
+          }),
+        });
+      }
+      if (url === "/api/pillbox/delete") {
+        return Promise.reject(new Error("Network failure"));
+      }
+      return Promise.reject(new Error("not found"));
+    });
+
+    const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(true);
+
+    render(
+      <UserPanel selectedDrugIds={[]} onLoadPillbox={mockOnLoadPillbox} />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("👤 test")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText("👤 test"));
+
+    await waitFor(() => {
+      expect(screen.getByTitle("Sil")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTitle("Sil"));
+
+    expect(confirmSpy).toHaveBeenCalled();
+
+    await waitFor(() => {
+       expect(consoleSpy).toHaveBeenCalledWith("[Pillbox Delete] Hata:", expect.any(Error));
+    });
+
+    confirmSpy.mockRestore();
+    consoleSpy.mockRestore();
+  });
 });

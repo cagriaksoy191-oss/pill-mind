@@ -224,8 +224,7 @@ describe("UserPanel Component", () => {
     consoleSpy.mockRestore();
   });
 
-  it("handles fetchSavedBoxes error", async () => {
-    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+  it("handles fetchSavedBoxes non-ok response", async () => {
     (global.fetch as jest.Mock).mockImplementation((url: string) => {
       if (url === "/api/auth/me") {
         return Promise.resolve({
@@ -237,7 +236,10 @@ describe("UserPanel Component", () => {
         });
       }
       if (url === "/api/pillbox/list") {
-        return Promise.reject(new Error("Database Error"));
+        return Promise.resolve({
+          ok: false,
+          status: 500
+        });
       }
       return Promise.reject(new Error("not found"));
     });
@@ -248,7 +250,60 @@ describe("UserPanel Component", () => {
 
     await waitFor(() => {
       expect(screen.getByText("👤 test")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText("👤 test"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Bulutta kayıtlı kutunuz bulunmuyor.")).toBeInTheDocument();
+      expect(screen.queryByText("Yükleniyor...")).not.toBeInTheDocument();
+    });
+  });
+
+  it("handles fetchSavedBoxes error, checking loading state and fallback", async () => {
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    let rejectListPromise: (reason?: any) => void;
+    const listPromise = new Promise((resolve, reject) => {
+      rejectListPromise = reject;
+    });
+
+    (global.fetch as jest.Mock).mockImplementation((url: string) => {
+      if (url === "/api/auth/me") {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            authenticated: true,
+            user: { id: "1", email: "test@example.com" },
+          }),
+        });
+      }
+      if (url === "/api/pillbox/list") {
+        return listPromise;
+      }
+      return Promise.reject(new Error("not found"));
+    });
+
+    render(
+      <UserPanel selectedDrugIds={[]} onLoadPillbox={mockOnLoadPillbox} />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("👤 test")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText("👤 test"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Yükleniyor...")).toBeInTheDocument();
+    });
+
+    rejectListPromise!(new Error("Database Error"));
+
+    await waitFor(() => {
       expect(consoleSpy).toHaveBeenCalledWith("[Pillbox List] Çekilirken hata:", expect.any(Error));
+      expect(screen.getByText("Bulutta kayıtlı kutunuz bulunmuyor.")).toBeInTheDocument();
+      expect(screen.queryByText("Yükleniyor...")).not.toBeInTheDocument();
     });
 
     consoleSpy.mockRestore();

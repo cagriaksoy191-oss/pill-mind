@@ -41,6 +41,20 @@ describe("UserPanel Component", () => {
     });
   });
 
+  it("handles checkSession not ok response", async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: false,
+    });
+
+    render(
+      <UserPanel selectedDrugIds={[]} onLoadPillbox={mockOnLoadPillbox} />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("🔐 Giriş Yap")).toBeInTheDocument();
+    });
+  });
+
   it("renders authenticated state without selected drugs", async () => {
     (global.fetch as jest.Mock).mockImplementation((url: string) => {
       if (url === "/api/auth/me") {

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useInteractionExplanations } from "./useInteractionExplanations";
 import { useCoverageExplanation } from "./useCoverageExplanation";
-import { CheckResult, AccumulationWarning, ExplanationData, FoodInteractionResult, ContraindicationResult, PolypharmacyReport, PatientContext } from "@/lib/interactions";
+import { CheckResult, AccumulationWarning, FoodInteractionResult, ContraindicationResult, PolypharmacyReport, PatientContext } from "@/lib/interactions";
 
 
 const fetchApiInteractions = async (drugIds: string[], patientContext: PatientContext | undefined) => {

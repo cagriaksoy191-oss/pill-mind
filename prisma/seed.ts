@@ -373,7 +373,7 @@ async function main() {
   // 4. Besin Etkileşimlerini Ekle
   const foodFilePath = path.join(process.cwd(), "data", "foodInteractions.json");
   const foodData = JSON.parse(fs.readFileSync(foodFilePath, "utf-8"));
-  const foodToCreate = foodData.map((f: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) => ({
+  const foodToCreate = foodData.map((f: { id: string, drugId: string, substance: string, effect: string, severity: string }) => ({
     id: f.id,
     drugId: drugIdMap[f.drugId] || f.drugId,
     substance: f.substance,
@@ -386,7 +386,7 @@ async function main() {
   // 5. Kontrendikasyonları Ekle
   const contraFilePath = path.join(process.cwd(), "data", "contraindications.json");
   const contraData = JSON.parse(fs.readFileSync(contraFilePath, "utf-8"));
-  const contraToCreate = contraData.map((c: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) => ({
+  const contraToCreate = contraData.map((c: { id: string, drugId: string, diseaseIcd: string, diseaseName: string, effect: string, severity: string }) => ({
     id: c.id,
     drugId: drugIdMap[c.drugId] || c.drugId,
     diseaseIcd: c.diseaseIcd,

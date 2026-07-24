@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useTiltEffect } from "@/hooks/useTiltEffect";
+import { CheckResult, AccumulationWarning } from "@/lib/interactions";
 
 
 interface Drug {
@@ -14,8 +15,8 @@ interface Drug {
 interface VirtualPillboxProps {
   selectedDrugs: Drug[];
   onRemove: (id: string) => void;
-  interactions?: any[];
-  accumulationWarnings?: any[];
+  interactions?: CheckResult[];
+  accumulationWarnings?: AccumulationWarning[];
 }
 
 export default function VirtualPillbox({

@@ -1,6 +1,7 @@
 // app/api/pillbox/share/[token]/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { Drug } from "@prisma/client";
 import {
   findInteractionsDB,
   resolveDrugsDB,
@@ -49,10 +50,9 @@ export async function GET(
     const resolvedDrugsCache = await resolveDrugsDB(share.drugIds);
 
     // Retrieve drug records for display names
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let drugs: any[] = [];
+    let drugs: Drug[] = [];
     if (resolvedDrugsCache && Array.isArray(resolvedDrugsCache) && resolvedDrugsCache.length > 0) {
-      drugs = resolvedDrugsCache.filter((d: any) => share.drugIds.includes(d.id));
+      drugs = resolvedDrugsCache.filter((d: Drug) => share.drugIds.includes(d.id));
     }
 
     // Fallback if cache missed the exact IDs or failed

@@ -59,6 +59,17 @@ export interface RawContraindication {
 }
 
 
+
+export interface Evidence {
+  source: {
+    id?: string;
+    title: string;
+    url?: string;
+  };
+  evidenceLevel?: string;
+  summary: string;
+}
+
 export interface InteractionMechanism {
   type: string;
   mechanism: string;
@@ -77,7 +88,7 @@ export interface Interaction {
   verificationStatus?: string;
   evidenceLevel?: string;
   clinicalDetail?: string;
-  evidences?: unknown[];
+  evidences?: Evidence[];
   mechanisms?: InteractionMechanism[];
 }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { getSeverityLabel, getDrugClinicalMetadata, InteractionMechanism } from "@/lib/interactions";
+import { getSeverityLabel, getDrugClinicalMetadata, InteractionMechanism, Evidence } from "@/lib/interactions";
 import ExplanationDrawer from "./ExplanationDrawer";
 import { getGlassColors } from "@/lib/theme";
 
@@ -18,8 +18,7 @@ interface ResultCardProps {
   source?: string;
   evidenceLevel?: string;
   clinicalDetail?: string;
-  evidences?: // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  any[];
+  evidences?: Evidence[];
   mechanisms?: InteractionMechanism[];
   explanationData?: {
     explanation?: string;
@@ -201,8 +200,7 @@ export default function ResultCard({
               <div className="border-t border-slate-200 dark:border-slate-850 pt-3">
                 <span className="font-bold text-slate-900 dark:text-slate-100">Bilimsel Kanıt ve Referans Kaynakları:</span>
                 <div className="mt-1.5 flex flex-col gap-2">
-                  {// eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  evidences.map((e: any, index: number) => (
+                  {evidences.map((e: Evidence, index: number) => (
                     <div key={index} className="p-2 rounded bg-slate-200/40 dark:bg-slate-950/30 border border-slate-200 dark:border-slate-900 flex flex-col gap-1">
                       <div className="flex items-center justify-between gap-2">
                         <span className="font-semibold text-slate-800 dark:text-slate-200">{e.source.title}</span>

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useInteractions } from "@/hooks/useInteractions";
-import { getAllDrugs, Drug } from "@/lib/interactions";
+import { getAllDrugs, Drug, Evidence } from "@/lib/interactions";
 import DrugSelector from "@/components/DrugSelector";
 import VirtualPillbox from "@/components/VirtualPillbox";
 import Disclaimer from "@/components/Disclaimer";
@@ -246,7 +246,7 @@ export default function KontrolPage() {
                           <div className="mt-2 pt-2 border-t border-slate-200">
                             <span className="font-semibold text-slate-700">Bilimsel Referanslar:</span>
                             <ul className="list-none flex flex-col gap-1.5 mt-1">
-                              {res.interaction.evidences.map((e: any, idx: number) => (
+                              {res.interaction.evidences.map((e: Evidence, idx: number) => (
                                 <li key={idx} className="p-2 bg-slate-50 rounded border border-slate-100">
                                   <span className="font-bold block text-slate-800">{e.source.title}</span>
                                   {e.source.url && <span className="text-[9px] text-indigo-700 block mt-0.5">{e.source.url}</span>}

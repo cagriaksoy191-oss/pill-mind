@@ -4,6 +4,7 @@
 import { useEffect, useState, use } from "react";
 import Link from "next/link";
 import Disclaimer from "@/components/Disclaimer";
+import { Evidence } from "@/lib/interactions";
 
 interface Drug {
   id: string;
@@ -24,7 +25,7 @@ interface Interaction {
   verificationStatus?: string;
   evidenceLevel?: string;
   clinicalDetail?: string;
-  evidences?: unknown[];
+  evidences?: Evidence[];
   mechanisms?: { type: string; mechanism: string; pharmacokinetic?: boolean; pharmacodynamic?: boolean; }[];
 }
 

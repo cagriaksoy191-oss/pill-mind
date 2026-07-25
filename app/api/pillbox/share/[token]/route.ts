@@ -1,7 +1,6 @@
 // app/api/pillbox/share/[token]/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { Drug } from "@prisma/client";
 import {
   findInteractionsDB,
   resolveDrugsDB,
@@ -11,6 +10,8 @@ import {
 } from "@/lib/interactions";
 
 export const dynamic = "force-dynamic";
+
+type DrugForDisplay = { id: string; name: string };
 
 export async function GET(
   request: NextRequest,
@@ -50,9 +51,9 @@ export async function GET(
     const resolvedDrugsCache = await resolveDrugsDB(share.drugIds);
 
     // Retrieve drug records for display names
-    let drugs: Drug[] = [];
+    let drugs: DrugForDisplay[] = [];
     if (resolvedDrugsCache && Array.isArray(resolvedDrugsCache) && resolvedDrugsCache.length > 0) {
-      drugs = resolvedDrugsCache.filter((d: Drug) => share.drugIds.includes(d.id));
+      drugs = (resolvedDrugsCache as DrugForDisplay[]).filter(d => share.drugIds.includes(d.id));
     }
 
     // Fallback if cache missed the exact IDs or failed
@@ -66,7 +67,7 @@ export async function GET(
       } catch {
         // Fallback using curated local data
         const { getDrugsByIds } = await import("@/lib/interactions");
-        drugs = getDrugsByIds(share.drugIds);
+        drugs = getDrugsByIds(share.drugIds) as DrugForDisplay[];
       }
     }
     // De-duplicate final drugs list to be absolutely sure

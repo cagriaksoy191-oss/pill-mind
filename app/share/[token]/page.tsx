@@ -4,7 +4,7 @@
 import { useEffect, useState, use } from "react";
 import Link from "next/link";
 import Disclaimer from "@/components/Disclaimer";
-import { Evidence } from "@/lib/interactions";
+import { Evidence, ContraindicationResult } from "@/lib/interactions";
 
 interface Drug {
   id: string;
@@ -60,7 +60,7 @@ interface SharedData {
   interactions: CheckResult[];
   accumulationWarnings: AccumulationWarning[];
   foodInteractions: FoodInteraction[];
-  contraindications: unknown[];
+  contraindications: ContraindicationResult[];
   createdAt: string;
   expiresAt: string;
 }

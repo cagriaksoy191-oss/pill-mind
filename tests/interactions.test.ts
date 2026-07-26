@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { getDrugClinicalMetadata, getSeverityLabel, getSeverityColor, getAllDrugs, findInteractions, findContraindications, findFoodInteractions, findFoodInteractionsDB } from "../lib/interactions";
+import { getDrugClinicalMetadata, getSeverityLabel, getSeverityColor, getAllDrugs, getDrugsByIds, findInteractions, findContraindications, findFoodInteractions, findFoodInteractionsDB } from "../lib/interactions";
 
 // --- Mocks ---
 jest.mock("@/lib/prisma", () => ({
@@ -160,6 +160,32 @@ describe("interactions UI helpers", () => {
       expect(firstDrug).toHaveProperty("category");
     });
   });
+
+  describe("getDrugsByIds", () => {
+    test("returns correct drugs for known valid IDs", () => {
+      const drugs = getDrugsByIds(["aspirin", "warfarin"]);
+      expect(drugs).toHaveLength(2);
+      expect(drugs[0].id).toBe("aspirin");
+      expect(drugs[1].id).toBe("warfarin");
+    });
+
+    test("ignores unknown IDs and returns only valid ones", () => {
+      const drugs = getDrugsByIds(["aspirin", "unknown-id"]);
+      expect(drugs).toHaveLength(1);
+      expect(drugs[0].id).toBe("aspirin");
+    });
+
+    test("returns empty array for empty input array", () => {
+      const drugs = getDrugsByIds([]);
+      expect(drugs).toHaveLength(0);
+    });
+
+    test("returns empty array when all IDs are unknown", () => {
+      const drugs = getDrugsByIds(["unknown-1", "unknown-2"]);
+      expect(drugs).toHaveLength(0);
+    });
+  });
+
 
   describe("findInteractions", () => {
     test("returns empty array for empty input", () => {

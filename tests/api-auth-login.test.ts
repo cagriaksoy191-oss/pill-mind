@@ -3,6 +3,19 @@ import crypto from "crypto";
 import { POST } from "@/app/api/auth/login/route";
 import * as Sentry from "@sentry/nextjs";
 import { prisma } from "@/lib/prisma";
+import { redis } from "@/lib/redis";
+
+
+jest.mock("@/lib/redis", () => ({
+  redis: {
+    incr: jest.fn(),
+    expire: jest.fn(),
+  },
+}));
+
+jest.mock("@/lib/ip", () => ({
+  getClientIp: jest.fn().mockReturnValue("127.0.0.1"),
+}));
 
 jest.mock("@/lib/auth", () => ({
   verifyCSRF: jest.fn().mockReturnValue(true),
@@ -28,6 +41,18 @@ describe("POST /api/auth/login", () => {
       json: jest.fn().mockResolvedValue(body),
     } as unknown as Request;
   };
+
+
+  it("should return 429 if rate limit is exceeded", async () => {
+    (redis.incr as jest.Mock).mockResolvedValueOnce(6); // Exceed limit
+
+    const req = createMockRequest({ email: "test@example.com" });
+    const res = await POST(req);
+
+    expect(res.status).toBe(429);
+    const data = await res.json();
+    expect(data.error).toBe("Çok fazla giriş denemesi yapıldı. Lütfen daha sonra tekrar deneyin.");
+  });
 
   it("should require OTP if only email is provided", async () => {
     const req = createMockRequest({ email: "test@example.com" });

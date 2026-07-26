@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useInteractions } from "@/hooks/useInteractions";
-import { getAllDrugs, Drug, Evidence } from "@/lib/interactions";
+import { getAllDrugs, Drug, Evidence, InteractionMechanism } from "@/lib/interactions";
 import DrugSelector from "@/components/DrugSelector";
 import VirtualPillbox from "@/components/VirtualPillbox";
 import Disclaimer from "@/components/Disclaimer";
@@ -235,7 +235,7 @@ export default function KontrolPage() {
                           <div className="mb-2">
                             <span className="font-semibold text-slate-700">Mekanizma Detayları:</span>
                             <ul className="list-dash pl-3 mt-0.5">
-                              {res.interaction.mechanisms.map((m: any, idx: number) => (
+                              {res.interaction.mechanisms.map((m: InteractionMechanism, idx: number) => (
                                 <li key={idx}>- {m.type}: {m.mechanism}</li>
                               ))}
                             </ul>

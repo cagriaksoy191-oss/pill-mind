@@ -304,4 +304,35 @@ describe("POST /api/check", () => {
 
     jest.resetModules();
   });
+
+  it("should return 500 and catch error if resolveDrugsDB throws an error", async () => {
+    jest.resetModules();
+    jest.doMock("@/lib/redis", () => ({ redis: { incr: jest.fn().mockResolvedValue(1), expire: jest.fn() } }));
+
+    jest.doMock("@/lib/interactions", () => ({
+      findInteractionsDB: jest.fn(),
+      checkAccumulationDB: jest.fn(),
+      resolveDrugsDB: jest.fn().mockRejectedValue(new Error("Outer Catch Error")),
+      findFoodInteractionsDB: jest.fn(),
+      findContraindicationsDB: jest.fn(),
+      checkPolypharmacyAndBeers: jest.fn(),
+    }));
+
+    const { POST: POST_with_error } = await import("../app/api/check/route");
+
+    const req = new Request("http://localhost/api/check", {
+      method: "POST",
+      body: JSON.stringify({ drugIds: ["drug-1", "drug-2"] }),
+      headers: { "Content-Type": "application/json" },
+    });
+
+    const res = await POST_with_error(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(500);
+    expect(console.error).toHaveBeenCalled();
+    expect(data).toEqual({ error: "Kontrol sırasında bir hata oluştu." });
+
+    jest.resetModules();
+  });
 });

@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { drugIds, summary } = body as { drugIds: string[]; summary?: any };
+    const { drugIds, summary } = body as { drugIds: string[]; summary?: unknown };
 
     if (!drugIds || !Array.isArray(drugIds) || drugIds.length === 0) {
       return jsonNoStore(

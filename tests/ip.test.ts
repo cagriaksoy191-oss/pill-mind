@@ -6,6 +6,15 @@ describe("getClientIp", () => {
     expect(getClientIp(req)).toBe("127.0.0.1");
   });
 
+  it("should return 127.0.0.1 when only untrusted headers like x-forwarded-for are present", () => {
+    const req = new Request("http://localhost", {
+      headers: {
+        "x-forwarded-for": "9.9.9.9",
+      },
+    });
+    expect(getClientIp(req)).toBe("127.0.0.1");
+  });
+
   it("should extract IP from x-vercel-forwarded-for header", () => {
     const req = new Request("http://localhost", {
       headers: {

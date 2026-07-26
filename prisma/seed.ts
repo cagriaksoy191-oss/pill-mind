@@ -6,6 +6,18 @@ import crypto from "crypto";
 
 const prisma = new PrismaClient();
 
+const logger = {
+  info: (msg: string) => process.stdout.write(msg + '\n'),
+  warn: (msg: string) => process.stderr.write('[WARN] ' + msg + '\n'),
+  error: (msg: string, err?: any) => {
+    process.stderr.write('[ERROR] ' + msg + '\n');
+    if (err) {
+      process.stderr.write((err instanceof Error ? err.stack : String(err)) + '\n');
+    }
+  }
+};
+
+
 interface DrugMock {
   id: string;
   name: string;
@@ -42,7 +54,7 @@ async function chunkedCreateMany<T>(
 }
 
 async function main() {
-  console.log("🌱 Veritabanı tohumlama işlemi başladı...");
+  logger.info("🌱 Veritabanı tohumlama işlemi başladı...");
 
   // 1. Mevcut verileri temizle (Önce ilişkili tablolar)
   await prisma.clinicalReview.deleteMany({});
@@ -58,7 +70,7 @@ async function main() {
   await prisma.drugClass.deleteMany({});
   await prisma.ingredient.deleteMany({});
 
-  console.log("🧹 Eski veriler temizlendi.");
+  logger.info("🧹 Eski veriler temizlendi.");
 
   // 2. İlaçları Oku ve Ekle
   const drugsFilePath = path.join(process.cwd(), "data", "drugs.json");
@@ -97,7 +109,7 @@ async function main() {
     ingredientMap[ingredientName] = id;
   }
   await chunkedCreateMany(prisma.ingredient, ingredientsToCreate);
-  console.log(`🧪 ${ingredientsToCreate.length} adet Ingredient (Etken Madde) oluşturuldu.`);
+  logger.info(`🧪 ${ingredientsToCreate.length} adet Ingredient (Etken Madde) oluşturuldu.`);
 
   // İlaç Sınıflarını oluştur
   const classesToCreate = [];
@@ -115,7 +127,7 @@ async function main() {
     classMap[category] = id;
   }
   await chunkedCreateMany(prisma.drugClass, classesToCreate);
-  console.log(`🏷️ ${classesToCreate.length} adet DrugClass oluşturuldu.`);
+  logger.info(`🏷️ ${classesToCreate.length} adet DrugClass oluşturuldu.`);
 
   for (const item of drugsData) {
     drugsToCreate.push({
@@ -224,19 +236,19 @@ async function main() {
     const startDrugs = performance.now();
     await chunkedCreateMany(prisma.drug, drugsToCreate);
     const endDrugs = performance.now();
-    console.log(`⚡ Inserted drugs in ${(endDrugs - startDrugs).toFixed(2)}ms`);
+    logger.info(`⚡ Inserted drugs in ${(endDrugs - startDrugs).toFixed(2)}ms`);
   }
 
   if (brandNamesToCreate.length > 0) {
     const startBrandNames = performance.now();
     await chunkedCreateMany(prisma.brandName, brandNamesToCreate);
     const endBrandNames = performance.now();
-    console.log(`⚡ Inserted brand names in ${(endBrandNames - startBrandNames).toFixed(2)}ms`);
+    logger.info(`⚡ Inserted brand names in ${(endBrandNames - startBrandNames).toFixed(2)}ms`);
   }
 
   if (drugAliasesToCreate.length > 0) {
     await chunkedCreateMany(prisma.drugAlias, drugAliasesToCreate);
-    console.log(`⚡ ${drugAliasesToCreate.length} adet DrugAlias tohumlandı.`);
+    logger.info(`⚡ ${drugAliasesToCreate.length} adet DrugAlias tohumlandı.`);
   }
 
   // 3. Kanıt Kaynaklarını oluştur
@@ -269,7 +281,7 @@ async function main() {
       licenseType: "PUBLIC",
     }
   });
-  console.log("📚 Kanıt Kaynakları (Evidence Sources) oluşturuldu.");
+  logger.info("📚 Kanıt Kaynakları (Evidence Sources) oluşturuldu.");
 
   // Etkileşimleri Oku ve Ekle
   const interactionsFilePath = path.join(
@@ -291,7 +303,7 @@ async function main() {
     const drug2Id = drugIdMap[item.drug2];
 
     if (!drug1Id || !drug2Id) {
-      console.warn(
+      logger.warn(
         `⚠️ İlaç bulunamadığı için etkileşim atlandı: ${item.drug1} - ${item.drug2}`,
       );
       continue;
@@ -356,18 +368,18 @@ async function main() {
     const startInteractions = performance.now();
     const result = await chunkedCreateMany(prisma.drugInteraction, interactionsToCreate);
     const endInteractions = performance.now();
-    console.log(`⚡ Inserted drug interactions in ${(endInteractions - startInteractions).toFixed(2)}ms`);
+    logger.info(`⚡ Inserted drug interactions in ${(endInteractions - startInteractions).toFixed(2)}ms`);
     interactionCount = result.count;
   }
 
   if (evidencesToCreate.length > 0) {
     await chunkedCreateMany(prisma.interactionEvidence, evidencesToCreate);
-    console.log(`⚡ ${evidencesToCreate.length} adet InteractionEvidence tohumlandı.`);
+    logger.info(`⚡ ${evidencesToCreate.length} adet InteractionEvidence tohumlandı.`);
   }
 
   if (mechanismsToCreate.length > 0) {
     await chunkedCreateMany(prisma.interactionMechanism, mechanismsToCreate);
-    console.log(`⚡ ${mechanismsToCreate.length} adet InteractionMechanism tohumlandı.`);
+    logger.info(`⚡ ${mechanismsToCreate.length} adet InteractionMechanism tohumlandı.`);
   }
 
   // 4. Besin Etkileşimlerini Ekle
@@ -381,7 +393,7 @@ async function main() {
     severity: f.severity === "HIGH" ? Severity.HIGH : f.severity === "MEDIUM" ? Severity.MEDIUM : Severity.LOW,
   }));
   await chunkedCreateMany(prisma.foodInteraction, foodToCreate);
-  console.log(`🥗 ${foodToCreate.length} adet besin etkileşimi eklendi.`);
+  logger.info(`🥗 ${foodToCreate.length} adet besin etkileşimi eklendi.`);
 
   // 5. Kontrendikasyonları Ekle
   const contraFilePath = path.join(process.cwd(), "data", "contraindications.json");
@@ -395,7 +407,7 @@ async function main() {
     severity: c.severity === "HIGH" ? Severity.HIGH : c.severity === "MEDIUM" ? Severity.MEDIUM : Severity.LOW,
   }));
   await chunkedCreateMany(prisma.contraindication, contraToCreate);
-  console.log(`❌ ${contraToCreate.length} adet kontrendikasyon eklendi.`);
+  logger.info(`❌ ${contraToCreate.length} adet kontrendikasyon eklendi.`);
 
   // Örnek ClinicalReview ekle
   await prisma.clinicalReview.create({
@@ -408,14 +420,14 @@ async function main() {
       evidenceSourceId: fdaSourceId,
     }
   });
-  console.log("📝 Örnek ClinicalReview kaydı oluşturuldu.");
+  logger.info("📝 Örnek ClinicalReview kaydı oluşturuldu.");
 
-  console.log("🏁 Tohumlama başarıyla tamamlandı!");
+  logger.info("🏁 Tohumlama başarıyla tamamlandı!");
 }
 
 main()
   .catch((e) => {
-    console.error("❌ Tohumlama sırasında bir hata oluştu:", e);
+    logger.error("❌ Tohumlama sırasında bir hata oluştu:", e);
     process.exit(1);
   })
   .finally(async () => {

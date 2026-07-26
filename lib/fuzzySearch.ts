@@ -16,12 +16,17 @@ const turkishCharMap: Record<string, string> = {
 };
 const turkishRegex = /[İIığüşöçĞÜŞÖÇ\u0307]/g;
 
+const normalizeCache = new Map<string, string>();
 function normalizeTurkish(text: string): string {
   if (!text) return "";
-  return text
+  let cached = normalizeCache.get(text);
+  if (cached !== undefined) return cached;
+  cached = text
     .replace(turkishRegex, (m) => turkishCharMap[m] || "")
     .toLowerCase()
     .trim();
+  normalizeCache.set(text, cached);
+  return cached;
 }
 
 let levenshteinCache = new Uint16Array(64);

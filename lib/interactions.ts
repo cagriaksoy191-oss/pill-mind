@@ -825,6 +825,9 @@ export function checkPolypharmacyAndBeers(drugIds: string[], patientContext?: Pa
 }
 
 
+const resolveCache = new Map<string, string>();
+const MAX_CACHE_SIZE = 5000;
+
 function resolveDrugIds(drugIds: string[]): Set<string> {
   const resolvedIds = new Set<string>();
   for (const idOrName of drugIds) {
@@ -832,9 +835,17 @@ function resolveDrugIds(drugIds: string[]): Set<string> {
       resolvedIds.add(idOrName);
       continue;
     }
-    const lower = idOrName.toLowerCase().trim();
-    const canonicalId = DRUG_ALIASES[lower];
-    if (canonicalId) {
+
+    let canonicalId = resolveCache.get(idOrName);
+    if (canonicalId === undefined) {
+      if (resolveCache.size >= MAX_CACHE_SIZE) {
+        resolveCache.clear();
+      }
+      const lower = idOrName.toLowerCase().trim();
+      canonicalId = DRUG_ALIASES[lower] || "";
+      resolveCache.set(idOrName, canonicalId);
+    }
+    if (canonicalId !== "") {
       resolvedIds.add(canonicalId);
     }
   }

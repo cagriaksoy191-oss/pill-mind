@@ -1,4 +1,4 @@
-import { POST, getCachedExplanation } from "../app/api/explain/route";
+import { POST, getCachedExplanation, setCachedExplanation } from "../app/api/explain/route";
 import { redis } from "@/lib/redis";
 import * as Sentry from "@sentry/nextjs";
 import {
@@ -44,6 +44,23 @@ describe("getCachedExplanation", () => {
     const result = await getCachedExplanation("test-key");
     expect(result).toBeNull();
     expect(consoleWarnSpy).toHaveBeenCalledWith("[Redis] Cache read error, continuing to live AI:", fakeError);
+  });
+});
+
+describe("setCachedExplanation", () => {
+  const consoleWarnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("should catch and log error without throwing when redis.set fails", async () => {
+    const fakeError = new Error("Redis write error");
+    (redis!.set as jest.Mock).mockRejectedValueOnce(fakeError);
+
+    const dummyData = { explanation: "test", generatedAt: "now" };
+    await expect(setCachedExplanation("test-key", dummyData)).resolves.toBeUndefined();
+    expect(consoleWarnSpy).toHaveBeenCalledWith("[Redis] Cache write error:", fakeError);
   });
 });
 

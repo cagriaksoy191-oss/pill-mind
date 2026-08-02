@@ -9,8 +9,6 @@ import crypto from "crypto";
 
 export const dynamic = "force-dynamic";
 
-
-
 export async function POST(request: NextRequest) {
   try {
     // CSRF check
@@ -40,6 +38,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    let stringifiedSummary: string | null = null;
+    if (summary) {
+      try {
+        stringifiedSummary = JSON.stringify(summary);
+        if (stringifiedSummary.length > 50000) {
+          return jsonNoStore(
+            { error: "Özet verisi çok büyük. Lütfen daha kısa bir özet girin." },
+            413
+          );
+        }
+      } catch (error) {
+        return jsonNoStore(
+          { error: "Geçersiz özet verisi formatı." },
+          400
+        );
+      }
+    }
+
     // Generate unique token (secure random hash)
     const token = crypto.randomBytes(32).toString("hex");
 
@@ -51,7 +67,7 @@ export async function POST(request: NextRequest) {
       data: {
         token,
         drugIds,
-        summary: summary ? JSON.stringify(summary) : null,
+        summary: stringifiedSummary,
         expiresAt,
       },
     });

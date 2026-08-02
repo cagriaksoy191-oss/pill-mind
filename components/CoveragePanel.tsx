@@ -1,5 +1,6 @@
 import { getEvidenceLevelBadge } from "@/lib/utils/badges";
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
+import { useClinicalMode } from "@/hooks/useClinicalMode";
 import { CheckResult } from "@/lib/interactions";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 
@@ -25,38 +26,11 @@ export default function CoveragePanel({
   handleRequestCoverageExplanation,
   interactions = [],
 }: CoveragePanelProps) {
-  const [isClinicalMode, setIsClinicalMode] = useState<boolean>(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("pillmind_clinical_mode") === "true";
-    }
-    return false;
-  });
+  const { isClinicalMode, toggleClinicalMode } = useClinicalMode();
   const panelRef = useRef<HTMLDivElement>(null);
 
   // Trap focus inside coverage panel when visible
   useFocusTrap(panelRef, showCoveragePanel);
-
-  const toggleClinicalMode = () => {
-    const nextMode = !isClinicalMode;
-    setIsClinicalMode(nextMode);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("pillmind_clinical_mode", String(nextMode));
-      window.dispatchEvent(new Event("pillmind_clinical_mode_changed"));
-    }
-  };
-
-  useEffect(() => {
-    const handleModeChange = () => {
-      if (typeof window !== "undefined") {
-        const currentMode = localStorage.getItem("pillmind_clinical_mode") === "true";
-        setIsClinicalMode(currentMode);
-      }
-    };
-    window.addEventListener("pillmind_clinical_mode_changed", handleModeChange);
-    return () => {
-      window.removeEventListener("pillmind_clinical_mode_changed", handleModeChange);
-    };
-  }, []);
 
   // Auto-trigger analysis if switching to Hasta mode and empty
   useEffect(() => {

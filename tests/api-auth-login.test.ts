@@ -44,6 +44,8 @@ describe("POST /api/auth/login", () => {
 
 
   it("should return 429 if rate limit is exceeded", async () => {
+    const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
     (redis.incr as jest.Mock).mockResolvedValueOnce(6); // Exceed limit
 
     const req = createMockRequest({ email: "test@example.com" });
@@ -52,6 +54,23 @@ describe("POST /api/auth/login", () => {
     expect(res.status).toBe(429);
     const data = await res.json();
     expect(data.error).toBe("Çok fazla giriş denemesi yapıldı. Lütfen daha sonra tekrar deneyin.");
+
+    consoleWarnSpy.mockRestore();
+  });
+
+  it("should return 503 if redis.incr throws an error", async () => {
+    const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    (redis.incr as jest.Mock).mockRejectedValueOnce(new Error("Redis connection failed"));
+
+    const req = createMockRequest({ email: "test@example.com" });
+    const res = await POST(req);
+
+    expect(res.status).toBe(503);
+    const data = await res.json();
+    expect(data.error).toBe("Hizmet şu anda kullanılamıyor. Lütfen daha sonra tekrar deneyin.");
+
+    consoleWarnSpy.mockRestore();
   });
 
   it("should require OTP if only email is provided", async () => {

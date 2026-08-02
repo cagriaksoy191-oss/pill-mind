@@ -72,6 +72,30 @@ describe("POST /api/pillbox/save", () => {
     expect(data.error).toBe("Kutu ismi ve en az 1 ilaç seçimi zorunludur.");
   });
 
+  it("should return 413 if drugIds payload is too large", async () => {
+    (getSession as jest.Mock).mockResolvedValue({ userId: "user-1", email: "test@test.com", expires: Date.now() + 10000 });
+
+    const largeDrugIds = new Array(10000).fill("a-very-long-drug-id-string-to-exceed-the-limit");
+    const req = createMockRequest({ name: "My Pillbox", drugIds: largeDrugIds });
+    const res = await POST(req);
+
+    expect(res.status).toBe(413);
+    const data = await res.json();
+    expect(data.error).toBe("Payload Too Large");
+  });
+
+  it("should return 400 if drugIds array is longer than 100 elements", async () => {
+    (getSession as jest.Mock).mockResolvedValue({ userId: "user-1", email: "test@test.com", expires: Date.now() + 10000 });
+
+    const tooManyDrugIds = new Array(101).fill("drug-id");
+    const req = createMockRequest({ name: "My Pillbox", drugIds: tooManyDrugIds });
+    const res = await POST(req);
+
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.error).toBe("Bir kutuya en fazla 100 ilaç eklenebilir.");
+  });
+
   it("should return 200 and save the pillbox successfully", async () => {
     (getSession as jest.Mock).mockResolvedValue({ userId: "user-1", email: "test@test.com", expires: Date.now() + 10000 });
 

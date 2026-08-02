@@ -17,6 +17,8 @@ export async function POST(request: Request) {
   // Oturum çerezini siliyoruz
   response.cookies.set("session", "", {
     httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
     expires: new Date(0),
     path: "/",
   });

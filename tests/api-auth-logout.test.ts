@@ -43,5 +43,6 @@ describe("POST /api/auth/logout", () => {
     expect(cookieHeader).toContain("Expires=Thu, 01 Jan 1970 00:00:00 GMT;");
     expect(cookieHeader).toContain("Path=/;");
     expect(cookieHeader).toContain("HttpOnly");
+    expect(cookieHeader).toContain("SameSite=lax");
   });
 });

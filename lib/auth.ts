@@ -113,6 +113,11 @@ export function verifyCSRF(req: Request): boolean {
     return false; // Fail secure: hedefin orijini doğrulanamazsa isteği reddet
   }
 
+  // Origin ve Referer başlıklarının her ikisi de eksikse engelle (CSRF Bypass önlemi)
+  if (!origin && !referer) {
+    return false;
+  }
+
   // Origin uyuşmazlığı kontrolü
   if (origin && origin !== expectedOrigin) {
     console.warn(`[CSRF Alert] Origin mismatch: ${origin}, Expected: ${expectedOrigin}`);

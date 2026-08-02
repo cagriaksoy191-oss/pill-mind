@@ -512,8 +512,9 @@ describe("findInteractionsDB", () => {
 
     (prisma.drug.findMany as jest.Mock).mockRejectedValue(new Error("DB Error"));
 
-    const result = await findInteractionsDB(["warfarin"]);
-    expect(Array.isArray(result)).toBe(true);
+    const result = await findInteractionsDB(["warfarin", "aspirin"]);
+    expect(result.length).toBeGreaterThan(0);
+    expect(result[0].interaction.summary).toContain("kanama riski artabilir");
     expect(consoleSpy).toHaveBeenCalled();
 
     consoleSpy.mockRestore();

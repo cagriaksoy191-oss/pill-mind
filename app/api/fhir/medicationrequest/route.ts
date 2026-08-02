@@ -1,6 +1,7 @@
 // app/api/fhir/medicationrequest/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getSession, verifyCSRF } from "@/lib/auth";
+import { createOperationOutcomeResponse } from "@/lib/utils/fhir";
 import { findInteractionsDB, checkAccumulationDB, findFoodInteractionsDB, findContraindicationsDB, resolveDrugsDB, PatientContext } from "@/lib/interactions";
 
 
@@ -89,47 +90,20 @@ export async function POST(request: NextRequest) {
   try {
     // CSRF check
     if (!verifyCSRF(request)) {
-      return NextResponse.json({
-        resourceType: "OperationOutcome",
-        issue: [
-          {
-            severity: "error",
-            code: "security",
-            diagnostics: "Güvenlik doğrulaması başarısız oldu (CSRF engellendi)."
-          }
-        ]
-      }, { status: 403 });
+      return createOperationOutcomeResponse("error", "security", "Güvenlik doğrulaması başarısız oldu (CSRF engellendi).", 403);
     }
 
     // Auth check
     const session = await getSession(request);
     if (!session) {
-      return NextResponse.json({
-        resourceType: "OperationOutcome",
-        issue: [
-          {
-            severity: "error",
-            code: "security",
-            diagnostics: "Yetkisiz erişim. Lütfen giriş yapın."
-          }
-        ]
-      }, { status: 401 });
+      return createOperationOutcomeResponse("error", "security", "Yetkisiz erişim. Lütfen giriş yapın.", 401);
     }
 
     const body = await request.json();
     const { drugIds, patientContext } = parseFhirRequest(body);
 
     if (drugIds.length < 2) {
-      return NextResponse.json({
-        resourceType: "OperationOutcome",
-        issue: [
-          {
-            severity: "warning",
-            code: "value",
-            diagnostics: "FHIR: En az 2 MedicationRequest veya medications parametresi gereklidir."
-          }
-        ]
-      }, { status: 400 });
+      return createOperationOutcomeResponse("warning", "value", "FHIR: En az 2 MedicationRequest veya medications parametresi gereklidir.", 400);
     }
 
     // Run clinical checking engine
@@ -168,15 +142,6 @@ export async function POST(request: NextRequest) {
       ]
     });
   } catch (error) {
-    return NextResponse.json({
-      resourceType: "OperationOutcome",
-      issue: [
-        {
-          severity: "error",
-          code: "exception",
-          diagnostics: error instanceof Error ? error.message : "FHIR processing failed."
-        }
-      ]
-    }, { status: 500 });
+    return createOperationOutcomeResponse("error", "exception", error instanceof Error ? error.message : "FHIR processing failed.", 500);
   }
 }

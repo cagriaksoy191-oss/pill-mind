@@ -1,6 +1,7 @@
 // app/api/fhir/medication/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getSession, verifyCSRF } from "@/lib/auth";
+import { createOperationOutcomeResponse } from "@/lib/utils/fhir";
 import { getAllDrugs } from "@/lib/interactions";
 
 
@@ -20,31 +21,13 @@ export async function GET(request: NextRequest) {
   try {
     // CSRF check
     if (!verifyCSRF(request)) {
-      return NextResponse.json({
-        resourceType: "OperationOutcome",
-        issue: [
-          {
-            severity: "error",
-            code: "security",
-            diagnostics: "Güvenlik doğrulaması başarısız oldu (CSRF engellendi)."
-          }
-        ]
-      }, { status: 403 });
+      return createOperationOutcomeResponse("error", "security", "Güvenlik doğrulaması başarısız oldu (CSRF engellendi).", 403);
     }
 
     // Auth check
     const session = await getSession(request);
     if (!session) {
-      return NextResponse.json({
-        resourceType: "OperationOutcome",
-        issue: [
-          {
-            severity: "error",
-            code: "security",
-            diagnostics: "Yetkisiz erişim. Lütfen giriş yapın."
-          }
-        ]
-      }, { status: 401 });
+      return createOperationOutcomeResponse("error", "security", "Yetkisiz erişim. Lütfen giriş yapın.", 401);
     }
 
     const { searchParams } = new URL(request.url);
@@ -138,15 +121,6 @@ export async function GET(request: NextRequest) {
       entry: entries
     });
   } catch (error) {
-    return NextResponse.json({
-      resourceType: "OperationOutcome",
-      issue: [
-        {
-          severity: "error",
-          code: "exception",
-          diagnostics: error instanceof Error ? error.message : "FHIR endpoint failed."
-        }
-      ]
-    }, { status: 500 });
+    return createOperationOutcomeResponse("error", "exception", error instanceof Error ? error.message : "FHIR endpoint failed.", 500);
   }
 }

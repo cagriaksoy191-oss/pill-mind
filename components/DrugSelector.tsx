@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { fuzzySearchDrugs } from "@/lib/fuzzySearch";
 import { Drug } from "@/lib/interactions";
 import DrugList from "./DrugList";
@@ -27,8 +27,18 @@ export default function DrugSelector({
   // Trap focus inside dropdown when open
   useFocusTrap(wrapperRef, isOpen);
 
+  const drugMap = useMemo(() => {
+    const map = new Map<string, Drug>();
+    for (const d of drugs) {
+      map.set(d.id, d);
+    }
+    return map;
+  }, [drugs]);
+
+  const selectedSet = useMemo(() => new Set(selected), [selected]);
+
   // Exclude already selected drugs, then fuzzy search
-  const availableDrugs = drugs.filter((d) => !selected.includes(d.id));
+  const availableDrugs = useMemo(() => drugs.filter((d) => !selectedSet.has(d.id)), [drugs, selectedSet]);
   const filtered = query.trim()
     ? fuzzySearchDrugs(query, availableDrugs).map((r) => r.item)
     : availableDrugs;
@@ -48,7 +58,7 @@ export default function DrugSelector({
   }, []);
 
   function addDrug(drugId: string) {
-    const drug = drugs.find((d) => d.id === drugId);
+    const drug = drugMap.get(drugId);
     if (drug) {
       setAnnouncement(`${drug.name} ilacı kutuya eklendi.`);
     }
@@ -60,7 +70,7 @@ export default function DrugSelector({
   }
 
   function removeDrug(drugId: string) {
-    const drug = drugs.find((d) => d.id === drugId);
+    const drug = drugMap.get(drugId);
     if (drug) {
       setAnnouncement(`${drug.name} ilacı kutudan kaldırıldı.`);
     }
@@ -105,7 +115,7 @@ export default function DrugSelector({
     }
   };
 
-  const selectedDrugs = drugs.filter((d) => selected.includes(d.id));
+  const selectedDrugs = useMemo(() => drugs.filter((d) => selectedSet.has(d.id)), [drugs, selectedSet]);
 
   return (
     <div ref={wrapperRef} className="w-full relative z-30">

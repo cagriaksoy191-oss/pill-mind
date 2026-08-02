@@ -391,6 +391,7 @@ describe("findInteractionsDB", () => {
   beforeEach(() => {
     jest.resetModules();
     process.env = { ...originalEnv, DATABASE_URL: "postgresql://user:pass@localhost:5432/db" };
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { prisma } = require("@/lib/prisma");
 
     if (!prisma.drug) prisma.drug = { findMany: jest.fn() };
@@ -410,7 +411,9 @@ describe("findInteractionsDB", () => {
 
   test("returns fallback if DATABASE_URL is missing", async () => {
     delete process.env.DATABASE_URL;
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { findInteractionsDB } = require("../lib/interactions");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { prisma } = require("@/lib/prisma");
     const result = await findInteractionsDB(["warfarin"]);
     expect(Array.isArray(result)).toBe(true);
@@ -419,7 +422,9 @@ describe("findInteractionsDB", () => {
 
   test("returns fallback if DATABASE_URL contains [SIFRE]", async () => {
     process.env.DATABASE_URL = "postgres://user:[SIFRE]@host/db";
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { findInteractionsDB } = require("../lib/interactions");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { prisma } = require("@/lib/prisma");
     const result = await findInteractionsDB(["warfarin"]);
     expect(Array.isArray(result)).toBe(true);
@@ -427,7 +432,9 @@ describe("findInteractionsDB", () => {
   });
 
   test("uses resolvedDrugsCache if provided and fetches interactions from DB", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { findInteractionsDB } = require("../lib/interactions");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { prisma } = require("@/lib/prisma");
 
     const mockDrug1 = { id: "drug1", name: "Drug 1" };
@@ -460,7 +467,9 @@ describe("findInteractionsDB", () => {
   });
 
   test("fetches drugs and interactions from DB if cache not provided", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { findInteractionsDB } = require("../lib/interactions");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { prisma } = require("@/lib/prisma");
 
     const mockDrug1 = { id: "drug1", name: "Drug 1" };
@@ -494,7 +503,9 @@ describe("findInteractionsDB", () => {
   });
 
   test("uses fallback if Prisma query fails", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { findInteractionsDB } = require("../lib/interactions");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { prisma } = require("@/lib/prisma");
 
     const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
@@ -516,6 +527,7 @@ describe("findFoodInteractionsDB", () => {
   beforeEach(() => {
     jest.resetModules();
     process.env = { ...originalEnv, DATABASE_URL: "postgresql://user:pass@localhost:5432/db" };
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { prisma } = require("@/lib/prisma");
 
     if (!prisma.drug) prisma.drug = { findMany: jest.fn() };
@@ -535,7 +547,9 @@ describe("findFoodInteractionsDB", () => {
 
   test("returns fallback if DATABASE_URL is missing", async () => {
     delete process.env.DATABASE_URL;
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { findFoodInteractionsDB } = require("../lib/interactions");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { prisma } = require("@/lib/prisma");
     const result = await findFoodInteractionsDB(["warfarin"]);
     expect(result.length).toBeGreaterThan(0);
@@ -544,7 +558,9 @@ describe("findFoodInteractionsDB", () => {
 
   test("returns fallback if DATABASE_URL contains [SIFRE]", async () => {
     process.env.DATABASE_URL = "postgres://user:[SIFRE]@host/db";
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { findFoodInteractionsDB } = require("../lib/interactions");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { prisma } = require("@/lib/prisma");
     const result = await findFoodInteractionsDB(["warfarin"]);
     expect(result.length).toBeGreaterThan(0);
@@ -552,7 +568,9 @@ describe("findFoodInteractionsDB", () => {
   });
 
   test("returns food interactions from DB if Prisma query succeeds", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { findFoodInteractionsDB } = require("../lib/interactions");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { prisma } = require("@/lib/prisma");
 
     // Setup mock return values
@@ -589,7 +607,9 @@ describe("findFoodInteractionsDB", () => {
   });
 
   test("uses resolvedDrugsCache if provided", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { findFoodInteractionsDB } = require("../lib/interactions");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { prisma } = require("@/lib/prisma");
 
     const mockDrug = { id: "metformin", name: "metformin" };
@@ -616,7 +636,9 @@ describe("findFoodInteractionsDB", () => {
   });
 
   test("uses fallback if Prisma query fails", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { findFoodInteractionsDB } = require("../lib/interactions");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { prisma } = require("@/lib/prisma");
 
     // Suppress expected console.error during the test
@@ -644,6 +666,7 @@ describe("findContraindicationsDB", () => {
   beforeEach(() => {
     jest.resetModules();
     process.env = { ...originalEnv, DATABASE_URL: "postgresql://user:pass@localhost:5432/db" };
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { prisma } = require("@/lib/prisma");
     if (prisma.drug && prisma.drug.findMany && typeof prisma.drug.findMany.mockClear === 'function') {
         prisma.drug.findMany.mockClear();
@@ -658,13 +681,16 @@ describe("findContraindicationsDB", () => {
   });
 
   test("returns empty array if patientContext is undefined", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { findContraindicationsDB } = require("../lib/interactions");
     const result = await findContraindicationsDB(["warfarin"]);
     expect(result).toEqual([]);
   });
 
   test("uses resolvedDrugsCache if provided", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { findContraindicationsDB } = require("../lib/interactions");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { prisma } = require("@/lib/prisma");
 
     const mockDrug = { id: "warfarin", name: "warfarin" };
@@ -681,7 +707,9 @@ describe("findContraindicationsDB", () => {
   });
 
   test("returns disease contraindications from DB if Prisma query succeeds", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { findContraindicationsDB } = require("../lib/interactions");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { prisma } = require("@/lib/prisma");
 
     const mockDrug = { id: "aspirin", name: "Aspirin" };
@@ -715,7 +743,9 @@ describe("findContraindicationsDB", () => {
   });
 
   test("returns pregnancy contraindications from clinical metadata", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { findContraindicationsDB } = require("../lib/interactions");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { prisma } = require("@/lib/prisma");
 
     const mockDrugX = { id: "warfarin", name: "Warfarin" };
@@ -731,7 +761,9 @@ describe("findContraindicationsDB", () => {
   });
 
   test("returns breastfeeding contraindications from clinical metadata", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { findContraindicationsDB } = require("../lib/interactions");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { prisma } = require("@/lib/prisma");
 
     const mockDrug = { id: "aspirin", name: "Aspirin" };
@@ -745,7 +777,9 @@ describe("findContraindicationsDB", () => {
   });
 
   test("returns renal risk contraindications from clinical metadata", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { findContraindicationsDB } = require("../lib/interactions");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { prisma } = require("@/lib/prisma");
 
     const mockDrug1 = { id: "metformin", name: "Metformin" };
@@ -760,7 +794,9 @@ describe("findContraindicationsDB", () => {
   });
 
   test("returns hepatic risk contraindications from clinical metadata", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { findContraindicationsDB } = require("../lib/interactions");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { prisma } = require("@/lib/prisma");
 
     const mockDrug1 = { id: "parasetamol", name: "Parasetamol" };
@@ -775,7 +811,9 @@ describe("findContraindicationsDB", () => {
   });
 
   test("uses fallback if Prisma query fails", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { findContraindicationsDB } = require("../lib/interactions");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { prisma } = require("@/lib/prisma");
 
     const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
@@ -801,6 +839,7 @@ describe("resolveDrugsDB", () => {
   beforeEach(() => {
     jest.resetModules();
     process.env = { ...originalEnv, DATABASE_URL: "postgresql://user:pass@localhost:5432/db" };
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { prisma } = require("@/lib/prisma");
     if (prisma.drug && prisma.drug.findMany && typeof prisma.drug.findMany.mockClear === 'function') {
         prisma.drug.findMany.mockClear();
@@ -813,21 +852,21 @@ describe("resolveDrugsDB", () => {
 
   it("should return empty array if DATABASE_URL is not set", async () => {
     delete process.env.DATABASE_URL;
-    const { resolveDrugsDB } = require("../lib/interactions");
+    const { resolveDrugsDB } = await import("../lib/interactions");
     const result = await resolveDrugsDB(["drug1"]);
     expect(result).toEqual([]);
   });
 
   it("should return empty array if DATABASE_URL includes [SIFRE]", async () => {
     process.env.DATABASE_URL = "postgresql://user:[SIFRE]@localhost:5432/db";
-    const { resolveDrugsDB } = require("../lib/interactions");
+    const { resolveDrugsDB } = await import("../lib/interactions");
     const result = await resolveDrugsDB(["drug1"]);
     expect(result).toEqual([]);
   });
 
   it("should return drugs from DB", async () => {
-    const { prisma } = require("@/lib/prisma");
-    const { resolveDrugsDB } = require("../lib/interactions");
+    const { prisma } = await import("@/lib/prisma");
+    const { resolveDrugsDB } = await import("../lib/interactions");
     const mockDrugs = [{ id: "drug1", name: "Drug 1" }];
     prisma.drug.findMany.mockResolvedValue(mockDrugs);
 
@@ -848,14 +887,14 @@ describe("resolveDrugsDB", () => {
   });
 
   it("should return empty array on database error and log error", async () => {
-    const { prisma } = require("@/lib/prisma");
-    const { resolveDrugsDB } = require("../lib/interactions");
+    const { prisma } = await import("@/lib/prisma");
+    const { resolveDrugsDB } = await import("../lib/interactions");
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     prisma.drug.findMany.mockRejectedValue(new Error("DB Error"));
 
     const result = await resolveDrugsDB(["drug1"]);
 
-    expect(consoleSpy).toHaveBeenCalled();
+    expect(consoleSpy).toHaveBeenCalledWith("[PillMind CMIO Engine] resolveDrugsDB başarısız:", expect.any(Error));
     expect(result).toEqual([]);
 
     consoleSpy.mockRestore();
@@ -869,6 +908,7 @@ describe("checkAccumulationDB", () => {
   beforeEach(() => {
     jest.resetModules();
     process.env = { ...originalEnv, DATABASE_URL: "postgresql://user:pass@localhost:5432/db" };
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { prisma } = require("@/lib/prisma");
     if (prisma.drug && prisma.drug.findMany && typeof prisma.drug.findMany.mockClear === 'function') {
         prisma.drug.findMany.mockClear();
@@ -881,6 +921,7 @@ describe("checkAccumulationDB", () => {
 
   it("should return checkAccumulation results if DATABASE_URL is not set", async () => {
     delete process.env.DATABASE_URL;
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { checkAccumulationDB } = require("../lib/interactions");
     const result = await checkAccumulationDB(["aspirin", "ibuprofen"]);
     expect(result.length).toBeGreaterThan(0);
@@ -889,6 +930,7 @@ describe("checkAccumulationDB", () => {
 
   it("should return checkAccumulation results if DATABASE_URL includes [SIFRE]", async () => {
     process.env.DATABASE_URL = "postgresql://user:[SIFRE]@localhost:5432/db";
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { checkAccumulationDB } = require("../lib/interactions");
     const result = await checkAccumulationDB(["aspirin", "ibuprofen"]);
     expect(result.length).toBeGreaterThan(0);
@@ -896,7 +938,9 @@ describe("checkAccumulationDB", () => {
   });
 
   it("should return accumulation warnings for same active ingredient from DB", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { prisma } = require("@/lib/prisma");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { checkAccumulationDB } = require("../lib/interactions");
 
     // Mock 2 drugs with the same active ingredient
@@ -931,7 +975,9 @@ describe("checkAccumulationDB", () => {
   });
 
   it("should return accumulation warnings for same pharmacological group from DB", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { prisma } = require("@/lib/prisma");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { checkAccumulationDB } = require("../lib/interactions");
 
     // Mock 2 drugs with different ingredients but same pharmacological group
@@ -954,7 +1000,9 @@ describe("checkAccumulationDB", () => {
   });
 
   it("should use resolvedDrugsCache if provided instead of querying DB", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { prisma } = require("@/lib/prisma");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { checkAccumulationDB } = require("../lib/interactions");
 
     const mockDrugs = [
@@ -970,7 +1018,9 @@ describe("checkAccumulationDB", () => {
   });
 
   it("should return checkAccumulation results on database error and log error", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { prisma } = require("@/lib/prisma");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { checkAccumulationDB } = require("../lib/interactions");
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     prisma.drug.findMany.mockRejectedValue(new Error("DB Error"));

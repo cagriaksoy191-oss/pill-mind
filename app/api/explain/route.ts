@@ -70,7 +70,7 @@ export async function getCachedExplanation(cacheKey: string): Promise<CachedExpl
   return null;
 }
 
-async function setCachedExplanation(cacheKey: string, data: CachedExplanation): Promise<void> {
+export async function setCachedExplanation(cacheKey: string, data: CachedExplanation): Promise<void> {
   if (!redis) return;
   try {
     await redis.set(

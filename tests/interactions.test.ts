@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+const { prisma } = require("@/lib/prisma");
 import { getDrugClinicalMetadata, getSeverityLabel, getSeverityColor, getAllDrugs, getDrugsByIds, findInteractions, findContraindications, findFoodInteractions, findFoodInteractionsDB } from "../lib/interactions";
 
 // --- Mocks ---
@@ -851,6 +851,24 @@ describe("findContraindicationsDB", () => {
     expect(result.length).toBeGreaterThan(0);
     expect(result[0].type).toBe("pregnancy");
 
+    expect(consoleSpy).toHaveBeenCalled();
+    consoleSpy.mockRestore();
+  });
+  test("uses fallback if contraindication Prisma query fails", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { findContraindicationsDB } = require("../lib/interactions");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { prisma } = require("@/lib/prisma");
+
+    const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+
+    prisma.drug.findMany.mockResolvedValue([{ id: "aspirin", name: "Aspirin" }]);
+    if (!prisma.contraindication) { prisma.contraindication = { findMany: jest.fn() }; }
+    prisma.contraindication.findMany.mockRejectedValue(new Error("Database connection failed"));
+
+    const result = await findContraindicationsDB(["aspirin"], { diseases: ["K25"] });
+
+    expect(result.length).toBeGreaterThan(0);
     expect(consoleSpy).toHaveBeenCalled();
     consoleSpy.mockRestore();
   });

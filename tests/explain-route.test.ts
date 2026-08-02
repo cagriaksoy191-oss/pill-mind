@@ -106,6 +106,19 @@ describe("POST /api/explain", () => {
     expect(data).toEqual({ error: "Geçersiz JSON gövdesi." });
   });
 
+  it("should return 400 when request.json() throws", async () => {
+    const req = new Request("http://localhost/api/explain", {
+      method: "POST",
+    });
+    req.json = jest.fn().mockRejectedValueOnce(new Error("Parse error"));
+
+    const res = await POST(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(data).toEqual({ error: "Geçersiz JSON gövdesi." });
+  });
+
   it("should return 400 when body is not an object", async () => {
     const req = new Request("http://localhost/api/explain", {
       method: "POST",

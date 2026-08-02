@@ -771,7 +771,11 @@ export async function findContraindicationsDB(drugIds: string[], patientContext?
         }
       });
 
-      processDbContraindications(dbContras, resolvedDrugsMap, results);
+      processDbContraindications({
+        dbContras,
+        resolvedDrugsMap,
+        results
+      });
     }
 
     checkClinicalContraindications(resolvedDrugs, patientContext, results);
@@ -896,7 +900,15 @@ function checkClinicalContraindications(drugs: {id: string, name: string}[], pat
 
 
 
-function processDbContraindications(dbContras: { id: string, drugId: string, diseaseIcd: string, diseaseName: string, effect: string, severity: string }[], resolvedDrugsMap: Map<string, Drug>, results: ContraindicationResult[]) {
+function processDbContraindications({
+  dbContras,
+  resolvedDrugsMap,
+  results
+}: {
+  dbContras: { id: string, drugId: string, diseaseIcd: string, diseaseName: string, effect: string, severity: string }[],
+  resolvedDrugsMap: Map<string, Drug>,
+  results: ContraindicationResult[]
+}) {
   if (dbContras.length === 0) return;
   const baseLen = results.length;
   results.length = baseLen + dbContras.length;

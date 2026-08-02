@@ -656,6 +656,28 @@ describe("findFoodInteractionsDB", () => {
 
     consoleSpy.mockRestore();
   });
+
+  test("uses fallback if food interaction Prisma query fails", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { findFoodInteractionsDB } = require("../lib/interactions");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { prisma } = require("@/lib/prisma");
+
+    // Suppress expected console.error during the test
+    const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+
+    // Make drug query succeed but foodInteraction query throw
+    (prisma.drug.findMany as jest.Mock).mockResolvedValue([{ id: "warfarin", name: "warfarin" }]);
+    (prisma.foodInteraction.findMany as jest.Mock).mockRejectedValue(new Error("Database connection failed"));
+
+    const result = await findFoodInteractionsDB(["warfarin"]);
+
+    // Should fallback to findFoodInteractions, returning results for warfarin
+    expect(result.length).toBeGreaterThan(0);
+    expect(consoleSpy).toHaveBeenCalled();
+
+    consoleSpy.mockRestore();
+  });
 });
 
 

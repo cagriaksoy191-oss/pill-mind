@@ -61,7 +61,9 @@ export default function AuthModal({ onClose, onSuccess }: AuthModalProps) {
         onSuccess(data.user);
       }
     } catch (err) {
-      const errMsg = err instanceof Error ? err.message : "Giriş yaparken bir hata oluştu.";
+      const errMsg = err instanceof TypeError
+        ? "Sunucuya bağlanılamadı. Lütfen internet bağlantınızı kontrol edin."
+        : err instanceof Error ? err.message : "Giriş yaparken bir hata oluştu.";
       setErrorMsg(errMsg);
     } finally {
       setAuthLoading(false);

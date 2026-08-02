@@ -130,7 +130,7 @@ describe("AuthModal Component", () => {
   });
 
   it("displays a fallback error message if fetch throws an error", async () => {
-    (global.fetch as jest.Mock).mockRejectedValueOnce(new Error("Network error"));
+    (global.fetch as jest.Mock).mockRejectedValueOnce(new Error("Some unexpected error"));
 
     render(<AuthModal onClose={mockOnClose} onSuccess={mockOnSuccess} />);
 
@@ -142,7 +142,48 @@ describe("AuthModal Component", () => {
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledTimes(1);
-      expect(screen.getByText("⚠️ Network error")).toBeTruthy();
+      expect(screen.getByText("⚠️ Some unexpected error")).toBeTruthy();
+    });
+
+    expect(mockOnSuccess).not.toHaveBeenCalled();
+  });
+
+  it("displays network error message if fetch throws a TypeError", async () => {
+    (global.fetch as jest.Mock).mockRejectedValueOnce(new TypeError("Failed to fetch"));
+
+    render(<AuthModal onClose={mockOnClose} onSuccess={mockOnSuccess} />);
+
+    const input = screen.getByPlaceholderText("isim@örnek.com");
+    fireEvent.change(input, { target: { value: "test@example.com" } });
+
+    const submitButton = screen.getByRole("button", { name: "Giriş Yap / Kaydol" });
+    fireEvent.click(submitButton);
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+      expect(screen.getByText("⚠️ Sunucuya bağlanılamadı. Lütfen internet bağlantınızı kontrol edin.")).toBeTruthy();
+    });
+
+    expect(mockOnSuccess).not.toHaveBeenCalled();
+  });
+
+  it("displays HTTP error message if data.error is provided upon failed login", async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({ error: "Bilinmeyen bir hata oluştu." }),
+    });
+
+    render(<AuthModal onClose={mockOnClose} onSuccess={mockOnSuccess} />);
+
+    const input = screen.getByPlaceholderText("isim@örnek.com");
+    fireEvent.change(input, { target: { value: "test@example.com" } });
+
+    const submitButton = screen.getByRole("button", { name: "Giriş Yap / Kaydol" });
+    fireEvent.click(submitButton);
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+      expect(screen.getByText("⚠️ Bilinmeyen bir hata oluştu.")).toBeTruthy();
     });
 
     expect(mockOnSuccess).not.toHaveBeenCalled();

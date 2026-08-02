@@ -1,6 +1,17 @@
 import { getClientIp } from "../lib/ip";
 
 describe("getClientIp", () => {
+  const originalEnv = process.env;
+
+  beforeEach(() => {
+    jest.resetModules();
+    process.env = { ...originalEnv };
+  });
+
+  afterAll(() => {
+    process.env = originalEnv;
+  });
+
   it("should return 127.0.0.1 when no headers are present", () => {
     const req = new Request("http://localhost");
     expect(getClientIp(req)).toBe("127.0.0.1");
@@ -15,24 +26,48 @@ describe("getClientIp", () => {
     expect(getClientIp(req)).toBe("127.0.0.1");
   });
 
-  it("should extract IP from x-vercel-forwarded-for header", () => {
+  it("should extract IP from x-vercel-forwarded-for header when VERCEL env is set", () => {
+    process.env.VERCEL = "1";
     const req = new Request("http://localhost", {
       headers: {
         "x-vercel-forwarded-for": "11.22.33.44",
-        "x-forwarded-for": "1.2.3.4, 5.6.7.8", // Should be ignored in favor of vercel header
+        "x-forwarded-for": "1.2.3.4, 5.6.7.8",
       },
     });
     expect(getClientIp(req)).toBe("11.22.33.44");
   });
 
-  it("should extract IP from x-nf-client-connection-ip header", () => {
+  it("should ignore x-vercel-forwarded-for header when VERCEL env is NOT set", () => {
+    delete process.env.VERCEL;
+    const req = new Request("http://localhost", {
+      headers: {
+        "x-vercel-forwarded-for": "11.22.33.44",
+        "x-forwarded-for": "1.2.3.4, 5.6.7.8",
+      },
+    });
+    expect(getClientIp(req)).toBe("127.0.0.1");
+  });
+
+  it("should extract IP from x-nf-client-connection-ip header when NETLIFY env is set", () => {
+    process.env.NETLIFY = "true";
     const req = new Request("http://localhost", {
       headers: {
         "x-nf-client-connection-ip": "55.66.77.88",
-        "x-forwarded-for": "1.2.3.4, 5.6.7.8", // Should be ignored
+        "x-forwarded-for": "1.2.3.4, 5.6.7.8",
       },
     });
     expect(getClientIp(req)).toBe("55.66.77.88");
+  });
+
+  it("should ignore x-nf-client-connection-ip header when NETLIFY env is NOT set", () => {
+    delete process.env.NETLIFY;
+    const req = new Request("http://localhost", {
+      headers: {
+        "x-nf-client-connection-ip": "55.66.77.88",
+        "x-forwarded-for": "1.2.3.4, 5.6.7.8",
+      },
+    });
+    expect(getClientIp(req)).toBe("127.0.0.1");
   });
 
   it("should extract IP from Next.js explicit `ip` property if present", () => {

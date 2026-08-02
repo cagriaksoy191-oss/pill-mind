@@ -191,6 +191,18 @@ test("Beklenen orijin (expectedOrigin) belirlenemediğinde fail-secure engelleme
     }
   });
 
+  test("Origin ve Referer başlıklarının her ikisi de eksik olduğunda engelleme (CSRF Bypass prevention)", async () => {
+    const originalEnv = process.env.NEXT_PUBLIC_APP_URL;
+    process.env.NEXT_PUBLIC_APP_URL = "http://localhost:3000";
+    const req = createMockReq({}); // origin and referer are not provided
+    expect(verifyCSRF(req)).toBe(false);
+    if (originalEnv === undefined) {
+      delete process.env.NEXT_PUBLIC_APP_URL;
+    } else {
+      process.env.NEXT_PUBLIC_APP_URL = originalEnv;
+    }
+  });
+
   test("Referer formatı bozuk veya geçersiz olduğunda engelleme", async () => {
     const originalEnv = process.env.NEXT_PUBLIC_APP_URL;
     process.env.NEXT_PUBLIC_APP_URL = "http://localhost:3000";

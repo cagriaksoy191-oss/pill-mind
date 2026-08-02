@@ -152,4 +152,35 @@ describe('SavePillboxModal', () => {
 
     expect(mockOnSuccess).not.toHaveBeenCalled();
   });
+
+  it('resets loading state when API request fails', async () => {
+    let rejectPromise: (reason?: Error) => void;
+    (global.fetch as jest.Mock).mockReturnValueOnce(
+      new Promise((_, reject) => {
+        rejectPromise = reject;
+      })
+    );
+
+    const { container } = render(<SavePillboxModal selectedDrugIds={mockDrugIds} onClose={mockOnClose} onSuccess={mockOnSuccess} />);
+
+    const input = screen.getByPlaceholderText('Örn: Sabah İlaçlarım, Tansiyon Tedavim');
+    fireEvent.change(input, { target: { value: 'My Pillbox' } });
+
+    const submitBtn = container.querySelector('button[type="submit"]') as HTMLButtonElement;
+    expect(submitBtn).not.toBeDisabled();
+
+    fireEvent.click(submitBtn);
+
+    // Now it should be loading
+    expect(submitBtn).toBeDisabled();
+
+    // Reject the promise
+    rejectPromise!(new Error('Network error'));
+
+    // Now it should be back to normal
+    await waitFor(() => {
+      expect(submitBtn).not.toBeDisabled();
+    });
+    expect(submitBtn).toHaveTextContent('Buluta Kaydet');
+  });
 });

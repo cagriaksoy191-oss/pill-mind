@@ -1024,13 +1024,15 @@ describe("checkAccumulationDB", () => {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { checkAccumulationDB } = require("../lib/interactions");
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-    prisma.drug.findMany.mockRejectedValue(new Error("DB Error"));
+    const dbError = new Error("DB Error");
+    prisma.drug.findMany.mockRejectedValue(dbError);
 
     const result = await checkAccumulationDB(["aspirin", "ibuprofen"]);
 
     // checkAccumulation from local mock data should return active ingredient warning for parol/minoset
     expect(result.length).toBeGreaterThan(0);
     expect(result[0].type).toBe("pharmacological_group");
+    expect(consoleSpy).toHaveBeenCalledWith("[Accumulation DB] Hata, lokale düşülüyor:", dbError);
 
     consoleSpy.mockRestore();
   });

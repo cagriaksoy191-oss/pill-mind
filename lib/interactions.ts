@@ -461,7 +461,8 @@ export async function checkAccumulationDB(drugIds: string[], resolvedDrugsCache?
     }
 
     return warnings;
-  } catch {
+  } catch (error) {
+    console.error("[Accumulation DB] Hata, lokale düşülüyor:", error);
     return checkAccumulation(drugIds);
   }
 }

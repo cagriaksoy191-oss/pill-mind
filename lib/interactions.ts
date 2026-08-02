@@ -857,7 +857,7 @@ function resolveDrugIds(drugIds: string[]): Set<string> {
 function checkDiseaseContraindications(resolvedIds: Set<string>, patientContext: PatientContext, results: ContraindicationResult[]) {
   if (patientContext && patientContext.diseases && Array.isArray(patientContext.diseases) && patientContext.diseases.length > 0) {
     const patientDiseasesSet = new Set(patientContext.diseases);
-    for (const drugId of Array.from(resolvedIds)) {
+    for (const drugId of resolvedIds) {
       const contras = contraindicationsMap.get(drugId);
       if (contras) {
         for (const contra of contras) {

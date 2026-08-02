@@ -353,6 +353,10 @@ describe("UserPanel Component", () => {
       expect(consoleSpy).toHaveBeenCalledWith("[Pillbox Logout] Hata:", expect.any(Error));
     });
 
+    // State must not change — user should still be logged in
+    expect(screen.queryByText("🔐 Giriş Yap")).not.toBeInTheDocument();
+    expect(screen.getByText("👤 test")).toBeInTheDocument();
+
     consoleSpy.mockRestore();
   });
 

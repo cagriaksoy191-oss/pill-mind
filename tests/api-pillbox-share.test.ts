@@ -97,6 +97,23 @@ describe("POST /api/pillbox/share", () => {
     expect(data.error).toBe("Paylaşmak için en az 1 ilaç seçilmelidir.");
   });
 
+  it("should return 413 if summary is too large", async () => {
+    (verifyCSRF as jest.Mock).mockReturnValue(true);
+    (getSession as jest.Mock).mockResolvedValue({ userId: "user-1", email: "test@test.com" });
+
+    // Create a very large summary that stringifies to > 50000 characters
+    const largeSummary = {
+        data: "A".repeat(50001)
+    };
+
+    const req = createMockRequest({ drugIds: ["drug-1"], summary: largeSummary });
+    const res = await POST(req);
+
+    expect(res.status).toBe(413);
+    const data = await res.json();
+    expect(data.error).toBe("Özet verisi çok büyük. Lütfen daha kısa bir özet girin.");
+  });
+
   it("should return 200 and create a share link successfully", async () => {
     (verifyCSRF as jest.Mock).mockReturnValue(true);
     (getSession as jest.Mock).mockResolvedValue({ userId: "user-1", email: "test@test.com" });

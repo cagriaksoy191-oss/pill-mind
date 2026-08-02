@@ -57,7 +57,7 @@ export interface CachedExplanation {
   sourceIds?: string[];
 }
 
-async function getCachedExplanation(cacheKey: string): Promise<CachedExplanation | null> {
+export async function getCachedExplanation(cacheKey: string): Promise<CachedExplanation | null> {
   if (!redis) return null;
   try {
     const cached = await redis.get<CachedExplanation>(cacheKey);

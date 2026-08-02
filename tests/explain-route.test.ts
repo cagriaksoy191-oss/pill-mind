@@ -1,4 +1,4 @@
-import { POST } from "../app/api/explain/route";
+import { POST, getCachedExplanation } from "../app/api/explain/route";
 import { redis } from "@/lib/redis";
 import * as Sentry from "@sentry/nextjs";
 import {
@@ -29,6 +29,23 @@ jest.mock("@/lib/gemini", () => ({
     runReviewerAgent: jest.fn().mockResolvedValue(true),
   getCoverageContext: jest.fn(),
 }));
+
+describe("getCachedExplanation", () => {
+  const consoleWarnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("should return null and log a warning if redis.get rejects", async () => {
+    const fakeError = new Error("Redis read error");
+    (redis!.get as jest.Mock).mockRejectedValueOnce(fakeError);
+
+    const result = await getCachedExplanation("test-key");
+    expect(result).toBeNull();
+    expect(consoleWarnSpy).toHaveBeenCalledWith("[Redis] Cache read error, continuing to live AI:", fakeError);
+  });
+});
 
 describe("POST /api/explain", () => {
   let consoleWarnSpy: jest.SpyInstance;

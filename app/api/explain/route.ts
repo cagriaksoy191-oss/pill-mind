@@ -409,15 +409,8 @@ export async function POST(request: Request) {
         }
       } catch (redisErr) {
         // Fail-safe: If Redis is down, log it but let the application continue
+        console.warn("Rate limit redis error:", redisErr);
         Sentry.captureException(redisErr);
-        return jsonNoStore(
-          {
-            error: "Hizmet şu anda kullanılamıyor. Lütfen daha sonra tekrar deneyin.",
-            source: "error" as const,
-            reason: "service_unavailable"
-          },
-          503
-        );
       }
     }
 

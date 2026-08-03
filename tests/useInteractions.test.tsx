@@ -1,6 +1,7 @@
 /** @jest-environment jsdom */
 import { renderHook, waitFor, act } from "@testing-library/react";
 import { useInteractions } from "../hooks/useInteractions";
+import * as interactionsLib from "@/lib/interactions";
 import "@testing-library/jest-dom";
 
 // Mock global.fetch
@@ -106,6 +107,29 @@ describe("useInteractions hook", () => {
 
     await waitFor(() => {
       expect(result.current.interactions).toEqual([{ id: "local-int1" }]);
+    });
+
+    expect(fetch).toHaveBeenCalled();
+    expect(result.current.isChecking).toBe(false);
+
+    consoleWarnSpy.mockRestore();
+    consoleErrorSpy.mockRestore();
+  });
+
+  it("should set checking error when both API and local fallback fail", async () => {
+    const consoleWarnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+    const consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+
+    (global.fetch as jest.Mock).mockRejectedValueOnce(new Error("Network Error"));
+
+    (interactionsLib.findInteractions as jest.Mock).mockImplementation(() => {
+      throw new Error("Local engine failure");
+    });
+
+    const { result } = renderHook(() => useInteractions(stableDrugs));
+
+    await waitFor(() => {
+      expect(result.current.checkingError).toBe("Bağlantı hatası: Yerel çevrimdışı tarama motoru yüklenemedi.");
     });
 
     expect(fetch).toHaveBeenCalled();

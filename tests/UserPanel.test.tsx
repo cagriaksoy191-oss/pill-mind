@@ -1,7 +1,7 @@
 /** @jest-environment jsdom */
 import "@testing-library/jest-dom";
 import { jest } from "@jest/globals";
-import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import UserPanel from "../components/UserPanel";
 
 // Mock global fetch
@@ -260,10 +260,40 @@ describe("UserPanel Component", () => {
     });
   });
 
+  it("handles fetchSavedBoxes error", async () => {
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    (global.fetch as jest.Mock).mockImplementation((url: string) => {
+      if (url === "/api/auth/me") {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            authenticated: true,
+            user: { id: "1", email: "test@example.com" },
+          }),
+        });
+      }
+      if (url === "/api/pillbox/list") {
+        return Promise.reject(new Error("Database Error"));
+      }
+      return Promise.reject(new Error("not found"));
+    });
+
+    render(<UserPanel selectedDrugIds={[]} onLoadPillbox={mockOnLoadPillbox} />);
+
+    await waitFor(() => {
+      expect(consoleSpy).toHaveBeenCalledWith(
+        "[Pillbox List] Çekilirken hata:",
+        expect.any(Error)
+      );
+    });
+
+    consoleSpy.mockRestore();
+  });
+
   it("handles fetchSavedBoxes error, checking loading state and fallback", async () => {
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
-    let rejectListPromise: (reason?: any) => void;
+    let rejectListPromise: (reason?: unknown) => void;
     const listPromise = new Promise((resolve, reject) => {
       rejectListPromise = reject;
     });
@@ -425,7 +455,7 @@ describe("UserPanel Component", () => {
 
     // AuthModal mock
     jest.mock('../components/AuthModal', () => {
-      return function MockAuthModal(props: any) {
+      return function MockAuthModal(props: Record<string, unknown>) {
         return (
           <div data-testid="auth-modal">
             <button onClick={() => props.onClose()}>Close Modal</button>

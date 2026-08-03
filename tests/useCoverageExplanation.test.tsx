@@ -194,4 +194,91 @@ describe("useCoverageExplanation hook", () => {
       expect(result.current.isCoverageLoading).toBe(false);
     });
   });
+
+  it("should handle stream error response with REJECTED code", async () => {
+    const encoder = new TextEncoder();
+    const chunks = [
+      encoder.encode('data: {"error": "Safety block", "code": "REJECTED"}\n'),
+      encoder.encode('data: [DONE]\n')
+    ];
+    let chunkIndex = 0;
+    const mockReader = {
+      read: jest.fn().mockImplementation(() => {
+        if (chunkIndex < chunks.length) {
+          return Promise.resolve({ done: false, value: chunks[chunkIndex++] });
+        }
+        return Promise.resolve({ done: true, value: undefined });
+      })
+    };
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      headers: new Headers({ "Content-Type": "text/event-stream" }),
+      body: {
+        getReader: () => mockReader,
+      }
+    });
+    const { result } = renderHook(() => useCoverageExplanation(["drug1", "drug2"]));
+    await act(async () => {
+      await result.current.handleRequestCoverageExplanation();
+    });
+    await waitFor(() => {
+      expect(result.current.coverageExplanation).toEqual({
+        source: "error",
+        error: "Safety block",
+        reason: "safety_block"
+      });
+    });
+  });
+
+  it("should handle unparseable JSON stream chunks gracefully", async () => {
+    const encoder = new TextEncoder();
+    const chunks = [
+      encoder.encode('data: {"chunk": "Hello "}\n'),
+      encoder.encode('data: {invalid json}\n'),
+      encoder.encode('data: {"chunk": "World"}\n'),
+      encoder.encode('data: [DONE]\n')
+    ];
+    let chunkIndex = 0;
+    const mockReader = {
+      read: jest.fn().mockImplementation(() => {
+        if (chunkIndex < chunks.length) {
+          return Promise.resolve({ done: false, value: chunks[chunkIndex++] });
+        }
+        return Promise.resolve({ done: true, value: undefined });
+      })
+    };
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      headers: new Headers({ "Content-Type": "text/event-stream" }),
+      body: {
+        getReader: () => mockReader,
+      }
+    });
+    const { result } = renderHook(() => useCoverageExplanation(["drug1", "drug2"]));
+    await act(async () => {
+      await result.current.handleRequestCoverageExplanation();
+    });
+    await waitFor(() => {
+      expect(result.current.coverageExplanation).toEqual(expect.objectContaining({
+        source: "gemini_live",
+        explanation: "Hello World",
+      }));
+    });
+  });
+
+  it("should fallback when Content-Type header is not present", async () => {
+    const mockData = { explanation: "This is a test explanation", source: "gemini_live" };
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      headers: new Headers(),
+      json: async () => mockData,
+    });
+    const { result } = renderHook(() => useCoverageExplanation(["drug1", "drug2"]));
+    await act(async () => {
+      await result.current.handleRequestCoverageExplanation();
+    });
+    await waitFor(() => {
+      expect(result.current.coverageExplanation).toEqual(mockData);
+    });
+  });
 });

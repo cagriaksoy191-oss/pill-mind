@@ -219,6 +219,26 @@ describe("UserPanel Component", () => {
 
     await waitFor(() => {
       expect(consoleSpy).toHaveBeenCalledWith("[PillMind Auth] Oturum kontrolü başarısız:", expect.any(Error));
+      expect(screen.getByText("🔐 Giriş Yap")).toBeInTheDocument();
+    });
+
+    consoleSpy.mockRestore();
+  });
+
+  it("handles checkSession JSON parse error", async () => {
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => { throw new Error("JSON Parse Error"); }
+    });
+
+    render(
+      <UserPanel selectedDrugIds={[]} onLoadPillbox={mockOnLoadPillbox} />
+    );
+
+    await waitFor(() => {
+      expect(consoleSpy).toHaveBeenCalledWith("[PillMind Auth] Oturum kontrolü başarısız:", expect.any(Error));
+      expect(screen.getByText("🔐 Giriş Yap")).toBeInTheDocument();
     });
 
     consoleSpy.mockRestore();
@@ -480,6 +500,7 @@ describe("UserPanel Component", () => {
   });
 
   it("handles AuthModal onSuccess", async () => {
+    let listFetchCount = 0;
     (global.fetch as jest.Mock).mockImplementation((url: string) => {
       if (url === "/api/auth/me") {
         return Promise.resolve({
@@ -487,7 +508,14 @@ describe("UserPanel Component", () => {
           json: async () => ({ authenticated: false }),
         });
       }
+      if (url === "/api/auth/login") {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ isOtpRequired: false, user: { id: "1", email: "newuser@example.com" } }),
+        });
+      }
       if (url === "/api/pillbox/list") {
+        listFetchCount++;
         return Promise.resolve({
           ok: true,
           json: async () => ({ pillboxes: [] }),
@@ -510,11 +538,23 @@ describe("UserPanel Component", () => {
       expect(screen.getByText("PillMind Hesabınıza Giriş Yapın")).toBeInTheDocument();
     });
 
-    // We cannot easily mock the inner component here for onSuccess since we render real AuthModal.
-    // Testing the actual logic through DOM is better. Let's just verify the state changes aren't broken.
+    // Fill in email
+    fireEvent.change(screen.getByPlaceholderText("isim@örnek.com"), { target: { value: 'newuser@example.com' } });
+
+    const initialListCount = listFetchCount;
+
+    // Submit form
+    fireEvent.click(screen.getByText("Giriş Yap / Kaydol"));
+
+    await waitFor(() => {
+      expect(screen.queryByText("PillMind Hesabınıza Giriş Yapın")).not.toBeInTheDocument();
+      expect(screen.getByText("👤 newuser")).toBeInTheDocument();
+      expect(listFetchCount).toBeGreaterThan(initialListCount);
+    });
   });
 
   it("handles opening SavePillboxModal, close and success", async () => {
+    let listFetchCount = 0;
     (global.fetch as jest.Mock).mockImplementation((url: string) => {
       if (url === "/api/auth/me") {
         return Promise.resolve({
@@ -526,9 +566,16 @@ describe("UserPanel Component", () => {
         });
       }
       if (url === "/api/pillbox/list") {
+        listFetchCount++;
         return Promise.resolve({
           ok: true,
           json: async () => ({ pillboxes: [] }),
+        });
+      }
+      if (url === "/api/pillbox/save") {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ success: true }),
         });
       }
       return Promise.reject(new Error("not found"));
@@ -544,16 +591,34 @@ describe("UserPanel Component", () => {
 
     fireEvent.click(screen.getByText("💾 Kutuyu Kaydet"));
 
-    // Assuming SavePillboxModal renders some specific text
     await waitFor(() => {
       expect(screen.getByText("İlaç Kutunuzu Kaydedin")).toBeInTheDocument();
     });
 
+    // Test onClose callback of SavePillboxModal
     const closeBtn = screen.getByLabelText("Kapat");
     fireEvent.click(closeBtn);
 
     await waitFor(() => {
       expect(screen.queryByText("İlaç Kutunuzu Kaydedin")).not.toBeInTheDocument();
+    });
+
+    // Reopen modal to test success case
+    fireEvent.click(screen.getByText("💾 Kutuyu Kaydet"));
+
+    await waitFor(() => {
+      expect(screen.getByText("İlaç Kutunuzu Kaydedin")).toBeInTheDocument();
+    });
+
+    const initialListCount = listFetchCount;
+
+    // Fill the name and submit
+    fireEvent.change(screen.getByPlaceholderText("Örn: Sabah İlaçlarım, Tansiyon Tedavim"), { target: { value: 'My Test Box' } });
+    fireEvent.click(screen.getByText("Buluta Kaydet"));
+
+    await waitFor(() => {
+      expect(screen.queryByText("İlaç Kutunuzu Kaydedin")).not.toBeInTheDocument();
+      expect(listFetchCount).toBeGreaterThan(initialListCount);
     });
   });
 

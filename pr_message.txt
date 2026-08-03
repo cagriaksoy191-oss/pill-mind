@@ -1,0 +1,9 @@
+🔒 Fix missing rate limiting on registration endpoint
+
+🎯 **What:** The registration endpoint (`app/api/auth/register/route.ts`) was vulnerable to abuse because it did not implement any form of rate limiting, unlike the login endpoint.
+
+⚠️ **Risk:** Without rate limiting, an attacker could potentially launch a Denial of Service (DoS) attack, exhaust database connections/resources by spamming registration requests, or perform enumeration attacks by creating a large number of bogus accounts.
+
+🛡️ **Solution:** Implemented Redis-based rate limiting, reusing the logic (`checkRateLimit`) from the login endpoint. It checks the number of requests originating from the same client IP address within a 5-minute window and blocks further requests if the limit (5) is exceeded, returning an HTTP 429 status.
+
+✅ **Verification:** Unit tests have been added to `tests/api-auth-register.test.ts` to ensure the rate limiting logic successfully responds with 429 when limits are exceeded, and with a 503 if Redis encounters an error, successfully passing without regression.

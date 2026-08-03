@@ -2,7 +2,44 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyCSRF } from "@/lib/auth";
+import { redis } from "@/lib/redis";
+import { getClientIp } from "@/lib/ip";
 import * as Sentry from "@sentry/nextjs";
+
+
+async function checkRateLimit(request: Request) {
+  if (!redis) return null;
+
+  try {
+    const ip = getClientIp(request);
+    const rateLimitKey = `ratelimit:register:${ip}`;
+
+    const currentRequests = await redis.incr(rateLimitKey);
+    if (currentRequests === 1) {
+      await redis.expire(rateLimitKey, 60 * 5); // 5 minutes window
+    }
+
+    if (currentRequests > 5) {
+      console.warn(
+        `[Security Alert] Rate limit exceeded for register endpoint, IP: ${ip}`
+      );
+      return NextResponse.json(
+        { error: "Çok fazla kayıt denemesi yapıldı. Lütfen daha sonra tekrar deneyin." },
+        { status: 429 }
+      );
+    }
+  } catch (redisErr) {
+    console.warn(
+      "[Redis Rate Limiter] Blocked request due to Redis error:",
+      redisErr
+    );
+    return NextResponse.json(
+      { error: "Hizmet şu anda kullanılamıyor. Lütfen daha sonra tekrar deneyin." },
+      { status: 503 }
+    );
+  }
+  return null;
+}
 
 export async function POST(request: Request) {
   try {
@@ -13,6 +50,10 @@ export async function POST(request: Request) {
         { status: 403 }
       );
     }
+
+
+    const rateLimitError = await checkRateLimit(request);
+    if (rateLimitError) return rateLimitError;
 
     const body = await request.json();
     const { email } = body as { email: string };

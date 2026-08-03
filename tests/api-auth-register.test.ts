@@ -3,6 +3,19 @@ import { prisma } from "@/lib/prisma";
 import { verifyCSRF } from "@/lib/auth";
 import * as Sentry from "@sentry/nextjs";
 
+import { redis } from "@/lib/redis";
+
+jest.mock("@/lib/redis", () => ({
+  redis: {
+    incr: jest.fn(),
+    expire: jest.fn(),
+  },
+}));
+
+jest.mock("@/lib/ip", () => ({
+  getClientIp: jest.fn().mockReturnValue("127.0.0.1"),
+}));
+
 jest.mock("@sentry/nextjs", () => ({
   captureException: jest.fn(),
 }));
@@ -30,6 +43,37 @@ describe("POST /api/auth/register", () => {
       json: jest.fn().mockResolvedValue(body),
     } as unknown as Request;
   };
+
+
+  it("should return 429 if rate limit is exceeded", async () => {
+    const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    (redis.incr as jest.Mock).mockResolvedValueOnce(6); // Exceed limit
+
+    const req = createMockRequest({ email: "test@example.com" });
+    const res = await POST(req);
+
+    expect(res.status).toBe(429);
+    const data = await res.json();
+    expect(data.error).toBe("Çok fazla kayıt denemesi yapıldı. Lütfen daha sonra tekrar deneyin.");
+
+    consoleWarnSpy.mockRestore();
+  });
+
+  it("should return 503 if redis.incr throws an error", async () => {
+    const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    (redis.incr as jest.Mock).mockRejectedValueOnce(new Error("Redis connection failed"));
+
+    const req = createMockRequest({ email: "test@example.com" });
+    const res = await POST(req);
+
+    expect(res.status).toBe(503);
+    const data = await res.json();
+    expect(data.error).toBe("Hizmet şu anda kullanılamıyor. Lütfen daha sonra tekrar deneyin.");
+
+    consoleWarnSpy.mockRestore();
+  });
 
   it("should return 500 if an internal error occurs (e.g., db failure)", async () => {
 

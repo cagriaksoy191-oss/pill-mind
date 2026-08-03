@@ -885,6 +885,7 @@ describe("UserPanel Component", () => {
     });
 
     const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(true);
+    const alertSpy = jest.spyOn(window, 'alert').mockImplementation(() => {});
 
     render(
       <UserPanel selectedDrugIds={[]} onLoadPillbox={mockOnLoadPillbox} />
@@ -906,9 +907,11 @@ describe("UserPanel Component", () => {
 
     await waitFor(() => {
        expect(consoleSpy).toHaveBeenCalledWith("[Pillbox Delete] Hata:", expect.any(Error));
+       expect(alertSpy).toHaveBeenCalledWith("İlaç kutusu silinirken bir hata oluştu.");
     });
 
     confirmSpy.mockRestore();
+    alertSpy.mockRestore();
     consoleSpy.mockRestore();
   });
 
@@ -947,6 +950,7 @@ describe("UserPanel Component", () => {
     });
 
     const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(true);
+    const alertSpy = jest.spyOn(window, 'alert').mockImplementation(() => {});
 
     render(
       <UserPanel selectedDrugIds={[]} onLoadPillbox={mockOnLoadPillbox} />
@@ -968,9 +972,11 @@ describe("UserPanel Component", () => {
 
     await waitFor(() => {
        expect(consoleSpy).toHaveBeenCalledWith("[Pillbox Delete] Hata:", expect.any(Error));
+       expect(alertSpy).toHaveBeenCalledWith("İlaç kutusu silinirken bir hata oluştu.");
     });
 
     confirmSpy.mockRestore();
+    alertSpy.mockRestore();
     consoleSpy.mockRestore();
   });
 });

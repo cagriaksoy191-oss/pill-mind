@@ -107,6 +107,7 @@ export default function UserPanel({
       }
     } catch (err) {
       console.error("[Pillbox Delete] Hata:", err);
+      alert("İlaç kutusu silinirken bir hata oluştu.");
     }
   };
 

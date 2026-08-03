@@ -214,7 +214,7 @@ describe("StatusHeader Component", () => {
   it("initializes to dark theme when window is undefined", () => {
     localStorage.clear();
     const originalWindow = global.window;
-    // @ts-ignore
+    // @ts-expect-error - ignore generic mock errors
     delete global.window;
 
     try {

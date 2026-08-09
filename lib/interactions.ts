@@ -5,11 +5,20 @@ import foodInteractionsData from "@/data/foodInteractions.json";
 import contraindicationsData from "@/data/contraindications.json";
 
 
-export async function resolveDrugsDB(drugIds: string[]) {
+const inFlightResolveMap = new Map<string, Promise<Drug[]>>();
+
+export async function resolveDrugsDB(drugIds: string[]): Promise<Drug[]> {
   if (!process.env.DATABASE_URL || process.env.DATABASE_URL.includes("[SIFRE]")) {
     return [];
   }
-  try {
+
+  const cacheKey = [...drugIds].sort().join(",");
+
+  if (inFlightResolveMap.has(cacheKey)) {
+    return inFlightResolveMap.get(cacheKey)!;
+  }
+
+  const resolvePromise = (async () => {
     const { prisma } = await import("@/lib/prisma");
     return await prisma.drug.findMany({
       where: {
@@ -22,9 +31,19 @@ export async function resolveDrugsDB(drugIds: string[]) {
         ]
       }
     });
+  })();
+
+  inFlightResolveMap.set(cacheKey, resolvePromise);
+
+  try {
+    const result = await resolvePromise;
+    setTimeout(() => {
+      inFlightResolveMap.delete(cacheKey);
+    }, 50);
+    return result;
   } catch (error) {
-    console.error("[PillMind CMIO Engine] resolveDrugsDB başarısız:", error);
-    return [];
+    inFlightResolveMap.delete(cacheKey);
+    throw error;
   }
 }
 
@@ -296,19 +315,10 @@ export async function findInteractionsDB(drugIds: string[], resolvedDrugsCache?:
     const { prisma } = await import("@/lib/prisma");
 
     // 1. İlaçları ve Marka/Alias adlarını çöz
-    const resolvedDrugs = (resolvedDrugsCache && Array.isArray(resolvedDrugsCache) && resolvedDrugsCache.length > 0)
-      ? (resolvedDrugsCache as Drug[])
-      : await prisma.drug.findMany({
-      where: {
-        OR: [
-          { id: { in: drugIds } },
-          { name: { in: drugIds } },
-          { brandNames: { some: { name: { in: drugIds } } } },
-          { aliases: { some: { alias: { in: drugIds } } } },
-          { aliases: { some: { normalizedAlias: { in: drugIds } } } }
-        ]
-      }
-    });
+    let resolvedDrugs = resolvedDrugsCache as Drug[];
+    if (!resolvedDrugsCache || !Array.isArray(resolvedDrugsCache) || resolvedDrugsCache.length === 0) {
+      resolvedDrugs = await resolveDrugsDB(drugIds);
+    }
 
     const resolvedDrugIds = resolvedDrugs.map((d) => d.id);
 
@@ -383,19 +393,10 @@ export async function checkAccumulationDB(drugIds: string[], resolvedDrugsCache?
   try {
     const { prisma } = await import("@/lib/prisma");
 
-    const resolvedDrugs = (resolvedDrugsCache && Array.isArray(resolvedDrugsCache) && resolvedDrugsCache.length > 0)
-      ? (resolvedDrugsCache as Drug[])
-      : await prisma.drug.findMany({
-      where: {
-        OR: [
-          { id: { in: drugIds } },
-          { name: { in: drugIds } },
-          { brandNames: { some: { name: { in: drugIds } } } },
-          { aliases: { some: { alias: { in: drugIds } } } },
-          { aliases: { some: { normalizedAlias: { in: drugIds } } } }
-        ]
-      }
-    });
+    let resolvedDrugs = resolvedDrugsCache as Drug[];
+    if (!resolvedDrugsCache || !Array.isArray(resolvedDrugsCache) || resolvedDrugsCache.length === 0) {
+      resolvedDrugs = await resolveDrugsDB(drugIds);
+    }
 
     const warnings: AccumulationWarning[] = [];
 
@@ -668,19 +669,10 @@ export async function findFoodInteractionsDB(drugIds: string[], resolvedDrugsCac
   }
   try {
     const { prisma } = await import("@/lib/prisma");
-    const resolvedDrugs = (resolvedDrugsCache && Array.isArray(resolvedDrugsCache) && resolvedDrugsCache.length > 0)
-      ? (resolvedDrugsCache as Drug[])
-      : await prisma.drug.findMany({
-      where: {
-        OR: [
-          { id: { in: drugIds } },
-          { name: { in: drugIds } },
-          { brandNames: { some: { name: { in: drugIds } } } },
-          { aliases: { some: { alias: { in: drugIds } } } },
-          { aliases: { some: { normalizedAlias: { in: drugIds } } } }
-        ]
-      }
-    });
+    let resolvedDrugs = resolvedDrugsCache as Drug[];
+    if (!resolvedDrugsCache || !Array.isArray(resolvedDrugsCache) || resolvedDrugsCache.length === 0) {
+      resolvedDrugs = await resolveDrugsDB(drugIds);
+    }
     const resolvedDrugIds = resolvedDrugs.map(d => d.id);
     const foodInts = await prisma.foodInteraction.findMany({
       where: {
@@ -747,19 +739,10 @@ export async function findContraindicationsDB(drugIds: string[], patientContext?
 
   try {
     const { prisma } = await import("@/lib/prisma");
-    const resolvedDrugs = (resolvedDrugsCache && Array.isArray(resolvedDrugsCache) && resolvedDrugsCache.length > 0)
-      ? (resolvedDrugsCache as Drug[])
-      : await prisma.drug.findMany({
-      where: {
-        OR: [
-          { id: { in: drugIds } },
-          { name: { in: drugIds } },
-          { brandNames: { some: { name: { in: drugIds } } } },
-          { aliases: { some: { alias: { in: drugIds } } } },
-          { aliases: { some: { normalizedAlias: { in: drugIds } } } }
-        ]
-      }
-    });
+    let resolvedDrugs = resolvedDrugsCache as Drug[];
+    if (!resolvedDrugsCache || !Array.isArray(resolvedDrugsCache) || resolvedDrugsCache.length === 0) {
+      resolvedDrugs = await resolveDrugsDB(drugIds);
+    }
 
     const resolvedDrugIds = resolvedDrugs.map(d => d.id);
     const resolvedDrugsMap = new Map(resolvedDrugs.map(d => [d.id, d]));

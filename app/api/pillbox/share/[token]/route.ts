@@ -70,8 +70,6 @@ export async function GET(
         drugs = getDrugsByIds(share.drugIds) as DrugForDisplay[];
       }
     }
-    // De-duplicate final drugs list to be absolutely sure
-    drugs = Array.from(new Map(drugs.map(d => [d.id, d])).values());
 
     const [interactions, accumulationWarnings, foodInteractions, contraindications] = await Promise.all([
       findInteractionsDB(share.drugIds, resolvedDrugsCache),

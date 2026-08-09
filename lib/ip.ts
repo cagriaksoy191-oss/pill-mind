@@ -8,15 +8,15 @@ export function getClientIp(request: Request): string {
   if (process.env.VERCEL) {
     const vercelIp = request.headers.get("x-vercel-forwarded-for");
     if (vercelIp) {
-      // Vercel only provides trusted IP or array of IPs where first is client
-      return vercelIp.split(",")[0].trim();
+      // Vercel appends the real client IP to the end of the header
+      return vercelIp.split(",").pop()!.trim();
     }
   }
 
   if (process.env.NETLIFY) {
     const netlifyIp = request.headers.get("x-nf-client-connection-ip");
     if (netlifyIp) {
-      return netlifyIp.split(",")[0].trim();
+      return netlifyIp.split(",").pop()!.trim();
     }
   }
 

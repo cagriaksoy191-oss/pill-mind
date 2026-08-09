@@ -30,7 +30,7 @@ describe("getClientIp", () => {
     process.env.VERCEL = "1";
     const req = new Request("http://localhost", {
       headers: {
-        "x-vercel-forwarded-for": "11.22.33.44",
+        "x-vercel-forwarded-for": "1.2.3.4, 11.22.33.44",
         "x-forwarded-for": "1.2.3.4, 5.6.7.8",
       },
     });
@@ -52,7 +52,7 @@ describe("getClientIp", () => {
     process.env.NETLIFY = "true";
     const req = new Request("http://localhost", {
       headers: {
-        "x-nf-client-connection-ip": "55.66.77.88",
+        "x-nf-client-connection-ip": "1.2.3.4, 55.66.77.88",
         "x-forwarded-for": "1.2.3.4, 5.6.7.8",
       },
     });

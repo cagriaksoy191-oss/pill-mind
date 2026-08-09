@@ -1,4 +1,3 @@
-// prisma/seed.ts
 import { PrismaClient, Severity, Status, EvidenceLevel } from "@prisma/client";
 import * as fs from "fs";
 import * as path from "path";
@@ -9,14 +8,13 @@ const prisma = new PrismaClient();
 const logger = {
   info: (msg: string) => process.stdout.write(msg + '\n'),
   warn: (msg: string) => process.stderr.write('[WARN] ' + msg + '\n'),
-  error: (msg: string, err?: any) => {
+  error: (msg: string, err?: unknown) => {
     process.stderr.write('[ERROR] ' + msg + '\n');
     if (err) {
       process.stderr.write((err instanceof Error ? err.stack : String(err)) + '\n');
     }
   }
 };
-
 
 interface DrugMock {
   id: string;
@@ -38,7 +36,6 @@ interface InteractionMock {
   evidenceLevel?: string;
 }
 
-
 async function chunkedCreateMany<T>(
   model: { createMany: (args: { data: T[] }) => Promise<{ count: number }> },
   data: T[],
@@ -53,10 +50,7 @@ async function chunkedCreateMany<T>(
   return { count };
 }
 
-async function main() {
-  logger.info("🌱 Veritabanı tohumlama işlemi başladı...");
-
-  // 1. Mevcut verileri temizle (Önce ilişkili tablolar)
+async function cleanDatabase() {
   await prisma.clinicalReview.deleteMany({});
   await prisma.interactionEvidence.deleteMany({});
   await prisma.evidenceSource.deleteMany({});
@@ -69,10 +63,10 @@ async function main() {
   await prisma.drug.deleteMany({});
   await prisma.drugClass.deleteMany({});
   await prisma.ingredient.deleteMany({});
-
   logger.info("🧹 Eski veriler temizlendi.");
+}
 
-  // 2. İlaçları Oku ve Ekle
+async function seedDrugs() {
   const drugsFilePath = path.join(process.cwd(), "data", "drugs.json");
   const drugsData: DrugMock[] = JSON.parse(
     fs.readFileSync(drugsFilePath, "utf-8"),
@@ -251,7 +245,10 @@ async function main() {
     logger.info(`⚡ ${drugAliasesToCreate.length} adet DrugAlias tohumlandı.`);
   }
 
-  // 3. Kanıt Kaynaklarını oluştur
+  return { drugIdMap, drugNameMap };
+}
+
+async function seedEvidenceSources() {
   const fdaSourceId = "fda-warfarin-label-source";
   await prisma.evidenceSource.create({
     data: {
@@ -283,7 +280,15 @@ async function main() {
   });
   logger.info("📚 Kanıt Kaynakları (Evidence Sources) oluşturuldu.");
 
-  // Etkileşimleri Oku ve Ekle
+  return { fdaSourceId, pubmedSourceId };
+}
+
+async function seedDrugInteractions(
+  drugIdMap: Record<string, string>,
+  drugNameMap: Record<string, string>,
+  fdaSourceId: string,
+  pubmedSourceId: string
+) {
   const interactionsFilePath = path.join(
     process.cwd(),
     "data",
@@ -293,7 +298,7 @@ async function main() {
     fs.readFileSync(interactionsFilePath, "utf-8"),
   );
 
-  let interactionCount = 0;
+
   const interactionsToCreate = [];
   const evidencesToCreate = [];
   const mechanismsToCreate = [];
@@ -366,10 +371,10 @@ async function main() {
 
   if (interactionsToCreate.length > 0) {
     const startInteractions = performance.now();
-    const result = await chunkedCreateMany(prisma.drugInteraction, interactionsToCreate);
+    await chunkedCreateMany(prisma.drugInteraction, interactionsToCreate);
     const endInteractions = performance.now();
     logger.info(`⚡ Inserted drug interactions in ${(endInteractions - startInteractions).toFixed(2)}ms`);
-    interactionCount = result.count;
+
   }
 
   if (evidencesToCreate.length > 0) {
@@ -381,8 +386,9 @@ async function main() {
     await chunkedCreateMany(prisma.interactionMechanism, mechanismsToCreate);
     logger.info(`⚡ ${mechanismsToCreate.length} adet InteractionMechanism tohumlandı.`);
   }
+}
 
-  // 4. Besin Etkileşimlerini Ekle
+async function seedFoodInteractions(drugIdMap: Record<string, string>) {
   const foodFilePath = path.join(process.cwd(), "data", "foodInteractions.json");
   const foodData = JSON.parse(fs.readFileSync(foodFilePath, "utf-8"));
   const foodToCreate = foodData.map((f: { id: string, drugId: string, substance: string, effect: string, severity: string }) => ({
@@ -394,8 +400,9 @@ async function main() {
   }));
   await chunkedCreateMany(prisma.foodInteraction, foodToCreate);
   logger.info(`🥗 ${foodToCreate.length} adet besin etkileşimi eklendi.`);
+}
 
-  // 5. Kontrendikasyonları Ekle
+async function seedContraindications(drugIdMap: Record<string, string>) {
   const contraFilePath = path.join(process.cwd(), "data", "contraindications.json");
   const contraData = JSON.parse(fs.readFileSync(contraFilePath, "utf-8"));
   const contraToCreate = contraData.map((c: { id: string, drugId: string, diseaseIcd: string, diseaseName: string, effect: string, severity: string }) => ({
@@ -408,8 +415,9 @@ async function main() {
   }));
   await chunkedCreateMany(prisma.contraindication, contraToCreate);
   logger.info(`❌ ${contraToCreate.length} adet kontrendikasyon eklendi.`);
+}
 
-  // Örnek ClinicalReview ekle
+async function seedMockClinicalReview(fdaSourceId: string) {
   await prisma.clinicalReview.create({
     data: {
       entityType: "EvidenceSource",
@@ -421,6 +429,31 @@ async function main() {
     }
   });
   logger.info("📝 Örnek ClinicalReview kaydı oluşturuldu.");
+}
+
+async function main() {
+  logger.info("🌱 Veritabanı tohumlama işlemi başladı...");
+
+  // 1. Mevcut verileri temizle
+  await cleanDatabase();
+
+  // 2. İlaçları Oku ve Ekle
+  const { drugIdMap, drugNameMap } = await seedDrugs();
+
+  // 3. Kanıt Kaynaklarını oluştur
+  const { fdaSourceId, pubmedSourceId } = await seedEvidenceSources();
+
+  // 4. Etkileşimleri Oku ve Ekle
+  await seedDrugInteractions(drugIdMap, drugNameMap, fdaSourceId, pubmedSourceId);
+
+  // 5. Besin Etkileşimlerini Ekle
+  await seedFoodInteractions(drugIdMap);
+
+  // 6. Kontrendikasyonları Ekle
+  await seedContraindications(drugIdMap);
+
+  // 7. Örnek ClinicalReview ekle
+  await seedMockClinicalReview(fdaSourceId);
 
   logger.info("🏁 Tohumlama başarıyla tamamlandı!");
 }

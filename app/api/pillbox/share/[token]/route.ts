@@ -6,7 +6,8 @@ import {
   resolveDrugsDB,
   checkAccumulationDB,
   findFoodInteractionsDB,
-  findContraindicationsDB
+  findContraindicationsDB,
+  getDrugsByIds
 } from "@/lib/interactions";
 
 export const dynamic = "force-dynamic";
@@ -66,7 +67,6 @@ export async function GET(
         });
       } catch {
         // Fallback using curated local data
-        const { getDrugsByIds } = await import("@/lib/interactions");
         drugs = getDrugsByIds(share.drugIds) as DrugForDisplay[];
       }
     }

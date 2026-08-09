@@ -68,6 +68,84 @@ function PatientProfileHeader({
   );
 }
 
+type RiskField = keyof Omit<PatientContext, "diseases" | "ageGroup">;
+
+function RiskToggle({
+  context,
+  field,
+  toggleField,
+  emoji,
+  title,
+  description,
+  activeColorClass,
+}: {
+  context: PatientContext;
+  field: RiskField;
+  toggleField: (field: RiskField) => void;
+  emoji: string;
+  title: string;
+  description: string;
+  activeColorClass: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => toggleField(field)}
+      className={`p-3 rounded-2xl border text-xs font-bold text-left flex items-center gap-2.5 transition-all cursor-pointer ${
+        context[field]
+          ? activeColorClass
+          : "bg-slate-100/50 dark:bg-white/5 border-slate-200/60 dark:border-white/5 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-white/15"
+      }`}
+    >
+      <span className="text-base">{emoji}</span>
+      <div>
+        <div className="font-extrabold">{title}</div>
+        <div className="text-[9px] font-normal text-slate-400 mt-0.5">{description}</div>
+      </div>
+    </button>
+  );
+}
+
+function AgeGroupSelector({
+  context,
+  setAgeGroup,
+}: {
+  context: PatientContext;
+  setAgeGroup: (ageGroup: "adult" | "elderly") => void;
+}) {
+  return (
+    <div className="p-3 rounded-2xl border bg-slate-100/50 dark:bg-white/5 border-slate-200/60 dark:border-white/5 text-xs text-left flex flex-col justify-between gap-1.5">
+      <span className="font-extrabold text-slate-600 dark:text-slate-400 flex items-center gap-1">
+        👴 Yaş Grubu
+      </span>
+      <div className="grid grid-cols-2 gap-1.5 mt-1">
+        <button
+          type="button"
+          onClick={() => setAgeGroup("adult")}
+          className={`py-1 rounded-lg text-[10px] font-bold text-center transition-all cursor-pointer ${
+            context.ageGroup === "adult"
+              ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/15"
+              : "bg-white/5 text-slate-400 border border-transparent hover:border-white/5"
+          }`}
+        >
+          Yetişkin
+        </button>
+        <button
+          type="button"
+          onClick={() => setAgeGroup("elderly")}
+          className={`py-1 rounded-lg text-[10px] font-bold text-center transition-all cursor-pointer ${
+            context.ageGroup === "elderly"
+              ? "bg-amber-600 text-white shadow-md shadow-amber-600/15"
+              : "bg-white/5 text-slate-400 border border-transparent hover:border-white/5"
+          }`}
+        >
+          65 Yaş Üstü
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function PhysiologicalToggles({
   context,
   toggleField,

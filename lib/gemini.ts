@@ -504,17 +504,17 @@ export interface GeminiExplanationResponse {
   sourceIds?: string[];
 }
 
-function parseGeminiResponse(rawText: string): GeminiExplanationResponse {
+export function parseGeminiResponse(rawText: string): GeminiExplanationResponse {
   let cleanText = rawText.trim();
 
   // Strip markdown json blocks if returned by the model under any edge conditions
   if (cleanText.startsWith("```")) {
-    cleanText = cleanText.replace(/^```json\s*/i, "").replace(/```$/, "").trim();
+    cleanText = cleanText.replace(/^```(?:json)?\s*/i, "").replace(/```$/, "").trim();
   }
 
   try {
     return JSON.parse(cleanText) as GeminiExplanationResponse;
-  } catch {
+  } catch (error) {
     throw new Error("Model çıktısı geçerli bir JSON formatında değil.");
   }
 }
@@ -793,7 +793,7 @@ export async function* streamGeminiContent(prompt: string): AsyncGenerator<strin
   if (!successResponse) {
       try {
           successResponse = await Promise.any(runningTasks);
-      } catch {
+      } catch (error) {
           throw lastError || new Error("All models in the stream chain failed.");
       }
   }
@@ -829,7 +829,7 @@ export async function* streamGeminiContent(prompt: string): AsyncGenerator<strin
                 if (typeof chunkText === "string" && chunkText) {
                   yield chunkText;
                 }
-              } catch {
+              } catch (error) {
                 // parsing errors are silently ignored on partial chunks
               }
               // Remove parsed chunk from buffer

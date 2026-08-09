@@ -508,7 +508,7 @@ Bu bir hekim yönlendirmesidir.`;
   it("should handle empty or whitespace-only array elements in hastalaraOneriler", () => {
     const input = {
       hastalaraOneriler: ["", "  ", "Valid advice", "   \n", "Another advice"]
-    } as any;
+    } as unknown;
 
     const expected = `**Önemli Belirtiler ve Öneriler:**\n• Valid advice\n• Another advice`;
 
@@ -694,5 +694,53 @@ describe("runReviewerAgent", () => {
       expect.stringContaining("[PillMind AI Safety] Reviewer Agent (gemini-2.5-flash-lite) denetimi sırasında hata, [SAFETY SHIELD DEGRADED] moduyla devam ediliyor:"),
       error
     );
+  });
+});
+import { parseGeminiResponse } from "../lib/gemini";
+
+describe("parseGeminiResponse", () => {
+  it("should successfully parse a valid JSON string", () => {
+    const jsonStr = '{"girisCumlesi":"Test","klinikEtkiAciklamasi":"Test etki"}';
+    const result = parseGeminiResponse(jsonStr);
+    expect(result).toHaveProperty("girisCumlesi", "Test");
+    expect(result).toHaveProperty("klinikEtkiAciklamasi", "Test etki");
+  });
+
+  it("should strip markdown json blocks and parse correctly", () => {
+    const jsonStr = '```json\n{"girisCumlesi":"Test markdown","klinikEtkiAciklamasi":"Test etki"}\n```';
+    const result = parseGeminiResponse(jsonStr);
+    expect(result).toHaveProperty("girisCumlesi", "Test markdown");
+    expect(result).toHaveProperty("klinikEtkiAciklamasi", "Test etki");
+  });
+
+  it("should handle markdown json blocks with missing language tag", () => {
+    const jsonStr = '```\n{"girisCumlesi":"Test markdown no tag","klinikEtkiAciklamasi":"Test etki"}\n```';
+    const result = parseGeminiResponse(jsonStr);
+    expect(result).toHaveProperty("girisCumlesi", "Test markdown no tag");
+    expect(result).toHaveProperty("klinikEtkiAciklamasi", "Test etki");
+  });
+
+  it("should handle leading and trailing whitespace", () => {
+    const jsonStr = '   \n  \t  {"girisCumlesi":"Test spaces","klinikEtkiAciklamasi":"Test etki"}  \n\t  ';
+    const result = parseGeminiResponse(jsonStr);
+    expect(result).toHaveProperty("girisCumlesi", "Test spaces");
+    expect(result).toHaveProperty("klinikEtkiAciklamasi", "Test etki");
+  });
+
+  it("should handle markdown blocks with leading/trailing whitespace", () => {
+    const jsonStr = '   \n ```json\n{"girisCumlesi":"Test spaces markdown","klinikEtkiAciklamasi":"Test etki"}\n```  \n  ';
+    const result = parseGeminiResponse(jsonStr);
+    expect(result).toHaveProperty("girisCumlesi", "Test spaces markdown");
+    expect(result).toHaveProperty("klinikEtkiAciklamasi", "Test etki");
+  });
+
+  it("should throw an error for invalid JSON", () => {
+    const invalidJson = '{"girisCumlesi":"Test",}'; // Trailing comma
+    expect(() => parseGeminiResponse(invalidJson)).toThrow("Model çıktısı geçerli bir JSON formatında değil.");
+  });
+
+  it("should throw an error for completely non-JSON text", () => {
+    const nonJson = "This is just a regular string, not JSON at all.";
+    expect(() => parseGeminiResponse(nonJson)).toThrow("Model çıktısı geçerli bir JSON formatında değil.");
   });
 });

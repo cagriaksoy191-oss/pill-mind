@@ -504,12 +504,12 @@ export interface GeminiExplanationResponse {
   sourceIds?: string[];
 }
 
-function parseGeminiResponse(rawText: string): GeminiExplanationResponse {
+export function parseGeminiResponse(rawText: string): GeminiExplanationResponse {
   let cleanText = rawText.trim();
 
   // Strip markdown json blocks if returned by the model under any edge conditions
   if (cleanText.startsWith("```")) {
-    cleanText = cleanText.replace(/^```json\s*/i, "").replace(/```$/, "").trim();
+    cleanText = cleanText.replace(/^```(?:json)?\s*/i, "").replace(/```$/, "").trim();
   }
 
   try {
@@ -636,7 +636,7 @@ async function callGeminiWithPrompt(prompt: string): Promise<GeminiResult> {
       timeout.cancel();
       // If ANY task succeeds before timeout, return immediately!
       return result;
-    } catch (error) {
+    } catch {
       timeout.cancel();
       if (error instanceof Error && error.message === "SPECULATIVE_TIMEOUT") {
         // Models are taking too long. Continue to the next iteration to start the fallback model speculatively.

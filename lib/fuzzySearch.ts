@@ -30,6 +30,7 @@ function normalizeTurkish(text: string): string {
 }
 
 let levenshteinCache = new Uint16Array(64);
+let s2CharCache = new Uint16Array(64);
 
 function levenshteinDistance(s1: string, s2: string): number {
   const len1 = s1.length;
@@ -42,6 +43,10 @@ function levenshteinDistance(s1: string, s2: string): number {
     const newSize = Math.max(levenshteinCache.length * 2, len2 + 1);
     levenshteinCache = new Uint16Array(newSize);
   }
+  if (s2CharCache.length < len2) {
+    const newSize = Math.max(s2CharCache.length * 2, len2);
+    s2CharCache = new Uint16Array(newSize);
+  }
 
   const cache = levenshteinCache;
 
@@ -49,11 +54,16 @@ function levenshteinDistance(s1: string, s2: string): number {
     cache[j] = j;
   }
 
+  const s2Chars = s2CharCache;
+  for (let j = 0; j < len2; j++) {
+    s2Chars[j] = s2.charCodeAt(j);
+  }
+
   for (let i = 1; i <= len1; i++) {
     let prev = i;
     const char1 = s1.charCodeAt(i - 1);
     for (let j = 1; j <= len2; j++) {
-      const cost = char1 === s2.charCodeAt(j - 1) ? 0 : 1;
+      const cost = char1 === s2Chars[j - 1] ? 0 : 1;
       const sub = cache[j - 1] + cost;
       cache[j - 1] = prev;
       const del = cache[j] + 1;

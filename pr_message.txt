@@ -1,7 +1,0 @@
-🧪 [testing improvement] Add tests for createOperationOutcomeResponse
-
-🎯 **What:** The `createOperationOutcomeResponse` function in `lib/utils/fhir.ts` was untested. This function constructs a `NextResponse` JSON object representing a FHIR `OperationOutcome`.
-
-📊 **Coverage:** Created `tests/fhir.test.ts` to test all allowed severity parameters (`"error"`, `"warning"`, `"information"`, `"fatal"`). The tests verify that the returned response is a `NextResponse`, has the correct HTTP status code, and constructs the valid FHIR `OperationOutcome` JSON payload structure.
-
-✨ **Result:** Increased test coverage by thoroughly testing the `createOperationOutcomeResponse` utility function. The test suite passes successfully.

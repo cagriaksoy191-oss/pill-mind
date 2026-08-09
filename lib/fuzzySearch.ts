@@ -107,9 +107,13 @@ export function fuzzySearchDrugs<
 >(query: string, items: T[]): FuzzyResult<T>[] {
   const q = normalizeTurkish(query);
   if (!q) {
-    return items.map((item) => ({ item, score: 0 }));
+    const len = items.length;
+    const results = new Array(len);
+    for (let i = 0; i < len; i++) {
+      results[i] = { item: items[i], score: 0 };
+    }
+    return results;
   }
-
 
   const results: FuzzyResult<T>[] = [];
 
@@ -131,14 +135,12 @@ export function fuzzySearchDrugs<
       ? calculateScore(q, normalized.category) * 0.5
       : 0;
 
-
     const bestScore = Math.max(nameScore, ingredientScore, categoryScore);
 
     if (bestScore > 0) {
       results.push({ item, score: bestScore });
     }
   }
-
 
   return results.sort((a, b) => b.score - a.score);
 }
@@ -159,7 +161,6 @@ function calculateScore(q: string, t: string): number {
   if (subSeqScore > 0) {
     return subSeqScore;
   }
-
 
   if (q.length >= 3) {
     const maxLen = Math.max(q.length, t.length);

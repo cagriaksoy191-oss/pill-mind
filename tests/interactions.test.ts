@@ -933,10 +933,7 @@ describe("resolveDrugsDB", () => {
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     prisma.drug.findMany.mockRejectedValue(new Error("DB Error"));
 
-    const result = await resolveDrugsDB(["drug1"]);
-
-    expect(consoleSpy).toHaveBeenCalledWith("[PillMind CMIO Engine] resolveDrugsDB başarısız:", expect.any(Error));
-    expect(result).toEqual([]);
+    await expect(resolveDrugsDB(["drug1"])).rejects.toThrow("DB Error");
 
     consoleSpy.mockRestore();
   });

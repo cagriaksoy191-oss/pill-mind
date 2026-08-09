@@ -655,7 +655,7 @@ async function callGeminiWithPrompt(prompt: string): Promise<GeminiResult> {
   // Promise.any ignores rejections unless ALL of them reject.
   try {
     return await Promise.any(runningTasks);
-  } catch (error) {
+  } catch {
     console.error("[GEMINI] Tüm modeller başarısız oldu.");
     throw new Error("Tüm Gemini modelleri başarısız oldu.");
   }
@@ -793,7 +793,7 @@ export async function* streamGeminiContent(prompt: string): AsyncGenerator<strin
   if (!successResponse) {
       try {
           successResponse = await Promise.any(runningTasks);
-      } catch {
+      } catch (error) {
           throw lastError || new Error("All models in the stream chain failed.");
       }
   }
@@ -829,7 +829,7 @@ export async function* streamGeminiContent(prompt: string): AsyncGenerator<strin
                 if (typeof chunkText === "string" && chunkText) {
                   yield chunkText;
                 }
-              } catch {
+              } catch (error) {
                 // parsing errors are silently ignored on partial chunks
               }
               // Remove parsed chunk from buffer

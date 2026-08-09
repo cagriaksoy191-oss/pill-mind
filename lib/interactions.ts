@@ -484,43 +484,6 @@ export function getSeverityLabel(severity: string): string {
   }
 }
 
-export function getSeverityColor(severity: string): {
-  bg: string;
-  border: string;
-  badge: string;
-  text: string;
-} {
-  switch (severity) {
-    case "high":
-      return {
-        bg: "bg-red-50",
-        border: "border-red-300",
-        badge: "bg-red-600 text-white",
-        text: "text-red-800",
-      };
-    case "medium":
-      return {
-        bg: "bg-amber-50",
-        border: "border-amber-300",
-        badge: "bg-amber-500 text-white",
-        text: "text-amber-800",
-      };
-    case "low":
-      return {
-        bg: "bg-green-50",
-        border: "border-green-300",
-        badge: "bg-green-600 text-white",
-        text: "text-green-800",
-      };
-    default:
-      return {
-        bg: "bg-gray-50",
-        border: "border-gray-300",
-        badge: "bg-gray-500 text-white",
-        text: "text-gray-700",
-      };
-  }
-}
 
 export interface DrugClinicalMetadata {
   pregnancyCategory: string;

@@ -94,7 +94,7 @@ describe("POST /api/fhir/medicationrequest", () => {
     expect(interactionsCountParam.valueInteger).toBe(1);
 
     expect(resolveDrugsDB).toHaveBeenCalledWith(["drug-1", "drug-2"]);
-    expect(findContraindicationsDB).toHaveBeenCalledWith(["drug-1", "drug-2"], { age: 40 }, {});
+    expect(findContraindicationsDB).toHaveBeenCalledWith(["drug-1", "drug-2"], { diseases: undefined, isPregnant: undefined, isBreastfeeding: undefined, renalRisk: undefined, hepaticRisk: undefined, ageGroup: undefined }, {});
   });
 
   it("should handle patientContext parse error gracefully", async () => {

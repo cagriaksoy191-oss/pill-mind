@@ -50,12 +50,19 @@ function parseFhirRequest(body: FhirRequestBody): { drugIds: string[], patientCo
     }
     if (ctxParam && ctxParam.valueString) {
       try {
-        patientContext = JSON.parse(ctxParam.valueString, (key, value) => {
-          if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
-            return undefined;
-          }
-          return value;
-        });
+        const raw = JSON.parse(ctxParam.valueString);
+        if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+          patientContext = {
+            diseases: Array.isArray(raw.diseases) ? raw.diseases.map(String) : undefined,
+            isPregnant: typeof raw.isPregnant === 'boolean' ? raw.isPregnant : undefined,
+            isBreastfeeding: typeof raw.isBreastfeeding === 'boolean' ? raw.isBreastfeeding : undefined,
+            renalRisk: typeof raw.renalRisk === 'boolean' ? raw.renalRisk : undefined,
+            hepaticRisk: typeof raw.hepaticRisk === 'boolean' ? raw.hepaticRisk : undefined,
+            ageGroup: typeof raw.ageGroup === 'string' ? raw.ageGroup : undefined,
+          };
+        } else {
+          patientContext = undefined;
+        }
       } catch {
         patientContext = undefined;
       }

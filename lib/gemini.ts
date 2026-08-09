@@ -514,7 +514,7 @@ export function parseGeminiResponse(rawText: string): GeminiExplanationResponse 
 
   try {
     return JSON.parse(cleanText) as GeminiExplanationResponse;
-  } catch {
+  } catch (error) {
     throw new Error("Model çıktısı geçerli bir JSON formatında değil.");
   }
 }
@@ -636,7 +636,7 @@ async function callGeminiWithPrompt(prompt: string): Promise<GeminiResult> {
       timeout.cancel();
       // If ANY task succeeds before timeout, return immediately!
       return result;
-    } catch {
+    } catch (error) {
       timeout.cancel();
       if (error instanceof Error && error.message === "SPECULATIVE_TIMEOUT") {
         // Models are taking too long. Continue to the next iteration to start the fallback model speculatively.
@@ -793,7 +793,7 @@ export async function* streamGeminiContent(prompt: string): AsyncGenerator<strin
   if (!successResponse) {
       try {
           successResponse = await Promise.any(runningTasks);
-      } catch {
+      } catch (error) {
           throw lastError || new Error("All models in the stream chain failed.");
       }
   }
@@ -829,7 +829,7 @@ export async function* streamGeminiContent(prompt: string): AsyncGenerator<strin
                 if (typeof chunkText === "string" && chunkText) {
                   yield chunkText;
                 }
-              } catch {
+              } catch (error) {
                 // parsing errors are silently ignored on partial chunks
               }
               // Remove parsed chunk from buffer

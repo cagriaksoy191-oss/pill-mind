@@ -716,24 +716,8 @@ Etken maddeler: ${ctx.drugIngredients.join(", ")}
 Lütfen yukarıdaki kurallara tam olarak uyarak sade bir Türkçe ile doğrudan açıklama metnini oluştur.`;
 }
 
-export async function* streamGeminiContent(prompt: string): AsyncGenerator<string, void, unknown> {
-  const payload = JSON.stringify({
-    contents: [{ parts: [{ text: prompt }] }],
-    generationConfig: {
-      temperature: 0.75,
-      maxOutputTokens: 512,
-      topP: 0.92,
-    },
-    safetySettings: [
-      {
-        category: "HARM_CATEGORY_DANGEROUS_CONTENT",
-        threshold: "BLOCK_MEDIUM_AND_ABOVE",
-      },
-    ],
-  });
-
+async function executeSpeculativeStreamFetch(payload: string, controller: AbortController): Promise<Response> {
   const SPECULATIVE_TIMEOUT_MS = 1500;
-  const controller = new AbortController();
 
   const fetchModel = async (model: string): Promise<Response> => {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?key=${GEMINI_API_KEY}`;
@@ -798,52 +782,78 @@ export async function* streamGeminiContent(prompt: string): AsyncGenerator<strin
       }
   }
 
-  const reader = successResponse.body!.getReader();
+  return successResponse;
+}
+
+async function* parseGeminiStream(reader: ReadableStreamDefaultReader<Uint8Array>): AsyncGenerator<string, void, unknown> {
   const decoder = new TextDecoder("utf-8");
   let buffer = "";
   let braceCount = 0;
   let startIdx = -1;
   let scanIndex = 0;
 
-  try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
 
-        buffer += decoder.decode(value, { stream: true });
+    buffer += decoder.decode(value, { stream: true });
 
-        while (scanIndex < buffer.length) {
-          const char = buffer[scanIndex];
-          if (char === "{") {
-            if (braceCount === 0) {
-              startIdx = scanIndex;
+    while (scanIndex < buffer.length) {
+      const char = buffer[scanIndex];
+      if (char === "{") {
+        if (braceCount === 0) {
+          startIdx = scanIndex;
+        }
+        braceCount++;
+      } else if (char === "}") {
+        braceCount--;
+        if (braceCount === 0 && startIdx !== -1) {
+          const jsonStr = buffer.substring(startIdx, scanIndex + 1);
+          try {
+            const obj = JSON.parse(jsonStr);
+            const chunkText = obj?.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (typeof chunkText === "string" && chunkText) {
+              yield chunkText;
             }
-            braceCount++;
-          } else if (char === "}") {
-            braceCount--;
-            if (braceCount === 0 && startIdx !== -1) {
-              const jsonStr = buffer.substring(startIdx, scanIndex + 1);
-              try {
-                const obj = JSON.parse(jsonStr);
-                const chunkText = obj?.candidates?.[0]?.content?.parts?.[0]?.text;
-                if (typeof chunkText === "string" && chunkText) {
-                  yield chunkText;
-                }
-              } catch (error) {
-                // parsing errors are silently ignored on partial chunks
-              }
-              // Remove parsed chunk from buffer
-              buffer = buffer.substring(scanIndex + 1);
-              scanIndex = -1; // Will be incremented to 0
-              startIdx = -1;
-            }
+          } catch (error) {
+            // parsing errors are silently ignored on partial chunks
           }
-          scanIndex++;
+          // Remove parsed chunk from buffer
+          buffer = buffer.substring(scanIndex + 1);
+          scanIndex = -1;
+          startIdx = -1;
         }
       }
+      scanIndex++;
+    }
+  }
+}
+
+export async function* streamGeminiContent(prompt: string): AsyncGenerator<string, void, unknown> {
+  const payload = JSON.stringify({
+    contents: [{ parts: [{ text: prompt }] }],
+    generationConfig: {
+      temperature: 0.75,
+      maxOutputTokens: 512,
+      topP: 0.92,
+    },
+    safetySettings: [
+      {
+        category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+        threshold: "BLOCK_MEDIUM_AND_ABOVE",
+      },
+    ],
+  });
+
+  const controller = new AbortController();
+  let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+
+  try {
+      const response = await executeSpeculativeStreamFetch(payload, controller);
+      reader = response.body!.getReader();
+      yield* parseGeminiStream(reader);
   } finally {
-      if (typeof reader.releaseLock === 'function') reader.releaseLock();
-      // Clean up abort controller when stream is finished or closed early
+      if (reader && typeof reader.releaseLock === 'function') reader.releaseLock();
       controller.abort();
   }
 }

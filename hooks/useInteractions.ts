@@ -1,7 +1,9 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
+import { useInteractionState } from "./useInteractionState";
+import { useOfflineStatus } from "./useOfflineStatus";
 import { useInteractionExplanations } from "./useInteractionExplanations";
 import { useCoverageExplanation } from "./useCoverageExplanation";
-import { CheckResult, AccumulationWarning, FoodInteractionResult, ContraindicationResult, PolypharmacyReport, PatientContext } from "@/lib/interactions";
+import { PatientContext } from "@/lib/interactions";
 
 
 const fetchApiInteractions = async (drugIds: string[], patientContext: PatientContext | undefined) => {
@@ -32,13 +34,7 @@ const fetchLocalInteractions = async (drugIds: string[], patientContext: Patient
 };
 
 export function useInteractions(selectedDrugIds: string[], patientContext?: PatientContext) {
-  const [interactions, setInteractions] = useState<CheckResult[]>([]);
-  const [accumulationWarnings, setAccumulationWarnings] = useState<AccumulationWarning[]>([]);
-  const [foodInteractions, setFoodInteractions] = useState<FoodInteractionResult[]>([]);
-  const [contraindications, setContraindications] = useState<ContraindicationResult[]>([]);
-  const [polypharmacyReport, setPolypharmacyReport] = useState<PolypharmacyReport | null>(null);
-  const [isChecking, setIsChecking] = useState(false);
-  const [checkingError, setCheckingError] = useState<string | null>(null);
+  const state = useInteractionState();
 
   const { explanations, loadingExplanations, handleExplainRequested } = useInteractionExplanations();
   const {
@@ -51,96 +47,59 @@ export function useInteractions(selectedDrugIds: string[], patientContext?: Pati
   } = useCoverageExplanation(selectedDrugIds);
 
 
-  const [isOffline, setIsOffline] = useState(false);
-
-  // Load drugs list on mount (only offline handling)
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      setIsOffline(!navigator.onLine);
-      const handleOnline = () => setIsOffline(false);
-      const handleOffline = () => setIsOffline(true);
-      window.addEventListener("online", handleOnline);
-      window.addEventListener("offline", handleOffline);
-
-      // Service Worker Kaydı (PWA Altyapısı)
-      if ("serviceWorker" in navigator) {
-        navigator.serviceWorker
-          .register("/sw.js")
-          .then((reg) => console.info("[PillMind SW] Servis İşçisi kaydı başarılı:", reg.scope))
-          .catch((err) => console.warn("[PillMind SW] Servis İşçisi kaydı başarısız:", err));
-      }
-
-      return () => {
-        window.removeEventListener("online", handleOnline);
-        window.removeEventListener("offline", handleOffline);
-      };
-    }
-  }, []);
+  const isOffline = useOfflineStatus();
 
   const serializedContext = JSON.stringify(patientContext);
 
-  const resetState = () => {
-    setInteractions([]);
-    setAccumulationWarnings([]);
-    setFoodInteractions([]);
-    setContraindications([]);
-    setPolypharmacyReport(null);
-    setCoverageExplanation(null);
-    setShowCoveragePanel(false);
-    setCheckingError(null);
-  };
 
-  const applyResults = (data: { interactions?: CheckResult[], accumulationWarnings?: AccumulationWarning[], foodInteractions?: FoodInteractionResult[], contraindications?: ContraindicationResult[], polypharmacyReport?: PolypharmacyReport | null }) => {
-    setInteractions(data.interactions || []);
-    setAccumulationWarnings(data.accumulationWarnings || []);
-    setFoodInteractions(data.foodInteractions || []);
-    setContraindications(data.contraindications || []);
-    setPolypharmacyReport(data.polypharmacyReport || null);
-  };
 
   // Automatically check interactions when selected drugs change
   useEffect(() => {
     const checkInteractions = async () => {
       if (selectedDrugIds.length < 2) {
-        resetState();
+        state.resetState();
+        setCoverageExplanation(null);
+        setShowCoveragePanel(false);
         return;
       }
 
-      setIsChecking(true);
-      setCheckingError(null);
+      state.setIsChecking(true);
+      state.setCheckingError(null);
       try {
         const data = await fetchApiInteractions(selectedDrugIds, patientContext);
-        applyResults(data);
+        state.applyResults(data);
       } catch (err) {
         console.warn("[PillMind Check Engine] Sunucu API hatası veya ağ kaybı, çevrimdışı yerel tarama çekirdeği devreye alınıyor:", err);
         try {
           const localData = await fetchLocalInteractions(selectedDrugIds, patientContext);
-          applyResults(localData);
-          setCheckingError(null);
+          state.applyResults(localData);
+          state.setCheckingError(null);
         } catch (localErr) {
           console.error("Local fallback failed:", localErr);
-          setCheckingError("Bağlantı hatası: Yerel çevrimdışı tarama motoru yüklenemedi.");
+          state.setCheckingError("Bağlantı hatası: Yerel çevrimdışı tarama motoru yüklenemedi.");
         }
       } finally {
-        setIsChecking(false);
+        state.setIsChecking(false);
       }
     };
 
     checkInteractions();
-  }, [selectedDrugIds, serializedContext]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDrugIds, serializedContext]); // Omitting complex object dependencies to prevent infinite loop
+
 
   return {
-    interactions,
-    setInteractions,
-    accumulationWarnings,
-    foodInteractions,
-    setFoodInteractions,
-    contraindications,
-    setContraindications,
-    polypharmacyReport,
-    setPolypharmacyReport,
-    isChecking,
-    checkingError,
+    interactions: state.interactions,
+    setInteractions: state.setInteractions,
+    accumulationWarnings: state.accumulationWarnings,
+    foodInteractions: state.foodInteractions,
+    setFoodInteractions: state.setFoodInteractions,
+    contraindications: state.contraindications,
+    setContraindications: state.setContraindications,
+    polypharmacyReport: state.polypharmacyReport,
+    setPolypharmacyReport: state.setPolypharmacyReport,
+    isChecking: state.isChecking,
+    checkingError: state.checkingError,
     explanations,
     loadingExplanations,
     coverageExplanation,

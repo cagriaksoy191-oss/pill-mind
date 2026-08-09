@@ -1,8 +1,8 @@
 /**
  * @jest-environment jsdom
  */
-import React, { use } from "react";
-import { render, screen, waitFor, act } from "@testing-library/react";
+import React from "react";
+import { render, screen, waitFor, act, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import ShareViewPage from "../app/share/[token]/page";
 
@@ -49,7 +49,7 @@ describe("ShareViewPage", () => {
 
   const mockToken = "test-token-123";
   // We pass the resolved value because of our `use` mock
-  const mockParamsPromise = { token: mockToken } as any;
+  const mockParamsPromise = { token: mockToken } as unknown as Promise<{ token: string }>;
 
   const mockData = {
     success: true,
@@ -98,7 +98,7 @@ describe("ShareViewPage", () => {
   };
 
   it("renders loading state initially", async () => {
-    let resolveMock: any;
+    let resolveMock: (value: unknown) => void;
     (global.fetch as jest.Mock).mockImplementation(() => new Promise((resolve) => {
         resolveMock = resolve;
     }));
@@ -180,5 +180,94 @@ describe("ShareViewPage", () => {
     await waitFor(() => {
       expect(screen.getByText(/Bilinen Etkileşim Saptanmadı/i)).toBeInTheDocument();
     });
+  });
+
+  it("calculates and displays time left based on expiresAt", async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date("2024-01-01T10:00:00Z"));
+
+    const dataWithExpiry = {
+      ...mockData,
+      expiresAt: "2024-01-01T12:30:15Z"
+    };
+
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => dataWithExpiry
+    });
+
+    render(<ShareViewPage params={mockParamsPromise} />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Klinik Analiz Raporu/i)).toBeInTheDocument();
+    });
+
+    act(() => {
+      jest.advanceTimersByTime(1000);
+    });
+
+    expect(screen.getByText(/2s 30d 1(3|4)sn/i)).toBeInTheDocument();
+
+    jest.useRealTimers();
+  });
+
+  it("shows expired state when time is up", async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date("2024-01-01T10:00:00Z"));
+
+    const expiredData = {
+      ...mockData,
+      expiresAt: "2024-01-01T10:00:01Z"
+    };
+
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => expiredData
+    });
+
+    render(<ShareViewPage params={mockParamsPromise} />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Klinik Analiz Raporu/i)).toBeInTheDocument();
+    });
+
+    act(() => {
+      jest.advanceTimersByTime(2000);
+    });
+
+    expect(screen.getByText(/Bağlantı Süresi Dolmuş/i)).toBeInTheDocument();
+    expect(screen.getByText(/24 saat sonra otomatik olarak silinir/i)).toBeInTheDocument();
+
+    jest.useRealTimers();
+  });
+
+  it("calls window.print when print button is clicked", async () => {
+    const originalPrint = window.print;
+    window.print = jest.fn();
+
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => mockData
+    });
+
+    render(<ShareViewPage params={mockParamsPromise} />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Klinik Analiz Raporu/i)).toBeInTheDocument();
+    });
+
+    const printButton = screen.getByText(/Yazdır/i).closest('button');
+    expect(printButton).toBeInTheDocument();
+
+    if (printButton) {
+      fireEvent.click(printButton);
+    }
+
+    expect(window.print).toHaveBeenCalledTimes(1);
+
+    window.print = originalPrint;
   });
 });

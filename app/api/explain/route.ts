@@ -121,12 +121,12 @@ async function handleInteraction(interactionId: unknown) {
     const cacheData: CachedExplanation = {
       explanation: result.explanation,
       generatedAt: result.generatedAt,
-      kaynakOzeti: parsedJSON.kaynakOzeti,
-      belirsizlikNotu: parsedJSON.belirsizlikNotu,
-      hastaDiliRiskEtiketi: parsedJSON.hastaDiliRiskEtiketi,
-      hekimModuKisaMekanizma: parsedJSON.hekimModuKisaMekanizma,
-      yasakliEylemKontrolu: parsedJSON.yasakliEylemKontrolu,
-      sourceIds: parsedJSON.sourceIds,
+      kaynakOzeti: parsedJSON.kaynakOzeti ?? undefined,
+      belirsizlikNotu: parsedJSON.belirsizlikNotu ?? undefined,
+      hastaDiliRiskEtiketi: parsedJSON.hastaDiliRiskEtiketi ?? undefined,
+      hekimModuKisaMekanizma: parsedJSON.hekimModuKisaMekanizma ?? undefined,
+      yasakliEylemKontrolu: parsedJSON.yasakliEylemKontrolu ?? undefined,
+      sourceIds: parsedJSON.sourceIds ?? undefined,
     };
 
     await setCachedExplanation(cacheKey, cacheData);
@@ -207,12 +207,12 @@ async function handleCoverage(drugIds: unknown) {
     const cacheData: CachedExplanation = {
       explanation: result.explanation,
       generatedAt: result.generatedAt,
-      kaynakOzeti: parsedJSON.kaynakOzeti,
-      belirsizlikNotu: parsedJSON.belirsizlikNotu,
-      hastaDiliRiskEtiketi: parsedJSON.hastaDiliRiskEtiketi,
-      hekimModuKisaMekanizma: parsedJSON.hekimModuKisaMekanizma,
-      yasakliEylemKontrolu: parsedJSON.yasakliEylemKontrolu,
-      sourceIds: parsedJSON.sourceIds,
+      kaynakOzeti: parsedJSON.kaynakOzeti ?? undefined,
+      belirsizlikNotu: parsedJSON.belirsizlikNotu ?? undefined,
+      hastaDiliRiskEtiketi: parsedJSON.hastaDiliRiskEtiketi ?? undefined,
+      hekimModuKisaMekanizma: parsedJSON.hekimModuKisaMekanizma ?? undefined,
+      yasakliEylemKontrolu: parsedJSON.yasakliEylemKontrolu ?? undefined,
+      sourceIds: parsedJSON.sourceIds ?? undefined,
     };
 
     await setCachedExplanation(cacheKey, cacheData);

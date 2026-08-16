@@ -37,13 +37,8 @@ function parseFhirRequest(body: FhirRequestBody): { drugIds: string[], patientCo
 
   // 1. Parse FHIR Parameters
   if (body.resourceType === "Parameters" && Array.isArray(body.parameter)) {
-    let medsParam;
-    let ctxParam;
-    for (const p of body.parameter) {
-      if (p.name === "medications") medsParam = p;
-      else if (p.name === "patientContext") ctxParam = p;
-      if (medsParam && ctxParam) break;
-    }
+    const medsParam = body.parameter.find(p => p.name === "medications");
+    const ctxParam = body.parameter.find(p => p.name === "patientContext");
 
     if (medsParam && medsParam.valueString) {
       drugIds = medsParam.valueString.split(",").map((s: string) => s.trim());

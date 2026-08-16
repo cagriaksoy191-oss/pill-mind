@@ -82,10 +82,14 @@ export function useInteractionExplanations() {
   const [explanations, setExplanations] = useState<Record<string, ExplanationData>>({});
   const [loadingExplanations, setLoadingExplanations] = useState<Record<string, boolean>>({});
 
-  const handleExplainRequested = useCallback(async (interactionId: string, _force: boolean) => {
+  const handleExplainRequested = useCallback(async (interactionId: string, force: boolean) => {
     if (loadingExplanations[interactionId]) return;
 
-    if (_force) {
+    if (!force && explanations[interactionId]) {
+      return;
+    }
+
+    if (force) {
       console.info(`[PillMind Explain Engine] Force explanation requested for: ${interactionId}`);
     }
 
@@ -124,7 +128,7 @@ export function useInteractionExplanations() {
     } finally {
       setLoadingExplanations((prev) => ({ ...prev, [interactionId]: false }));
     }
-  }, [loadingExplanations]);
+  }, [loadingExplanations, explanations]);
 
   return {
     explanations,

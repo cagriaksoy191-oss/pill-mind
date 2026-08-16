@@ -54,7 +54,8 @@ export async function GET(
     // Retrieve drug records for display names
     let drugs: DrugForDisplay[] = [];
     if (resolvedDrugsCache && Array.isArray(resolvedDrugsCache) && resolvedDrugsCache.length > 0) {
-      drugs = (resolvedDrugsCache as DrugForDisplay[]).filter(d => share.drugIds.includes(d.id));
+      const drugIdsSet = new Set(share.drugIds);
+      drugs = (resolvedDrugsCache as DrugForDisplay[]).filter(d => drugIdsSet.has(d.id));
     }
 
     // Fallback if cache missed the exact IDs or failed

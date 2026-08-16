@@ -117,17 +117,25 @@ async function handleInteraction(interactionId: unknown) {
   // Gemini Execution
   try {
     const result = await callGeminiForInteraction(ctx);
-    const parsedJSON = result.parsedJSON || {};
-    const cacheData: CachedExplanation = {
-      explanation: result.explanation,
-      generatedAt: result.generatedAt,
-      kaynakOzeti: parsedJSON.kaynakOzeti ?? undefined,
-      belirsizlikNotu: parsedJSON.belirsizlikNotu ?? undefined,
-      hastaDiliRiskEtiketi: parsedJSON.hastaDiliRiskEtiketi ?? undefined,
-      hekimModuKisaMekanizma: parsedJSON.hekimModuKisaMekanizma ?? undefined,
-      yasakliEylemKontrolu: parsedJSON.yasakliEylemKontrolu ?? undefined,
-      sourceIds: parsedJSON.sourceIds ?? undefined,
-    };
+    let cacheData: CachedExplanation;
+
+    if (result.parsedJSON) {
+      cacheData = {
+        explanation: result.explanation,
+        generatedAt: result.generatedAt,
+        kaynakOzeti: result.parsedJSON.kaynakOzeti ?? undefined,
+        belirsizlikNotu: result.parsedJSON.belirsizlikNotu ?? undefined,
+        hastaDiliRiskEtiketi: result.parsedJSON.hastaDiliRiskEtiketi ?? undefined,
+        hekimModuKisaMekanizma: result.parsedJSON.hekimModuKisaMekanizma ?? undefined,
+        yasakliEylemKontrolu: result.parsedJSON.yasakliEylemKontrolu ?? undefined,
+        sourceIds: result.parsedJSON.sourceIds ?? undefined,
+      };
+    } else {
+      cacheData = {
+        explanation: result.explanation,
+        generatedAt: result.generatedAt,
+      };
+    }
 
     await setCachedExplanation(cacheKey, cacheData);
     console.info(`[Redis] Cache WRITE for interaction: ${interactionId}`);
@@ -203,17 +211,25 @@ async function handleCoverage(drugIds: unknown) {
   // Gemini Execution
   try {
     const result = await callGeminiForCoverage(ctx);
-    const parsedJSON = result.parsedJSON || {};
-    const cacheData: CachedExplanation = {
-      explanation: result.explanation,
-      generatedAt: result.generatedAt,
-      kaynakOzeti: parsedJSON.kaynakOzeti ?? undefined,
-      belirsizlikNotu: parsedJSON.belirsizlikNotu ?? undefined,
-      hastaDiliRiskEtiketi: parsedJSON.hastaDiliRiskEtiketi ?? undefined,
-      hekimModuKisaMekanizma: parsedJSON.hekimModuKisaMekanizma ?? undefined,
-      yasakliEylemKontrolu: parsedJSON.yasakliEylemKontrolu ?? undefined,
-      sourceIds: parsedJSON.sourceIds ?? undefined,
-    };
+    let cacheData: CachedExplanation;
+
+    if (result.parsedJSON) {
+      cacheData = {
+        explanation: result.explanation,
+        generatedAt: result.generatedAt,
+        kaynakOzeti: result.parsedJSON.kaynakOzeti ?? undefined,
+        belirsizlikNotu: result.parsedJSON.belirsizlikNotu ?? undefined,
+        hastaDiliRiskEtiketi: result.parsedJSON.hastaDiliRiskEtiketi ?? undefined,
+        hekimModuKisaMekanizma: result.parsedJSON.hekimModuKisaMekanizma ?? undefined,
+        yasakliEylemKontrolu: result.parsedJSON.yasakliEylemKontrolu ?? undefined,
+        sourceIds: result.parsedJSON.sourceIds ?? undefined,
+      };
+    } else {
+      cacheData = {
+        explanation: result.explanation,
+        generatedAt: result.generatedAt,
+      };
+    }
 
     await setCachedExplanation(cacheKey, cacheData);
     console.info(`[Redis] Cache WRITE for coverage: ${sortedIds}`);

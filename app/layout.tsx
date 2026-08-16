@@ -41,7 +41,9 @@ export default function RootLayout({
             } else {
               document.documentElement.classList.remove("dark");
             }
-          } catch (_) {}
+          } catch (_) {
+            // Ignore theme initialization errors
+          }
         `}</Script>
       </head>
       <body className="min-h-full flex flex-col">{children}</body>

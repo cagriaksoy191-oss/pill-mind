@@ -707,8 +707,13 @@ export async function findContraindicationsDB(drugIds: string[], patientContext?
       resolvedDrugs = await resolveDrugsDB(drugIds);
     }
 
-    const resolvedDrugIds = resolvedDrugs.map(d => d.id);
-    const resolvedDrugsMap = new Map(resolvedDrugs.map(d => [d.id, d]));
+    const resolvedDrugIds: string[] = new Array(resolvedDrugs.length);
+    const resolvedDrugsMap = new Map<string, Drug>();
+    for (let i = 0; i < resolvedDrugs.length; i++) {
+      const d = resolvedDrugs[i];
+      resolvedDrugIds[i] = d.id;
+      resolvedDrugsMap.set(d.id, d);
+    }
 
     if (patientContext.diseases && Array.isArray(patientContext.diseases) && patientContext.diseases.length > 0) {
       const dbContras = await prisma.contraindication.findMany({

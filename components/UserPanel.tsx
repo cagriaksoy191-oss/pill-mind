@@ -39,7 +39,7 @@ export default function UserPanel({
   const fetchSavedBoxes = useCallback(async () => {
     setListBoxesLoading(true);
     try {
-      const res = await fetch("/api/pillbox/list");
+      const res = await fetch("/api/pillbox/list?limit=50");
       if (res.ok) {
         const data = await res.json();
         setSavedBoxes(data.pillboxes || []);

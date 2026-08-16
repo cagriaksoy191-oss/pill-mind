@@ -120,15 +120,16 @@ describe("POST /api/auth/register", () => {
     expect(data.user).toEqual({ id: "user-1", email: "test@example.com" });
   });
 
-  it("should return 400 if user is already registered", async () => {
+  it("should return 200 OK and user data if user is already registered", async () => {
     (prisma.user.findUnique as jest.Mock).mockResolvedValue({ id: "user-1", email: "test@example.com" });
 
     const req = createMockRequest({ email: "test@example.com" });
     const res = await POST(req);
 
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(200);
     const data = await res.json();
-    expect(data.error).toBe("Bu e-posta adresiyle kayıtlı bir kullanıcı zaten mevcut.");
+    expect(data.success).toBe(true);
+    expect(data.user).toEqual({ id: "user-1", email: "test@example.com" });
   });
 
   it("should return 400 if email is invalid", async () => {

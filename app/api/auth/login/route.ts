@@ -48,11 +48,9 @@ function verifyOtp(cleanEmail: string, otp: string, otpToken: string): NextRespo
 
   const verifyHash = crypto.createHmac('sha256', getJwtSecret()).update(`${cleanEmail}:${otp}:${expiresStr}`).digest('hex');
 
-  // Timing safe eşitlik kontrolü (Side-channel ataklarını önlemek için)
-  // Sabit uzunlukta hash'ler oluşturularak length-mismatch side-channel atağı önlenir
-  const expectedHashBuffer = crypto.createHash('sha256').update(expectedHash).digest();
-  const verifyHashBuffer = crypto.createHash('sha256').update(verifyHash).digest();
-  const isValid = crypto.timingSafeEqual(verifyHashBuffer, expectedHashBuffer);
+  const expectedHashBuffer = Buffer.from(expectedHash);
+  const verifyHashBuffer = Buffer.from(verifyHash);
+  const isValid = expectedHashBuffer.length === verifyHashBuffer.length && crypto.timingSafeEqual(verifyHashBuffer, expectedHashBuffer);
 
   if (!isValid) {
     return NextResponse.json(

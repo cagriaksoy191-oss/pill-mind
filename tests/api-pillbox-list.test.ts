@@ -12,6 +12,7 @@ jest.mock("@/lib/prisma", () => ({
   prisma: {
     savedPillbox: {
       findMany: jest.fn(),
+      count: jest.fn(),
     },
   },
 }));
@@ -21,8 +22,10 @@ describe("GET /api/pillbox/list", () => {
     jest.clearAllMocks();
   });
 
-  const createMockRequest = () => {
-    return {} as unknown as NextRequest;
+  const createMockRequest = (url = "http://localhost:3000/api/pillbox/list") => {
+    return {
+      url
+    } as unknown as NextRequest;
   };
 
   it("should return 401 if user is not authenticated", async () => {
@@ -44,6 +47,7 @@ describe("GET /api/pillbox/list", () => {
       { id: "pillbox-2", userId: "user-1", name: "My Pillbox 2", drugIds: ["drug-2"], createdAt: new Date() }
     ];
     (prisma.savedPillbox.findMany as jest.Mock).mockResolvedValue(mockPillboxes);
+    (prisma.savedPillbox.count as jest.Mock).mockResolvedValue(2);
 
     const req = createMockRequest();
     const res = await GET(req);
@@ -51,6 +55,7 @@ describe("GET /api/pillbox/list", () => {
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data.success).toBe(true);
+    expect(data.total).toBe(2);
     // JSON serialization of dates turns them to strings in NextResponse
     expect(data.pillboxes.length).toBe(2);
     expect(data.pillboxes[0].id).toBe("pillbox-1");
@@ -59,6 +64,32 @@ describe("GET /api/pillbox/list", () => {
     expect(prisma.savedPillbox.findMany).toHaveBeenCalledWith({
       where: { userId: "user-1" },
       orderBy: { createdAt: "desc" },
+    });
+  });
+
+  it("should return 200 and support pagination parameters", async () => {
+    (getSession as jest.Mock).mockResolvedValue({ userId: "user-1", email: "test@test.com", expires: Date.now() + 10000 });
+
+    const mockPillboxes = [
+      { id: "pillbox-1", userId: "user-1", name: "My Pillbox", drugIds: ["drug-1"], createdAt: new Date() },
+    ];
+    (prisma.savedPillbox.findMany as jest.Mock).mockResolvedValue(mockPillboxes);
+    (prisma.savedPillbox.count as jest.Mock).mockResolvedValue(10);
+
+    const req = createMockRequest("http://localhost:3000/api/pillbox/list?limit=5&offset=5");
+    const res = await GET(req);
+
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.success).toBe(true);
+    expect(data.total).toBe(10);
+    expect(data.pillboxes.length).toBe(1);
+
+    expect(prisma.savedPillbox.findMany).toHaveBeenCalledWith({
+      where: { userId: "user-1" },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+      skip: 5
     });
   });
 

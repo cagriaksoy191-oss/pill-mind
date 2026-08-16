@@ -66,7 +66,7 @@ describe("UserPanel Component", () => {
           }),
         });
       }
-      if (url === "/api/pillbox/list") {
+      if (url === "/api/pillbox/list?limit=50") {
         return Promise.resolve({
           ok: true,
           json: async () => ({ pillboxes: [] }),
@@ -98,7 +98,7 @@ describe("UserPanel Component", () => {
           }),
         });
       }
-      if (url === "/api/pillbox/list") {
+      if (url === "/api/pillbox/list?limit=50") {
         return Promise.resolve({
           ok: true,
           json: async () => ({ pillboxes: [] }),
@@ -127,7 +127,7 @@ describe("UserPanel Component", () => {
           }),
         });
       }
-      if (url === "/api/pillbox/list") {
+      if (url === "/api/pillbox/list?limit=50") {
         return Promise.resolve({
           ok: true,
           json: async () => ({
@@ -174,7 +174,7 @@ describe("UserPanel Component", () => {
           }),
         });
       }
-      if (url === "/api/pillbox/list") {
+      if (url === "/api/pillbox/list?limit=50") {
         return Promise.resolve({
           ok: true,
           json: async () => ({ pillboxes: [] }),
@@ -255,7 +255,7 @@ describe("UserPanel Component", () => {
           }),
         });
       }
-      if (url === "/api/pillbox/list") {
+      if (url === "/api/pillbox/list?limit=50") {
         return Promise.resolve({
           ok: false,
           status: 500
@@ -292,7 +292,7 @@ describe("UserPanel Component", () => {
           }),
         });
       }
-      if (url === "/api/pillbox/list") {
+      if (url === "/api/pillbox/list?limit=50") {
         return Promise.reject(new Error("Database Error"));
       }
       return Promise.reject(new Error("not found"));
@@ -328,7 +328,7 @@ describe("UserPanel Component", () => {
           }),
         });
       }
-      if (url === "/api/pillbox/list") {
+      if (url === "/api/pillbox/list?limit=50") {
         return listPromise;
       }
       return Promise.reject(new Error("not found"));
@@ -371,7 +371,7 @@ describe("UserPanel Component", () => {
           }),
         });
       }
-      if (url === "/api/pillbox/list") {
+      if (url === "/api/pillbox/list?limit=50") {
         return Promise.resolve({
           ok: true,
           json: async () => ({ pillboxes: [] }),
@@ -422,7 +422,7 @@ describe("UserPanel Component", () => {
           }),
         });
       }
-      if (url === "/api/pillbox/list") {
+      if (url === "/api/pillbox/list?limit=50") {
         return Promise.resolve({
           ok: true,
           json: async () => ({ pillboxes: [] }),
@@ -514,7 +514,7 @@ describe("UserPanel Component", () => {
           json: async () => ({ isOtpRequired: false, user: { id: "1", email: "newuser@example.com" } }),
         });
       }
-      if (url === "/api/pillbox/list") {
+      if (url === "/api/pillbox/list?limit=50") {
         listFetchCount++;
         return Promise.resolve({
           ok: true,
@@ -565,7 +565,7 @@ describe("UserPanel Component", () => {
           }),
         });
       }
-      if (url === "/api/pillbox/list") {
+      if (url === "/api/pillbox/list?limit=50") {
         listFetchCount++;
         return Promise.resolve({
           ok: true,
@@ -633,7 +633,7 @@ describe("UserPanel Component", () => {
           }),
         });
       }
-      if (url === "/api/pillbox/list") {
+      if (url === "/api/pillbox/list?limit=50") {
         return Promise.resolve({
           ok: true,
           json: async () => ({
@@ -681,7 +681,7 @@ describe("UserPanel Component", () => {
           }),
         });
       }
-      if (url === "/api/pillbox/list") {
+      if (url === "/api/pillbox/list?limit=50") {
         return Promise.resolve({
           ok: true,
           json: async () => ({
@@ -737,7 +737,7 @@ describe("UserPanel Component", () => {
           }),
         });
       }
-      if (url === "/api/pillbox/list") {
+      if (url === "/api/pillbox/list?limit=50") {
         listCalls++;
         return Promise.resolve({
           ok: true,
@@ -798,7 +798,7 @@ describe("UserPanel Component", () => {
           }),
         });
       }
-      if (url === "/api/pillbox/list") {
+      if (url === "/api/pillbox/list?limit=50") {
         return Promise.resolve({
           ok: true,
           json: async () => ({
@@ -863,7 +863,7 @@ describe("UserPanel Component", () => {
           }),
         });
       }
-      if (url === "/api/pillbox/list") {
+      if (url === "/api/pillbox/list?limit=50") {
         return Promise.resolve({
           ok: true,
           json: async () => ({
@@ -928,7 +928,7 @@ describe("UserPanel Component", () => {
           }),
         });
       }
-      if (url === "/api/pillbox/list") {
+      if (url === "/api/pillbox/list?limit=50") {
         return Promise.resolve({
           ok: true,
           json: async () => ({

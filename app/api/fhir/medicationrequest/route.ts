@@ -41,7 +41,12 @@ function parseFhirRequest(body: FhirRequestBody): { drugIds: string[], patientCo
     const ctxParam = body.parameter.find(p => p.name === "patientContext");
 
     if (medsParam && medsParam.valueString) {
-      drugIds = medsParam.valueString.split(",").map((s: string) => s.trim());
+      const parts = medsParam.valueString.split(",");
+      const len = parts.length;
+      drugIds = new Array(len);
+      for (let i = 0; i < len; i++) {
+        drugIds[i] = parts[i].trim();
+      }
     }
     if (ctxParam && ctxParam.valueString) {
       try {

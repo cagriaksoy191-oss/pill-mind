@@ -109,9 +109,9 @@ describe("POST /api/auth/login", () => {
     });
     const res = await POST(req);
 
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(401);
     const data = await res.json();
-    expect(data.error).toBe("Girdiğiniz doğrulama kodu hatalı.");
+    expect(data.error).toBe("Geçersiz e-posta adresi veya doğrulama kodu.");
   });
 
   it("should successfully log in if OTP is correct", async () => {
@@ -158,6 +158,22 @@ describe("POST /api/auth/login", () => {
 
     sentrySpy.mockRestore();
     jest.restoreAllMocks();
-  });
+    });
 
+  it("should return generic error if user does not exist", async () => {
+    const expires = Date.now() + 300000;
+    const email = "notfound@example.com";
+    const otp = "123456";
+    const hash = crypto.createHmac('sha256', process.env.JWT_SECRET!).update(`${email}:${otp}:${expires}`).digest('hex');
+    const otpToken = `${expires}:${hash}`;
+
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
+
+    const req = createMockRequest({ email, otp, otpToken });
+    const res = await POST(req);
+
+    expect(res.status).toBe(401);
+    const data = await res.json();
+    expect(data.error).toBe("Geçersiz e-posta adresi veya doğrulama kodu.");
+  });
 });

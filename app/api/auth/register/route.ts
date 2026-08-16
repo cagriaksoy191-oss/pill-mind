@@ -71,17 +71,12 @@ export async function POST(request: Request) {
       where: { email: email.toLowerCase().trim() },
     });
 
-    if (user) {
-      return NextResponse.json(
-        { error: "Bu e-posta adresiyle kayıtlı bir kullanıcı zaten mevcut." },
-        { status: 400 }
-      );
+    if (!user) {
+      // Yeni kullanıcıyı oluştur
+      user = await prisma.user.create({
+        data: { email: email.toLowerCase().trim() },
+      });
     }
-
-    // Yeni kullanıcıyı oluştur
-    user = await prisma.user.create({
-      data: { email: email.toLowerCase().trim() },
-    });
 
     return NextResponse.json({
       success: true,

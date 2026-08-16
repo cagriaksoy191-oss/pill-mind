@@ -1,57 +1,41 @@
 "use client";
 
 import { useState } from "react";
-import { getSeverityLabel, getDrugClinicalMetadata, InteractionMechanism, Evidence } from "@/lib/interactions";
+import { getSeverityLabel, getDrugClinicalMetadata, InteractionMechanism, Evidence, CheckResult, ExplanationData } from "@/lib/interactions";
 import ExplanationDrawer from "./ExplanationDrawer";
 import { getGlassColors } from "@/lib/theme";
 
 interface ResultCardProps {
-  drug1Id?: string;
-  drug2Id?: string;
-  drug1Name: string;
-  drug2Name: string;
-  severity: string;
-  summary: string;
-  interactionId: string;
-  sourceLabel?: string;
-  verificationStatus?: string;
-  source?: string;
-  evidenceLevel?: string;
-  clinicalDetail?: string;
-  evidences?: Evidence[];
-  mechanisms?: InteractionMechanism[];
-  explanationData?: {
-    explanation?: string;
-    source?: string;
-    generatedAt?: string;
-    reason?: string;
-    error?: string;
-  };
+  result: CheckResult;
+  explanationData?: ExplanationData;
   isExplanationLoading?: boolean;
   onExplainRequested: (id: string, force: boolean) => void;
 }
 
 export default function ResultCard({
-  interactionId,
-  drug1Id,
-  drug2Id,
-  drug1Name,
-  drug2Name,
-  severity,
-  summary,
-  sourceLabel,
-  verificationStatus,
-  source,
-  evidenceLevel,
-  clinicalDetail,
-  evidences,
-  mechanisms,
+  result,
   explanationData,
   isExplanationLoading,
   onExplainRequested,
 }: ResultCardProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isClinicalOpen, setIsClinicalOpen] = useState(false);
+
+  const { interaction, drug1Name, drug2Name } = result;
+  const {
+    id: interactionId,
+    drug1: drug1Id,
+    drug2: drug2Id,
+    severity,
+    summary,
+    sourceLabel,
+    verificationStatus,
+    source,
+    evidenceLevel,
+    clinicalDetail,
+    evidences,
+    mechanisms,
+  } = interaction;
 
   const rawLabel = getSeverityLabel(severity);
   const label =

@@ -10,16 +10,13 @@ import { CheckResult } from "../lib/interactions";
 // Mock the ResultCard component
 jest.mock("../components/ResultCard", () => {
   return function MockResultCard(props: {
-    interactionId: string;
-    drug1Name: string;
-    drug2Name: string;
-    severity: string;
+    result: CheckResult;
     onExplainRequested: (id: string, force: boolean) => void;
   }) {
     return (
-      <div data-testid="mock-result-card" data-interaction-id={props.interactionId}>
-        {props.drug1Name} - {props.drug2Name} ({props.severity})
-        <button onClick={() => props.onExplainRequested(props.interactionId, false)}>
+      <div data-testid="mock-result-card" data-interaction-id={props.result.interaction.id}>
+        {props.result.drug1Name} - {props.result.drug2Name} ({props.result.interaction.severity})
+        <button onClick={() => props.onExplainRequested(props.result.interaction.id, false)}>
           Mock Explain Button
         </button>
       </div>

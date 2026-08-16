@@ -22,11 +22,18 @@ describe('ResultCard', () => {
   const mockOnExplainRequested = jest.fn();
 
   const defaultProps = {
-    interactionId: 'int-123',
-    drug1Name: 'Aspirin',
-    drug2Name: 'Ibuprofen',
-    severity: 'high',
-    summary: 'Increased risk of bleeding.',
+    result: {
+      drug1Name: 'Aspirin',
+      drug2Name: 'Ibuprofen',
+      interaction: {
+        id: 'int-123',
+        drug1: 'aspirin',
+        drug2: 'ibuprofen',
+        severity: 'high' as const,
+        summary: 'Increased risk of bleeding.',
+        source: 'TestSource',
+      }
+    },
     onExplainRequested: mockOnExplainRequested,
   };
 
@@ -137,7 +144,17 @@ describe('ResultCard', () => {
   });
 
   it('displays deterministic verification badge', () => {
-    render(<ResultCard {...defaultProps} verificationStatus="verified" />);
+    const propsWithVerification = {
+      ...defaultProps,
+      result: {
+        ...defaultProps.result,
+        interaction: {
+          ...defaultProps.result.interaction,
+          verificationStatus: "verified"
+        }
+      }
+    };
+    render(<ResultCard {...propsWithVerification} />);
 
     const button = screen.getByRole('button', { name: /Klinik Canlı AI Açıklamasını Gör|Açıklama Detayını Gizle/i });
     fireEvent.click(button);
@@ -146,7 +163,18 @@ describe('ResultCard', () => {
   });
 
   it('displays source label when provided', () => {
-    render(<ResultCard {...defaultProps} sourceLabel="Drugs.com" source="https://drugs.com" />);
+    const propsWithSource = {
+      ...defaultProps,
+      result: {
+        ...defaultProps.result,
+        interaction: {
+          ...defaultProps.result.interaction,
+          sourceLabel: "Drugs.com",
+          source: "https://drugs.com"
+        }
+      }
+    };
+    render(<ResultCard {...propsWithSource} />);
 
     const button = screen.getByRole('button', { name: /Klinik Canlı AI Açıklamasını Gör|Açıklama Detayını Gizle/i });
     fireEvent.click(button);

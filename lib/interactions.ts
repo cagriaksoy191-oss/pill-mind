@@ -133,6 +133,14 @@ export interface ExplanationData {
   error?: string;
 }
 
+export interface ExplanationData {
+  explanation?: string;
+  source?: string;
+  generatedAt?: string;
+  reason?: string;
+  error?: string;
+}
+
 /**
  * Returns all drugs from the curated dataset (Synchronous - for UI rendering and search).
  */

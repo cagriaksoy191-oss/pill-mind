@@ -1,13 +1,5 @@
 import ResultCard from "@/components/ResultCard";
-import { CheckResult } from "@/lib/interactions";
-
-interface ExplanationData {
-  explanation?: string;
-  source?: string;
-  generatedAt?: string;
-  reason?: string;
-  error?: string;
-}
+import { CheckResult, ExplanationData } from "@/lib/interactions";
 
 interface InteractionListProps {
   interactions: CheckResult[];
@@ -32,20 +24,7 @@ export default function InteractionList({
         {interactions.map((res) => (
           <ResultCard
             key={res.interaction.id}
-            interactionId={res.interaction.id}
-            drug1Id={res.interaction.drug1}
-            drug2Id={res.interaction.drug2}
-            drug1Name={res.drug1Name}
-            drug2Name={res.drug2Name}
-            severity={res.interaction.severity}
-            summary={res.interaction.summary}
-            source={res.interaction.source}
-            sourceLabel={res.interaction.sourceLabel}
-            verificationStatus={res.interaction.verificationStatus}
-            evidenceLevel={res.interaction.evidenceLevel}
-            clinicalDetail={res.interaction.clinicalDetail}
-            evidences={res.interaction.evidences}
-            mechanisms={res.interaction.mechanisms}
+            result={res}
             explanationData={explanations[res.interaction.id]}
             isExplanationLoading={loadingExplanations[res.interaction.id]}
             onExplainRequested={onExplainRequested}

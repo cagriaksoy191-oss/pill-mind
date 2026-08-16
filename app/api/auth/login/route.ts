@@ -56,8 +56,8 @@ function verifyOtp(cleanEmail: string, otp: string, otpToken: string): NextRespo
 
   if (!isValid) {
     return NextResponse.json(
-      { error: "Girdiğiniz doğrulama kodu hatalı." },
-      { status: 400 }
+      { error: "Geçersiz e-posta adresi veya doğrulama kodu." },
+      { status: 401 }
     );
   }
 
@@ -172,8 +172,8 @@ export async function POST(request: Request) {
 
     if (!user) {
       return NextResponse.json(
-        { error: "Bu e-posta adresine ait bir hesap bulunamadı." },
-        { status: 404 }
+        { error: "Geçersiz e-posta adresi veya doğrulama kodu." },
+        { status: 401 }
       );
     }
 

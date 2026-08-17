@@ -2,7 +2,7 @@ import { Drug } from "@/lib/interactions";
 
 interface LiveSafeStateProps {
   selectedDrugs: Drug[];
-  handleRequestCoverageExplanation: () => void;
+  handleRequestCoverageExplanation: () => Promise<void>;
   isCoverageLoading: boolean;
 }
 

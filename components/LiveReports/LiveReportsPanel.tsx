@@ -6,6 +6,7 @@ import LiveSafeState from "./LiveSafeState";
 import LiveFoodInteractions from "./LiveFoodInteractions";
 import InteractionList from "@/components/InteractionList";
 import CoveragePanel from "@/components/CoveragePanel";
+import { CoverageExplanation } from "@/hooks/useCoverageExplanation";
 
 interface LiveReportsPanelProps {
   selectedDrugs: Drug[];
@@ -16,12 +17,12 @@ interface LiveReportsPanelProps {
   polypharmacyReport: PolypharmacyReport | null;
   foodInteractions: FoodInteractionResult[];
   loadingExplanations: Record<string, boolean>;
-  onExplainRequested: (id: string, force: boolean) => void;
-  handleRequestCoverageExplanation: () => void;
+  onExplainRequested: (interactionId: string, force: boolean) => Promise<void>;
+  handleRequestCoverageExplanation: () => Promise<void>;
   isCoverageLoading: boolean;
   showCoveragePanel: boolean;
   setShowCoveragePanel: (show: boolean) => void;
-  coverageExplanation: string | null;
+  coverageExplanation: CoverageExplanation | null;
 }
 
 export default function LiveReportsPanel({

@@ -1,6 +1,32 @@
-process.env.JWT_SECRET = 'test-secret-key';
+process.env.JWT_SECRET = 'test-secret-key-that-is-at-least-32-chars';
 // tests/auth.test.ts
 import { encryptSession, decryptSession, verifyCSRF, getSession, SessionData } from "../lib/auth";
+
+
+import { getJwtSecret } from "@/lib/auth";
+
+describe("getJwtSecret Configuration Security", () => {
+  const originalEnv = process.env.JWT_SECRET;
+
+  afterAll(() => {
+    process.env.JWT_SECRET = originalEnv;
+  });
+
+  test("throws error when JWT_SECRET is not set", () => {
+    delete process.env.JWT_SECRET;
+    expect(() => getJwtSecret()).toThrow("JWT_SECRET is not set");
+  });
+
+  test("throws error when JWT_SECRET is too short (< 32 chars)", () => {
+    process.env.JWT_SECRET = "too-short";
+    expect(() => getJwtSecret()).toThrow("JWT_SECRET must be at least 32 characters long for security");
+  });
+
+  test("returns secret when JWT_SECRET is 32 or more chars", () => {
+    process.env.JWT_SECRET = "this-is-a-valid-jwt-secret-that-is-at-least-32-chars";
+    expect(getJwtSecret()).toBe(process.env.JWT_SECRET);
+  });
+});
 
 describe("AES-256 Oturum Güvenliği Birim Testleri (Session Cryptography Unit Tests)", () => {
   const testSession: SessionData = {

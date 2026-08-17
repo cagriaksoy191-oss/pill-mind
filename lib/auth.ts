@@ -5,8 +5,9 @@ import { promisify } from "util";
 
 const scryptAsync = promisify(crypto.scrypt);
 
-const getJwtSecret = () => {
+export const getJwtSecret = () => {
   if (!process.env.JWT_SECRET) throw new Error("JWT_SECRET is not set");
+  if (process.env.JWT_SECRET.length < 32) throw new Error("JWT_SECRET must be at least 32 characters long for security");
   return process.env.JWT_SECRET;
 };
 

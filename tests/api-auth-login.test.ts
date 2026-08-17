@@ -1,4 +1,4 @@
-process.env.JWT_SECRET = 'test-secret';
+process.env.JWT_SECRET = 'test-secret-key-that-is-at-least-32-chars';
 import crypto from "crypto";
 import { POST } from "@/app/api/auth/login/route";
 import * as Sentry from "@sentry/nextjs";

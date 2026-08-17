@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-type CoverageExplanation = {
+export type CoverageExplanation = {
   explanation?: string;
   source?: string;
   generatedAt?: string;

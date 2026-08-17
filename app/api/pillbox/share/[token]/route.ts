@@ -1,5 +1,6 @@
 // app/api/pillbox/share/[token]/route.ts
 import { NextRequest, NextResponse } from "next/server";
+import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import {
   findInteractionsDB,
@@ -28,9 +29,11 @@ export async function GET(
       );
     }
 
+    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+
     // Retrieve token details
     const share = await prisma.pillboxShare.findUnique({
-      where: { token },
+      where: { token: hashedToken },
     });
 
     if (!share) {
@@ -81,7 +84,7 @@ export async function GET(
 
     return NextResponse.json({
       success: true,
-      token: share.token,
+      token,
       drugIds: share.drugIds,
       drugs,
       interactions,

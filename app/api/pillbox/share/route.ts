@@ -57,7 +57,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate unique token (secure random hash)
-    const token = crypto.randomBytes(32).toString("hex");
+    const rawToken = crypto.randomBytes(32).toString("hex");
+    const hashedToken = crypto.createHash("sha256").update(rawToken).digest("hex");
 
     // Expires in 24 hours
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
@@ -65,7 +66,7 @@ export async function POST(request: NextRequest) {
     // Save PillboxShare snapshot
     const share = await prisma.pillboxShare.create({
       data: {
-        token,
+        token: hashedToken,
         drugIds,
         summary: stringifiedSummary,
         expiresAt,
@@ -83,8 +84,8 @@ export async function POST(request: NextRequest) {
 
     return jsonNoStore({
       success: true,
-      token: share.token,
-      shareUrl: `/share/${share.token}`,
+      token: rawToken,
+      shareUrl: `/share/${rawToken}`,
       expiresAt: share.expiresAt,
     });
   } catch (error) {

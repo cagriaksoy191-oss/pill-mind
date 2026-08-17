@@ -180,7 +180,7 @@ describe("PillMind 3.0 Enterprise and FHIR API Tests", () => {
 
     it("should generate a 24h expiration token and save to PillboxShare", async () => {
       (getSession as jest.Mock).mockResolvedValue({ userId: "user-1", email: "dr@pillmind.com" });
-      const mockShare = { id: "share-123", token: "mocktoken123", drugIds: ["aspirin", "warfarin"], expiresAt: new Date(Date.now() + 86400000) };
+      const mockShare = { id: "share-123", token: "f615f265e2a1af0faf79a0afbd9e1775eab9aba43ccb9c5be359bc4567862994", drugIds: ["aspirin", "warfarin"], expiresAt: new Date(Date.now() + 86400000) };
       (prisma.pillboxShare.create as jest.Mock).mockResolvedValue(mockShare);
 
       const req = createMockRequest({ drugIds: ["aspirin", "warfarin"], summary: { note: "test" } });
@@ -189,8 +189,10 @@ describe("PillMind 3.0 Enterprise and FHIR API Tests", () => {
 
       const body = await res.json();
       expect(body.success).toBe(true);
-      expect(body.token).toBe("mocktoken123");
-      expect(body.shareUrl).toBe("/share/mocktoken123");
+      // For the enterprise test, since we don't mock crypto here, the returned token will be random bytes.
+      expect(body.token).toBeDefined();
+      expect(body.shareUrl).toBeDefined();
+      expect(body.shareUrl).toContain("/share/");
       expect(prisma.pillboxShare.create).toHaveBeenCalled();
       expect(writeAuditLog).toHaveBeenCalledWith(expect.objectContaining({
         eventType: "SHARE_CREATED",
@@ -216,7 +218,7 @@ describe("PillMind 3.0 Enterprise and FHIR API Tests", () => {
 
     it("should return 410 Gone if the share token has expired", async () => {
       const mockExpiredShare = {
-        token: "expired123",
+        token: "92da5359b7aa17ad707d6b68c0dfbdec2b4a42a8ce2c3318f897438470b3325f",
         drugIds: ["aspirin"],
         expiresAt: new Date(Date.now() - 10000), // 10s ago
       };
@@ -233,7 +235,7 @@ describe("PillMind 3.0 Enterprise and FHIR API Tests", () => {
         { id: "warfarin", name: "Warfarin" },
       ]);
       const mockValidShare = {
-        token: "valid123",
+        token: "54b4b82acae316adc3f4d19bd7077bcedd66aeff3c61fd13d719e6f535550678",
         drugIds: ["aspirin", "warfarin"],
         expiresAt: new Date(Date.now() + 100000),
         createdAt: new Date(),

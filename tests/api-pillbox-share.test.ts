@@ -24,6 +24,7 @@ jest.mock("@/lib/audit", () => ({
 }));
 
 jest.mock("crypto", () => ({
+  ...jest.requireActual("crypto"),
   randomBytes: jest.fn(),
 }));
 
@@ -118,14 +119,15 @@ describe("POST /api/pillbox/share", () => {
     (verifyCSRF as jest.Mock).mockReturnValue(true);
     (getSession as jest.Mock).mockResolvedValue({ userId: "user-1", email: "test@test.com" });
 
-    const mockToken = "mocked-token-hash";
+    const mockRawToken = "mocked-raw-token";
+    const mockHashedToken = crypto.createHash("sha256").update(mockRawToken).digest("hex");
     (crypto.randomBytes as jest.Mock).mockReturnValue({
-      toString: () => mockToken,
+      toString: () => mockRawToken,
     });
 
     const mockCreatedShare = {
       id: "share-1",
-      token: mockToken,
+      token: mockHashedToken,
       drugIds: ["drug-1", "drug-2"],
       expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
     };
@@ -137,14 +139,14 @@ describe("POST /api/pillbox/share", () => {
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data.success).toBe(true);
-    expect(data.token).toBe(mockToken);
-    expect(data.shareUrl).toBe(`/share/${mockToken}`);
+    expect(data.token).toBe(mockRawToken);
+    expect(data.shareUrl).toBe(`/share/${mockRawToken}`);
     expect(data.expiresAt).toBeDefined();
 
     expect(prisma.pillboxShare.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          token: mockToken,
+          token: mockHashedToken,
           drugIds: ["drug-1", "drug-2"],
           summary: JSON.stringify({ note: "test" }),
         })

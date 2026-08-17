@@ -8,9 +8,8 @@ import VirtualPillbox from "@/components/VirtualPillbox";
 import Disclaimer from "@/components/Disclaimer";
 import StatusHeader from "@/components/StatusHeader";
 import MedicalReport from "@/components/MedicalReport";
-import InteractionList from "@/components/InteractionList";
-import CoveragePanel from "@/components/CoveragePanel";
 import PatientProfileBar, { PatientContext } from "@/components/PatientProfileBar";
+import LiveReportsPanel from "@/components/LiveReports/LiveReportsPanel";
 
 export default function KontrolPage() {
   const [drugs] = useState<Drug[]>(() => getAllDrugs());
@@ -226,227 +225,23 @@ export default function KontrolPage() {
               </div>
             ) : (
               <div className="flex flex-col gap-4">
-                {/* 1. Contraindications (Tıbbi Uyumsuzluk) Uyarıları */}
-                {contraindications.length > 0 && (
-                  <div className="flex flex-col gap-3 mb-2 animate-slide-down">
-                    {contraindications.map((contra, idx) => (
-                      <div
-                        key={idx}
-                        className="backdrop-blur-xl border border-red-500/30 bg-red-500/10 text-red-200 rounded-2xl p-4 shadow-lg flex gap-3 items-start"
-                      >
-                        <span className="text-xl shrink-0 mt-0.5">❌</span>
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between gap-2">
-                            <h4 className="font-extrabold text-[10px] uppercase tracking-wider text-white">
-                              Tıbbi Uyumsuzluk (Kontrendikasyon)
-                            </h4>
-                            <span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded-full bg-red-500/20 text-red-300 border border-red-500/30 shrink-0">
-                              Kritik Uyarısı
-                            </span>
-                          </div>
-                          <p className="text-xs font-bold mt-1.5 text-white">
-                            {contra.drugName} &amp; {contra.diseaseName || contra.diseaseIcd || "Klinik Profil"} Uyuşmazlığı
-                          </p>
-                          <p className="text-xs mt-1 leading-relaxed text-red-200/90 font-medium">
-                            {contra.message}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* 2. Polifarmasi & Beers Kriteri Göstergesi */}
-                {polypharmacyReport && (polypharmacyReport.score >= 4 || polypharmacyReport.beersWarnings.length > 0) && (
-                  <div className="backdrop-blur-xl bg-amber-500/5 border border-amber-500/20 rounded-2xl p-4 shadow-lg flex flex-col gap-2.5 mb-2 animate-slide-down">
-                    <div className="flex items-start gap-3">
-                      <span className="text-xl shrink-0 mt-0.5">📊</span>
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between">
-                          <h4 className="font-extrabold text-xs uppercase tracking-wider text-amber-500">
-                            Çoklu İlaç ve Beers Analizi
-                          </h4>
-                          <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30`}>
-                            {polypharmacyReport.level === "high" ? "Yüksek Risk" : "Orta Risk"}
-                          </span>
-                        </div>
-                        <p className="text-xs mt-1.5 leading-relaxed text-amber-200 dark:text-amber-200/95 font-medium">
-                          {polypharmacyReport.message}
-                        </p>
-                      </div>
-                    </div>
-                    
-                    {polypharmacyReport.beersWarnings.length > 0 && (
-                      <div className="border-t border-amber-500/10 pt-2 flex flex-col gap-1.5">
-                        {polypharmacyReport.beersWarnings.map((warn: string, idx: number) => (
-                          <div key={idx} className="flex items-start gap-2 text-[11px] text-amber-200/80 leading-relaxed font-bold">
-                            <span className="shrink-0 text-xs">👴</span>
-                            <div>{warn}</div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Accumulation & Overdose Warnings */}
-                {accumulationWarnings.length > 0 && (
-                  <div className="flex flex-col gap-3 mb-2 animate-slide-down">
-                    {accumulationWarnings.map((warning, index) => {
-                      const isHigh = warning.severity === "high";
-                      const cardBg = isHigh
-                        ? "bg-red-500/10 border-red-500/30 text-red-200"
-                        : "bg-amber-500/10 border-amber-500/30 text-amber-200";
-                      const icon = isHigh ? "🚨" : "⚠️";
-                      const title = isHigh ? "Aşırı Doz / Çift İlaç Çakışması" : "Farmakolojik Sınıf Birikimi";
-                      
-                      return (
-                        <div
-                          key={index}
-                          className={`backdrop-blur-xl border rounded-2xl p-4 shadow-lg flex gap-3 items-start ${cardBg}`}
-                        >
-                          <span className="text-xl shrink-0 mt-0.5">{icon}</span>
-                          <div className="flex-1">
-                            <div className="flex items-center justify-between">
-                              <h4 className="font-extrabold text-xs uppercase tracking-wider text-white">
-                                {title}
-                              </h4>
-                              <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full ${
-                                isHigh 
-                                  ? "bg-red-500/20 text-red-300 border border-red-500/30" 
-                                  : "bg-amber-500/20 text-amber-300 border border-amber-500/30"
-                              }`}>
-                                {isHigh ? "Yüksek Risk" : "Orta Risk"}
-                              </span>
-                            </div>
-                            <p className="text-xs font-semibold mt-1.5 leading-relaxed">
-                              {warning.message}
-                            </p>
-                            {warning.detail && (
-                              <p className="text-[11px] text-slate-400 mt-1">
-                                {warning.detail}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {interactions.length === 0 ? (
-                  /* Reassuring Emerald Green Safe State (Clean check, no interactions) */
-                  <div className="flex flex-col gap-6">
-                    <div
-                      className="backdrop-blur-xl bg-emerald-500/5 border border-emerald-500/20 dark:border-emerald-500/20 rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden"
-                      style={{ boxShadow: "inset 0 1px 0 0 rgba(255, 255, 255, 0.05)" }}
-                    >
-                      <div className="absolute top-0 right-0 p-16 bg-gradient-to-bl from-emerald-500/10 to-transparent rounded-full pointer-events-none" />
-
-                      <div className="flex items-start gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-2xl shrink-0">
-                          💚
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 tracking-wider uppercase bg-emerald-500/10 border border-emerald-500/20 rounded px-2 py-0.5 inline-block mb-2.5">
-                            Kayıtlı Veri Setinde Bilinen Etkileşim Saptanmadı (Klinik Temiz Rapor)
-                          </div>
-                          <h4 className="font-bold text-slate-800 dark:text-white text-base sm:text-lg">Kayıtlı veri setinde bilinen etkileşim saptanmadı</h4>
-                          <p className="text-xs text-emerald-800/80 dark:text-emerald-300/80 mt-1.5 leading-relaxed font-medium">
-                            Mevcut doğrulanmış veri setinde eklediğiniz ilaçlar (<span className="text-slate-900 dark:text-white">{selectedDrugs.map(d => d.name).join(", ")}</span>) arasında eşleşme bulunmamaktadır, tedavinizi değiştirmeden önce mutlaka hekiminize danışın.
-                          </p>
-                          <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-3 font-semibold border-t border-emerald-500/10 pt-2">
-                            ⚠️ **Önemli Uyarı:** Hekime göstermek için rapor oluştururken veya raporu hekiminizle paylaşırken kesinlikle tedavinizi/dozunuzu değiştirmeyin.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* AI general coverage deep-dive assistant button */}
-                    <div className="backdrop-blur-md bg-white/40 dark:bg-white/5 border border-slate-200/50 dark:border-white/10 rounded-3xl p-6 text-center">
-                      <span className="text-2xl mb-2 inline-block">🤖</span>
-                      <h4 className="font-bold text-slate-800 dark:text-white text-sm">Yapay Zeka ile Kombinasyon Analizi</h4>
-                      <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-1.5 leading-relaxed max-w-xs mx-auto">
-                        Kayıtlı veri tabanında bulunmasa dahi bu kombinasyonun olası etkilerini Google Gemini Canlı AI katmanından sorgulayın.
-                      </p>
-                      <button
-                        onClick={handleRequestCoverageExplanation}
-                        disabled={isCoverageLoading}
-                        className="mt-4 w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-xs rounded-xl shadow-lg hover:shadow-indigo-500/20 transition-all duration-200 cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
-                      >
-                        {isCoverageLoading ? (
-                          <>
-                            <svg className="animate-spin h-4 w-4 text-white" viewBox="0 0 24 24" fill="none">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                            </svg>
-                            Analiz Hazırlanıyor...
-                          </>
-                        ) : (
-                          "Canlı AI Kombinasyon Analizini Başlat"
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  /* Risky Interactions Listed State */
-                  <InteractionList
-                    interactions={interactions}
-                    explanations={explanations}
-                    loadingExplanations={loadingExplanations}
-                    onExplainRequested={handleExplainRequested}
-                    handleRequestCoverageExplanation={handleRequestCoverageExplanation}
-                    isCoverageLoading={isCoverageLoading}
-                  />
-                )}
-
-                {/* 3. Gıda ve Besin Etkileşim Uyarıları */}
-                {foodInteractions.length > 0 && (
-                  <div className="backdrop-blur-xl bg-slate-900/40 dark:bg-white/5 border border-slate-200/60 dark:border-white/10 rounded-3xl p-6 shadow-2xl animate-slide-down flex flex-col gap-4 mt-2">
-                    <h4 className="text-sm font-extrabold text-slate-950 dark:text-white flex items-center gap-2">
-                      🥗 Gıda ve Besin Etkileşim Uyarıları
-                      <span className="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full font-bold">
-                        {foodInteractions.length} Uyarı
-                      </span>
-                    </h4>
-                    
-                    <div className="flex flex-col gap-3">
-                      {foodInteractions.map((fInt, idx) => {
-                        const isHigh = fInt.severity === "high";
-                        const themeClass = isHigh 
-                          ? "bg-red-500/5 dark:bg-red-950/15 border-red-500/20 text-red-800 dark:text-red-200" 
-                          : "bg-amber-500/5 dark:bg-amber-950/15 border-amber-500/20 text-amber-800 dark:text-amber-200";
-                        return (
-                          <div key={idx} className={`p-4 rounded-2xl border ${themeClass} flex gap-3 items-start`}>
-                            <span className="text-lg shrink-0 mt-0.5">{isHigh ? "🍊" : "🥦"}</span>
-                            <div>
-                              <div className="font-extrabold text-xs flex items-center gap-2">
-                                <span className="text-slate-950 dark:text-white">{fInt.drugName}</span>
-                                <span className="opacity-65">&amp;</span>
-                                <span className="text-indigo-600 dark:text-indigo-400">{fInt.substance}</span>
-                              </div>
-                              <p className="text-xs mt-1.5 leading-relaxed font-semibold">
-                                {fInt.effect}
-                              </p>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
+                <LiveReportsPanel
+                  selectedDrugs={selectedDrugs}
+                  interactions={interactions}
+                  explanations={explanations}
+                  accumulationWarnings={accumulationWarnings}
+                  contraindications={contraindications}
+                  polypharmacyReport={polypharmacyReport}
+                  foodInteractions={foodInteractions}
+                  loadingExplanations={loadingExplanations}
+                  onExplainRequested={handleExplainRequested}
+                  handleRequestCoverageExplanation={handleRequestCoverageExplanation}
+                  isCoverageLoading={isCoverageLoading}
+                  showCoveragePanel={showCoveragePanel}
+                  setShowCoveragePanel={setShowCoveragePanel}
+                  coverageExplanation={coverageExplanation}
+                />
               </div>
-            )}
-
-            {/* Global Coverage AI Explanation Display Panel */}
-            <CoveragePanel
-              showCoveragePanel={showCoveragePanel}
-              setShowCoveragePanel={setShowCoveragePanel}
-              isCoverageLoading={isCoverageLoading}
-              coverageExplanation={coverageExplanation}
-              handleRequestCoverageExplanation={handleRequestCoverageExplanation}
-              interactions={interactions}
-            />
 
           </div>
         </section>

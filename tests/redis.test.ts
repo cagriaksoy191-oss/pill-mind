@@ -160,52 +160,82 @@ describe('Redis API Resilience Tests', () => {
     jest.dontMock('../lib/interactions');
   });
 
-  it('should bypass cache and call Gemini in /api/explain when Redis throws a read timeout', async () => {
+  it("should bypass cache and call Gemini in /api/explain when Redis throws a read timeout", async () => {
     // Mock Upstash Redis to throw on get/incr
-    jest.doMock('@upstash/redis', () => {
+    jest.doMock("@upstash/redis", () => {
       return {
         Redis: (jest.fn()).mockImplementation(() => ({
           incr: (jest.fn()).mockResolvedValue(1),
           expire: (jest.fn()).mockResolvedValue(true),
-          get: (jest.fn()).mockRejectedValue(new Error('Redis read timeout')),
-          set: (jest.fn()).mockRejectedValue(new Error('Redis write timeout')),
+          get: (jest.fn()).mockRejectedValue(new Error("Redis read timeout")),
+          set: (jest.fn()).mockRejectedValue(new Error("Redis write timeout")),
         }))
       };
     });
 
     // Mock Gemini call
-    jest.doMock('../lib/gemini', () => ({
+    jest.doMock("../lib/gemini", () => ({
       getInteractionContext: (jest.fn()).mockResolvedValue({
-        interaction: { id: 'test', severity: 'high' },
-        drug1Name: 'Drug A',
-        drug2Name: 'Drug B',
+        interaction: { id: "test", severity: "high" },
+        drug1Name: "Drug A",
+        drug2Name: "Drug B",
       }),
       callGeminiForInteraction: (jest.fn()).mockResolvedValue({
-        explanation: 'Resilient explanation directly from Gemini.',
-        generatedAt: '12:00:00',
+        explanation: "Resilient explanation directly from Gemini.",
+        generatedAt: "12:00:00",
       }),
       shouldUseFallback: (jest.fn()).mockReturnValue(false),
     }));
 
-    const { POST } = await import('../app/api/explain/route');
+    const { POST } = await import("../app/api/explain/route");
 
-    const req = new Request('http://localhost/api/explain', {
-      method: 'POST',
-      body: JSON.stringify({ interactionId: 'test' }),
-      headers: { 'Content-Type': 'application/json' },
+    const req = new Request("http://localhost/api/explain", {
+      method: "POST",
+      body: JSON.stringify({ interactionId: "test" }),
+      headers: { "Content-Type": "application/json" },
     });
 
     const res = await POST(req);
     const data = await res.json();
 
     expect(res.status).toBe(200);
-    expect(data.explanation).toBe('Resilient explanation directly from Gemini.');
+    expect(data.explanation).toBe("Resilient explanation directly from Gemini.");
     expect(consoleWarnSpy).toHaveBeenCalledWith(
-      '[Redis] Cache read error, continuing to live AI:',
+      "[Redis] Cache read error, continuing to live AI:",
       expect.any(Error)
     );
 
-    jest.dontMock('@upstash/redis');
-    jest.dontMock('../lib/gemini');
+    jest.dontMock("@upstash/redis");
+    jest.dontMock("../lib/gemini");
+  });
+
+  it("should log security error when rate limit is exceeded in /api/check", async () => {
+    jest.doMock("@upstash/redis", () => {
+      return {
+        Redis: (jest.fn()).mockImplementation(() => ({
+          incr: (jest.fn()).mockResolvedValue(31),
+          expire: (jest.fn()).mockResolvedValue(true),
+        }))
+      };
+    });
+
+    const { POST } = await import("../app/api/check/route");
+
+    const req = new Request("http://localhost/api/check", {
+      method: "POST",
+      body: JSON.stringify({ drugIds: ["drug-1", "drug-2"] }),
+      headers: { "Content-Type": "application/json", "x-forwarded-for": "127.0.0.1" },
+    });
+
+    const res = await POST(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(429);
+    expect(data.error).toBe("Çok fazla istek gönderildi. Lütfen bir dakika bekleyin.");
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining("[Security Alert] Rate limit exceeded for check endpoint")
+    );
+
+    jest.dontMock("@upstash/redis");
   });
 });

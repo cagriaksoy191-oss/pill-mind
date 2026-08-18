@@ -69,17 +69,14 @@ export async function POST(request: Request) {
       );
     }
 
-    // Kullanıcının kayıtlı olup olmadığını denetle
-    let user = await prisma.user.findUnique({
-      where: { email: email.toLowerCase().trim() },
-    });
+    const formattedEmail = email.toLowerCase().trim();
 
-    if (!user) {
-      // Yeni kullanıcıyı oluştur
-      user = await prisma.user.create({
-        data: { email: email.toLowerCase().trim() },
-      });
-    }
+    // Kullanıcıyı varsa getir, yoksa oluştur (tek atomik sorgu)
+    const user = await prisma.user.upsert({
+      where: { email: formattedEmail },
+      update: {},
+      create: { email: formattedEmail },
+    });
 
     return NextResponse.json({
       success: true,

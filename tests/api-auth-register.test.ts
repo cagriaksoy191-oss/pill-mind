@@ -34,6 +34,7 @@ jest.mock("@/lib/prisma", () => ({
     user: {
       findUnique: jest.fn(),
       create: jest.fn(),
+      upsert: jest.fn(),
     },
   },
 }));
@@ -48,7 +49,6 @@ describe("POST /api/auth/register", () => {
       json: jest.fn().mockResolvedValue(body),
     } as unknown as Request;
   };
-
 
   it("should return 429 if rate limit is exceeded", async () => {
     (redis.incr as jest.Mock).mockResolvedValueOnce(6); // Exceed limit
@@ -67,7 +67,7 @@ describe("POST /api/auth/register", () => {
   });
 
   it("should return 503 if redis.incr throws an error", async () => {
-    const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const consoleWarnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
 
     (redis.incr as jest.Mock).mockRejectedValueOnce(new Error("Redis connection failed"));
 
@@ -82,26 +82,8 @@ describe("POST /api/auth/register", () => {
   });
 
   it("should return 500 if an internal error occurs (e.g., db failure)", async () => {
-
-    // Simulating database error during findUnique
-    (prisma.user.findUnique as jest.Mock).mockRejectedValue(new Error("Database connection failed"));
-
-    const req = createMockRequest({ email: "test@example.com" });
-    const res = await POST(req);
-
-    expect(res.status).toBe(500);
-    const data = await res.json();
-    expect(data.error).toBe("Kayıt sırasında sistemsel bir hata oluştu.");
-    expect(Sentry.captureException).toHaveBeenCalled();
-
-  });
-
-  it("should return 500 if an internal error occurs during user creation", async () => {
-
-    // Simulating no user exists
-    (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
-    // Simulating database error during create
-    (prisma.user.create as jest.Mock).mockRejectedValue(new Error("Database connection failed"));
+    // Simulating database error during upsert
+    (prisma.user.upsert as jest.Mock).mockRejectedValue(new Error("Database connection failed"));
 
     const req = createMockRequest({ email: "test@example.com" });
     const res = await POST(req);
@@ -110,12 +92,10 @@ describe("POST /api/auth/register", () => {
     const data = await res.json();
     expect(data.error).toBe("Kayıt sırasında sistemsel bir hata oluştu.");
     expect(Sentry.captureException).toHaveBeenCalled();
-
   });
 
-  it("should successfully register a new user", async () => {
-    (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
-    (prisma.user.create as jest.Mock).mockResolvedValue({ id: "user-1", email: "test@example.com" });
+  it("should successfully register a new user using upsert", async () => {
+    (prisma.user.upsert as jest.Mock).mockResolvedValue({ id: "user-1", email: "test@example.com" });
 
     const req = createMockRequest({ email: "test@example.com" });
     const res = await POST(req);
@@ -124,18 +104,28 @@ describe("POST /api/auth/register", () => {
     const data = await res.json();
     expect(data.success).toBe(true);
     expect(data.user).toEqual({ id: "user-1", email: "test@example.com" });
+    expect(prisma.user.upsert).toHaveBeenCalledWith({
+      where: { email: "test@example.com" },
+      update: {},
+      create: { email: "test@example.com" },
+    });
   });
 
   it("should return 200 OK and user data if user is already registered", async () => {
-    (prisma.user.findUnique as jest.Mock).mockResolvedValue({ id: "user-1", email: "test@example.com" });
+    (prisma.user.upsert as jest.Mock).mockResolvedValue({ id: "user-1", email: "test@example.com" });
 
-    const req = createMockRequest({ email: "test@example.com" });
+    const req = createMockRequest({ email: "TEST@example.com" });
     const res = await POST(req);
 
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data.success).toBe(true);
     expect(data.user).toEqual({ id: "user-1", email: "test@example.com" });
+    expect(prisma.user.upsert).toHaveBeenCalledWith({
+      where: { email: "test@example.com" },
+      update: {},
+      create: { email: "test@example.com" },
+    });
   });
 
   it("should return 400 if email is invalid", async () => {

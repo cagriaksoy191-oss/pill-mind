@@ -5,6 +5,7 @@ import { verifyCSRF } from "@/lib/auth";
 import { redis } from "@/lib/redis";
 import { getClientIp } from "@/lib/ip";
 import * as Sentry from "@sentry/nextjs";
+import { writeAuditLog } from "@/lib/audit";
 
 
 async function checkRateLimit(request: Request) {
@@ -20,9 +21,11 @@ async function checkRateLimit(request: Request) {
     }
 
     if (currentRequests > 5) {
-      console.warn(
-        `[Security Alert] Rate limit exceeded for register endpoint, IP: ${ip}`
-      );
+      await writeAuditLog({
+        eventType: "RATE_LIMIT_EXCEEDED",
+        entityType: "AUTH_REGISTER",
+        details: `Rate limit exceeded for register endpoint, IP: ${ip}`,
+      });
       return NextResponse.json(
         { error: "Çok fazla kayıt denemesi yapıldı. Lütfen daha sonra tekrar deneyin." },
         { status: 429 }

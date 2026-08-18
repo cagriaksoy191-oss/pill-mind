@@ -2,6 +2,7 @@ import { POST } from "@/app/api/auth/register/route";
 import { prisma } from "@/lib/prisma";
 import { verifyCSRF } from "@/lib/auth";
 import * as Sentry from "@sentry/nextjs";
+import { writeAuditLog } from "@/lib/audit";
 
 import { redis } from "@/lib/redis";
 
@@ -10,6 +11,10 @@ jest.mock("@/lib/redis", () => ({
     incr: jest.fn(),
     expire: jest.fn(),
   },
+}));
+
+jest.mock("@/lib/audit", () => ({
+  writeAuditLog: jest.fn().mockResolvedValue(undefined),
 }));
 
 jest.mock("@/lib/ip", () => ({
@@ -46,8 +51,6 @@ describe("POST /api/auth/register", () => {
 
 
   it("should return 429 if rate limit is exceeded", async () => {
-    const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
-
     (redis.incr as jest.Mock).mockResolvedValueOnce(6); // Exceed limit
 
     const req = createMockRequest({ email: "test@example.com" });
@@ -56,8 +59,11 @@ describe("POST /api/auth/register", () => {
     expect(res.status).toBe(429);
     const data = await res.json();
     expect(data.error).toBe("Çok fazla kayıt denemesi yapıldı. Lütfen daha sonra tekrar deneyin.");
-
-    consoleWarnSpy.mockRestore();
+    expect(writeAuditLog).toHaveBeenCalledWith({
+      eventType: "RATE_LIMIT_EXCEEDED",
+      entityType: "AUTH_REGISTER",
+      details: "Rate limit exceeded for register endpoint, IP: 127.0.0.1",
+    });
   });
 
   it("should return 503 if redis.incr throws an error", async () => {

@@ -105,7 +105,7 @@ async function checkRateLimit(request: Request) {
     }
 
     if (currentRequests > 5) {
-      console.warn(
+      console.error(
         `[Security Alert] Rate limit exceeded for login endpoint, IP: ${ip}`
       );
       return NextResponse.json(

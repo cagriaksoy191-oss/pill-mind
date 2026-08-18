@@ -61,32 +61,73 @@ describe("PillMind 3.0 Clinical Depth & Data Extension Tests", () => {
   });
 
   describe("Polifarmasi ve Beers Kriterleri (Adım 4)", () => {
-    test("Kutuda 4 ilaç olduğunda orta derece polifarmasi skoru dönmeli", () => {
-      const report = checkPolypharmacyAndBeers(["aspirin", "metformin", "enalapril", "omeprazol"]);
-      expect(report.score).toBe(4);
-      expect(report.level).toBe("medium");
-      expect(report.message).toContain("Hafif Polifarmasi");
-    });
+    test.each([
+      {
+        drugs: ["aspirin"],
+        expectedScore: 1,
+        expectedLevel: "low",
+        expectedMsgSubstr: "Güvenli ilaç yükü",
+      },
+      {
+        drugs: ["aspirin", "metformin", "enalapril"],
+        expectedScore: 3,
+        expectedLevel: "low",
+        expectedMsgSubstr: "Güvenli ilaç yükü",
+      },
+      {
+        drugs: ["aspirin", "metformin", "enalapril", "omeprazol"],
+        expectedScore: 4,
+        expectedLevel: "medium",
+        expectedMsgSubstr: "Hafif Polifarmasi",
+      },
+      {
+        drugs: ["aspirin", "metformin", "enalapril", "omeprazol", "metoprolol"],
+        expectedScore: 5,
+        expectedLevel: "medium",
+        expectedMsgSubstr: "Hafif Polifarmasi",
+      },
+      {
+        drugs: ["aspirin", "metformin", "enalapril", "omeprazol", "metoprolol", "amoksisilin"],
+        expectedScore: 6,
+        expectedLevel: "high",
+        expectedMsgSubstr: "Ciddi Polifarmasi",
+      },
+    ])(
+      "farklı ilaç yüklerinde ($expectedScore ilaç) $expectedLevel polifarmasi seviyesi dönmeli",
+      ({ drugs, expectedScore, expectedLevel, expectedMsgSubstr }) => {
+        const report = checkPolypharmacyAndBeers(drugs);
+        expect(report.score).toBe(expectedScore);
+        expect(report.level).toBe(expectedLevel);
+        expect(report.message).toContain(expectedMsgSubstr);
+      }
+    );
 
-    test("Kutuda 6 ilaç olduğunda yüksek derece polifarmasi skoru dönmeli", () => {
-      const report = checkPolypharmacyAndBeers([
-        "aspirin",
-        "metformin",
-        "enalapril",
-        "omeprazol",
-        "metoprolol",
-        "amoksisilin"
-      ]);
-      expect(report.score).toBe(6);
-      expect(report.level).toBe("high");
-      expect(report.message).toContain("Ciddi Polifarmasi");
-    });
-
-    test("65 yaş üstü yaşlı hastada NSAID ilaçlar Beers uyarısı tetiklemeli", () => {
-      const report = checkPolypharmacyAndBeers(["ibuprofen"], { ageGroup: "elderly" });
-      expect(report.beersWarnings.length).toBe(1);
+    test.each([
+      { drug: "aspirin", desc: "NSAID (Aspirin)" },
+      { drug: "ibuprofen", desc: "NSAID (İbuprofen)" },
+      { drug: "diklofenak", desc: "NSAID (Diklofenak)" },
+    ])("65 yaş üstü yaşlı hastada $desc Beers uyarısı tetiklemeli", ({ drug }) => {
+      const report = checkPolypharmacyAndBeers([drug], { ageGroup: "elderly" });
+      expect(report.beersWarnings).toHaveLength(1);
       expect(report.beersWarnings[0]).toContain("Beers Kriteri Uyarısı");
       expect(report.beersWarnings[0]).toContain("gastrointestinal kanama");
+    });
+
+    test("65 yaş üstü ve böbrek yetmezliği riski olan hastada Metformin Beers uyarısı tetiklemeli", () => {
+      const report = checkPolypharmacyAndBeers(["metformin"], { ageGroup: "elderly", renalRisk: true });
+      expect(report.beersWarnings).toHaveLength(1);
+      expect(report.beersWarnings[0]).toContain("laktik asidoz riskini artırdığı için");
+    });
+
+    test("65 yaş üstü olmayan veya böbrek riski taşımayan hastada Beers uyarısı vermemeli", () => {
+      expect(checkPolypharmacyAndBeers(["ibuprofen"]).beersWarnings).toHaveLength(0);
+      expect(checkPolypharmacyAndBeers(["ibuprofen"], { ageGroup: "adult" }).beersWarnings).toHaveLength(0);
+      expect(checkPolypharmacyAndBeers(["metformin"], { ageGroup: "elderly", renalRisk: false }).beersWarnings).toHaveLength(0);
+    });
+
+    test("65 yaş üstü böbrek riski olan hastada hem NSAID hem Metformin kullanıldığında birden fazla Beers uyarısı dönmeli", () => {
+      const report = checkPolypharmacyAndBeers(["aspirin", "metformin"], { ageGroup: "elderly", renalRisk: true });
+      expect(report.beersWarnings).toHaveLength(2);
     });
   });
 

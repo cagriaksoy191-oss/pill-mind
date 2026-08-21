@@ -39,6 +39,7 @@ jest.mock("@/lib/interactions", () => ({
 
 jest.mock("@/lib/prisma", () => ({
   prisma: {
+    $transaction: jest.fn().mockImplementation((promises) => Promise.all(promises)),
     user: {
       findUnique: jest.fn(),
     },

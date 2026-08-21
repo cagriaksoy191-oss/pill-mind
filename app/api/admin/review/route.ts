@@ -78,24 +78,25 @@ async function processReview(
     return { errorResponse: jsonNoStore({ error: "Belirtilen ilaç etkileşimi bulunamadı." }, 404) };
   }
 
-  const updatedInteraction = await prisma.drugInteraction.update({
-    where: { id: interactionId },
-    data: {
-      verificationStatus: uppercaseStatus as Status,
-    },
-  });
-
-  const review = await prisma.clinicalReview.create({
-    data: {
-      entityType: "DrugInteraction",
-      entityId: interactionId,
-      reviewerRole: "CLINICAL_REVIEWER",
-      reviewerId: session.userId,
-      decision: uppercaseStatus,
-      notes: notes || null,
-      evidenceSourceId: evidenceSourceId || null,
-    },
-  });
+  const [updatedInteraction, review] = await prisma.$transaction([
+    prisma.drugInteraction.update({
+      where: { id: interactionId },
+      data: {
+        verificationStatus: uppercaseStatus as Status,
+      },
+    }),
+    prisma.clinicalReview.create({
+      data: {
+        entityType: "DrugInteraction",
+        entityId: interactionId,
+        reviewerRole: "CLINICAL_REVIEWER",
+        reviewerId: session.userId,
+        decision: uppercaseStatus,
+        notes: notes || null,
+        evidenceSourceId: evidenceSourceId || null,
+      },
+    }),
+  ]);
 
   await writeAuditLog({
     eventType: "CLINICAL_REVIEW_UPDATE",

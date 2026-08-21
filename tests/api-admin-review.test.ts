@@ -13,6 +13,7 @@ jest.mock("@/lib/auth", () => ({
 
 jest.mock("@/lib/prisma", () => ({
   prisma: {
+    $transaction: jest.fn().mockImplementation((promises) => Promise.all(promises)),
     user: {
       findUnique: jest.fn(),
     },
@@ -156,6 +157,7 @@ describe("POST /api/admin/review", () => {
     expect(data.interaction).toEqual(mockUpdatedInteraction);
     expect(data.review).toEqual(mockReview);
 
+    expect(prisma.$transaction).toHaveBeenCalled();
     expect(prisma.drugInteraction.update).toHaveBeenCalledWith({
       where: { id: "interaction-1" },
       data: { verificationStatus: "VERIFIED" }

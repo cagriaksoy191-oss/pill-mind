@@ -97,6 +97,19 @@ describe("POST /api/auth/login", () => {
     expect(data.error).toBe("Girdiğiniz doğrulama kodunun süresi dolmuş.");
   });
 
+  it("should return 400 if OTP token expiry format is non-numeric or invalid", async () => {
+    const req = createMockRequest({
+      email: "test@example.com",
+      otp: "123456",
+      otpToken: "1000abc:invalidhash"
+    });
+    const res = await POST(req);
+
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.error).toBe("Geçersiz veya bozuk OTP doğrulama bileti.");
+  });
+
   it("should return 400 if OTP is incorrect", async () => {
     const expires = Date.now() + 300000;
     const hash = crypto.createHmac('sha256', process.env.JWT_SECRET!).update(`test@example.com:123456:${expires}`).digest('hex');

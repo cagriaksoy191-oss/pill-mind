@@ -31,7 +31,7 @@ function generateOtpResponse(cleanEmail: string) {
 
 function verifyOtp(cleanEmail: string, otp: string, otpToken: string): NextResponse | null {
   const [expiresStr, expectedHash] = otpToken.split(':');
-  if (!expiresStr || !expectedHash) {
+  if (!expiresStr || !expectedHash || !/^\d+$/.test(expiresStr)) {
     return NextResponse.json(
       { error: "Geçersiz veya bozuk OTP doğrulama bileti." },
       { status: 400 }

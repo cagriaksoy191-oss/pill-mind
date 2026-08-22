@@ -432,12 +432,11 @@ export async function POST(request: Request) {
 
     // 3. Fallback Check (Demo Mode / API Key Availability)
     if (shouldUseFallback()) {
-      const reason = process.env.GOOGLE_API_KEY ? "demo_mode" : "missing_api_key";
       return jsonNoStore(
         {
           error: "Canlı AI açıklaması şu anda kullanılamıyor.",
           source: "error" as const,
-          reason,
+          reason: "demo_mode",
           disclaimer: DISCLAIMER,
         },
         503

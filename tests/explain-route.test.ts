@@ -423,7 +423,36 @@ describe("POST /api/explain", () => {
     expect(data).toEqual({ error: "drugIds 2 ila 10 adet geçerli kimlik içeren bir dizi olmalıdır." });
   });
 
+  it("should return 503 with reason demo_mode when shouldUseFallback is true, regardless of GOOGLE_API_KEY", async () => {
+    (shouldUseFallback as jest.Mock).mockReturnValue(true);
 
+    const originalKey = process.env.GOOGLE_API_KEY;
+    try {
+      process.env.GOOGLE_API_KEY = "mock_key";
+      const req1 = new Request("http://localhost/api/explain", {
+        method: "POST",
+        body: JSON.stringify({ interactionId: "test-interaction" }),
+        headers: { "Content-Type": "application/json" }
+      });
+      const res1 = await POST(req1);
+      const data1 = await res1.json();
+      expect(res1.status).toBe(503);
+      expect(data1.reason).toBe("demo_mode");
+
+      delete process.env.GOOGLE_API_KEY;
+      const req2 = new Request("http://localhost/api/explain", {
+        method: "POST",
+        body: JSON.stringify({ interactionId: "test-interaction" }),
+        headers: { "Content-Type": "application/json" }
+      });
+      const res2 = await POST(req2);
+      const data2 = await res2.json();
+      expect(res2.status).toBe(503);
+      expect(data2.reason).toBe("demo_mode");
+    } finally {
+      process.env.GOOGLE_API_KEY = originalKey;
+    }
+  });
 
   it("should handle valid interactionId with stream=true", async () => {
     (getInteractionContext as jest.Mock).mockResolvedValue({

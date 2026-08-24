@@ -54,13 +54,26 @@ describe("setCachedExplanation", () => {
     jest.clearAllMocks();
   });
 
-  it("should catch and log error without throwing when redis.set fails", async () => {
-    const fakeError = new Error("Redis write error");
-    (redis!.set as jest.Mock).mockRejectedValueOnce(fakeError);
-
+  it.each([
+    {
+      description: "successfully writes to redis cache",
+      mockBehavior: () => (redis!.set as jest.Mock).mockResolvedValueOnce("OK"),
+      expectedWarn: false,
+    },
+    {
+      description: "catches and logs error without throwing when redis.set fails",
+      mockBehavior: () => (redis!.set as jest.Mock).mockRejectedValueOnce(new Error("Redis write error")),
+      expectedWarn: true,
+    },
+  ])("handles cache write scenario: $description", async ({ mockBehavior, expectedWarn }) => {
+    mockBehavior();
     const dummyData = { explanation: "test", generatedAt: "now" };
     await expect(setCachedExplanation("test-key", dummyData)).resolves.toBeUndefined();
-    expect(consoleWarnSpy).toHaveBeenCalledWith("[Redis] Cache write error:", fakeError);
+    if (expectedWarn) {
+      expect(consoleWarnSpy).toHaveBeenCalledWith("[Redis] Cache write error:", expect.any(Error));
+    } else {
+      expect(consoleWarnSpy).not.toHaveBeenCalled();
+    }
   });
 });
 
@@ -68,7 +81,6 @@ describe("POST /api/explain", () => {
   let consoleWarnSpy: jest.SpyInstance;
   let consoleInfoSpy: jest.SpyInstance;
   let consoleErrorSpy: jest.SpyInstance;
-  let sentryCaptureExceptionSpy: jest.SpyInstance;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -190,6 +202,47 @@ describe("POST /api/explain", () => {
         yasakliEylemKontrolu: undefined
       },
       { ex: 604800 }
+    );
+  });
+
+  it("should continue normally and log a warning when setCachedExplanation (redis.set) fails during live AI execution", async () => {
+    (redis!.get as jest.Mock).mockResolvedValueOnce(null);
+    const fakeCacheWriteError = new Error("Redis set connection error");
+    (redis!.set as jest.Mock).mockRejectedValueOnce(fakeCacheWriteError);
+
+    (getInteractionContext as jest.Mock).mockResolvedValueOnce({
+      interaction: { id: "test-interaction", severity: "low" },
+      drug1Name: "DrugA",
+      drug2Name: "DrugB",
+      drug1Ingredient: "IngA",
+      drug2Ingredient: "IngB"
+    });
+
+    (callGeminiForInteraction as jest.Mock).mockResolvedValueOnce({
+      explanation: "Live AI interaction response despite cache set failure.",
+      generatedAt: "2024-05-20T12:00:00.000Z"
+    });
+
+    const req = new Request("http://localhost/api/explain", {
+      method: "POST",
+      body: JSON.stringify({ interactionId: "test-interaction" }),
+      headers: { "Content-Type": "application/json" }
+    });
+
+    const res = await POST(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(data).toEqual({
+      explanation: "Live AI interaction response despite cache set failure.",
+      generatedAt: "2024-05-20T12:00:00.000Z",
+      source: "gemini_live",
+      disclaimer: "Bu açıklama bilgilendirme amaçlıdır ve tıbbi tavsiye niteliği taşımaz.",
+    });
+
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      "[Redis] Cache write error:",
+      fakeCacheWriteError
     );
   });
 

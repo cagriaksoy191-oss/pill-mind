@@ -2,6 +2,7 @@
 
 import AuthModal from "./AuthModal";
 import SavePillboxModal from "./SavePillboxModal";
+import UserDropdown from "./UserPanelSections/UserDropdown";
 import { useUserPanel } from "@/hooks/useUserPanel";
 
 interface UserPanelProps {
@@ -60,74 +61,16 @@ export default function UserPanel({
           )}
 
           {/* Profil Butonu ve Dropdown */}
-          <div className="relative">
-            <button
-              onClick={() => setShowDropdown(!showDropdown)}
-              className="flex items-center gap-2 text-xs font-bold text-slate-300 hover:text-white bg-white/5 hover:bg-white/10 px-3.5 py-2 rounded-xl border border-white/5 hover:border-white/10 transition-all duration-200 cursor-pointer"
-            >
-              👤 {user.email.split("@")[0]}
-              <span className="text-[10px] opacity-60">▼</span>
-            </button>
-
-            {showDropdown && (
-              <div className="absolute right-0 mt-2 w-72 backdrop-blur-2xl bg-slate-900/95 border border-white/10 rounded-2xl p-4 shadow-2xl z-50 animate-slide-down">
-                <div className="pb-3 border-b border-white/5">
-                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Aktif Oturum</p>
-                  <p className="text-xs font-semibold text-white truncate mt-0.5">{user.email}</p>
-                </div>
-
-                <div className="py-3">
-                  <h4 className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-2">💾 Kayıtlı Kutularım</h4>
-
-                  {listBoxesLoading ? (
-                    <div className="py-3 text-center text-xs text-slate-500">Yükleniyor...</div>
-                  ) : savedBoxes.length === 0 ? (
-                    <p className="text-[11px] text-slate-500 italic py-2">Bulutta kayıtlı kutunuz bulunmuyor.</p>
-                  ) : (
-                    <ul className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                      {savedBoxes.map((box) => (
-                        <li
-                          key={box.id}
-                          className="flex items-center justify-between p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 transition-all text-left"
-                        >
-                          <div className="min-w-0 flex-1 pr-2">
-                            <p className="text-xs font-bold text-white truncate">{box.name}</p>
-                            <p className="text-[9px] text-slate-400 mt-0.5">{box.drugIds.length} İlaç • {new Date(box.createdAt).toLocaleDateString("tr-TR")}</p>
-                          </div>
-
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            <button
-                              onClick={() => {
-                                onLoadPillbox(box.drugIds);
-                                setShowDropdown(false);
-                              }}
-                              className="px-2 py-1 bg-indigo-500/20 hover:bg-indigo-500 text-indigo-300 hover:text-white font-bold text-[10px] rounded-lg transition-colors cursor-pointer"
-                            >
-                              Yükle
-                            </button>
-                            <button
-                              onClick={() => handleDeleteBox(box.id)}
-                              className="p-1 text-slate-500 hover:text-red-400 text-xs transition-colors cursor-pointer"
-                              title="Sil"
-                            >
-                              ✕
-                            </button>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-
-                <button
-                  onClick={handleLogout}
-                  className="w-full mt-2 py-2 bg-red-500/10 hover:bg-red-500 text-red-300 hover:text-white font-bold text-xs rounded-xl border border-red-500/20 hover:border-red-500 transition-colors cursor-pointer"
-                >
-                  🚪 Çıkış Yap
-                </button>
-              </div>
-            )}
-          </div>
+          <UserDropdown
+            user={user}
+            showDropdown={showDropdown}
+            setShowDropdown={setShowDropdown}
+            savedBoxes={savedBoxes}
+            listBoxesLoading={listBoxesLoading}
+            onLoadPillbox={onLoadPillbox}
+            onDeleteBox={handleDeleteBox}
+            onLogout={handleLogout}
+          />
         </div>
       )}
 

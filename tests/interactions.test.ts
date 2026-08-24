@@ -1004,10 +1004,43 @@ describe("checkAccumulationDB", () => {
 
     const result = await checkAccumulationDB(["aspirin", "ibuprofen"]);
 
-    // checkAccumulation from local mock data should return active ingredient warning for parol/minoset
     expect(result.length).toBeGreaterThan(0);
     expect(result[0].type).toBe("pharmacological_group");
     expect(consoleSpy).toHaveBeenCalledWith("[Accumulation DB] Hata, lokale düşülüyor:", dbError);
+
+    consoleSpy.mockRestore();
+  });
+
+  it("should catch try/catch errors from Prisma when resolveDrugsDB throws and fallback to local checkAccumulation", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { prisma } = require("@/lib/prisma");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { checkAccumulationDB } = require("../lib/interactions");
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const prismaError = new Error("Prisma connection failure");
+    prisma.drug.findMany.mockRejectedValue(prismaError);
+
+    const result = await checkAccumulationDB(["ibuprofen", "diklofenak"]);
+
+    expect(consoleSpy).toHaveBeenCalledWith("[Accumulation DB] Hata, lokale düşülüyor:", prismaError);
+    expect(result).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: "pharmacological_group" })
+    ]));
+
+    consoleSpy.mockRestore();
+  });
+
+  it("should handle error in checkAccumulationDB when unhandled exception occurs with invalid cache structure", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { checkAccumulationDB } = require("../lib/interactions");
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    // Pass invalid items in cache that throw during loop property access
+    const invalidCache = [null, undefined] as any;
+    const result = await checkAccumulationDB(["aspirin", "ibuprofen"], invalidCache);
+
+    expect(consoleSpy).toHaveBeenCalled();
+    expect(Array.isArray(result)).toBe(true);
 
     consoleSpy.mockRestore();
   });

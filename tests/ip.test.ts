@@ -75,4 +75,14 @@ describe("getClientIp", () => {
     req.ip = "8.8.8.8";
     expect(getClientIp(req)).toBe("8.8.8.8");
   });
+
+  it("should handle empty or whitespace-only platform headers gracefully by falling back to 127.0.0.1", () => {
+    process.env.VERCEL = "1";
+    const req = new Request("http://localhost", {
+      headers: {
+        "x-vercel-forwarded-for": "   ",
+      },
+    });
+    expect(getClientIp(req)).toBe("127.0.0.1");
+  });
 });

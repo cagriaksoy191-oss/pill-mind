@@ -112,24 +112,30 @@ const normalizedCache = new WeakMap<
   { name: string; activeIngredient: string; category: string }
 >();
 
-export function fuzzySearchDrugs<
+const arrayNormalizedCache = new WeakMap<
+  object,
+  { name: string; activeIngredient: string; category: string }[]
+>();
+
+interface NormalizedItem {
+  name: string;
+  activeIngredient: string;
+  category: string;
+}
+
+function getNormalizedItems<
   T extends { name: string; activeIngredient: string; category?: string },
->(query: string, items: T[]): FuzzyResult<T>[] {
-  const q = normalizeTurkish(query);
-  if (!q) {
-    const len = items.length;
-    const results = new Array(len);
-    for (let i = 0; i < len; i++) {
-      results[i] = { item: items[i], score: 0 };
-    }
-    return results;
+>(items: T[]): NormalizedItem[] {
+  let cachedArray = arrayNormalizedCache.get(items);
+  if (cachedArray && cachedArray.length === items.length) {
+    return cachedArray;
   }
 
-  const results: FuzzyResult<T>[] = [];
-
-  for (const item of items) {
+  const len = items.length;
+  cachedArray = new Array<NormalizedItem>(len);
+  for (let i = 0; i < len; i++) {
+    const item = items[i];
     let normalized = normalizedCache.get(item);
-
     if (!normalized) {
       normalized = {
         name: normalizeTurkish(item.name),
@@ -138,6 +144,30 @@ export function fuzzySearchDrugs<
       };
       normalizedCache.set(item, normalized);
     }
+    cachedArray[i] = normalized;
+  }
+  arrayNormalizedCache.set(items, cachedArray);
+  return cachedArray;
+}
+
+export function fuzzySearchDrugs<
+  T extends { name: string; activeIngredient: string; category?: string },
+>(query: string, items: T[]): FuzzyResult<T>[] {
+  const q = normalizeTurkish(query);
+  const len = items.length;
+  if (!q) {
+    const results: FuzzyResult<T>[] = new Array(len);
+    for (let i = 0; i < len; i++) {
+      results[i] = { item: items[i], score: 0 };
+    }
+    return results;
+  }
+
+  const normalizedItems = getNormalizedItems(items);
+  const results: FuzzyResult<T>[] = [];
+
+  for (let i = 0; i < len; i++) {
+    const normalized = normalizedItems[i];
 
     const nameScore = calculateScore(q, normalized.name) * 1.5; // brand name has priority
     const ingredientScore = calculateScore(q, normalized.activeIngredient);
@@ -148,7 +178,7 @@ export function fuzzySearchDrugs<
     const bestScore = Math.max(nameScore, ingredientScore, categoryScore);
 
     if (bestScore > 0) {
-      results.push({ item, score: bestScore });
+      results.push({ item: items[i], score: bestScore });
     }
   }
 

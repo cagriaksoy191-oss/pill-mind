@@ -3,32 +3,33 @@ import * as Sentry from "@sentry/nextjs";
 
 const EMAIL_REGEX = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
 
-function scrubPIIData(value: unknown): unknown {
+function scrubPIIData<T>(value: T): T {
   if (!value) return value;
   if (typeof value === "string") {
     return value
       .replace(EMAIL_REGEX, "[REDACTED]")
       .replace(/(session=)[a-zA-Z0-9%._:+-]+/gi, "$1[REDACTED]")
-      .replace(/[a-f0-9]{24,}:[a-f0-9]{32,}:[a-f0-9]{32,}/gi, "[REDACTED]");
+      .replace(/[a-f0-9]{24,}:[a-f0-9]{32,}:[a-f0-9]{32,}/gi, "[REDACTED]") as unknown as T;
   }
   if (Array.isArray(value)) {
-    return value.map(scrubPIIData);
+    return value.map((item) => scrubPIIData(item)) as unknown as T;
   }
   if (typeof value === "object") {
     const copy: Record<string, unknown> = {};
-    for (const key in value) {
-      if (Object.prototype.hasOwnProperty.call(value, key)) {
+    const obj = value as Record<string, unknown>;
+    for (const key in obj) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
         const lowerKey = key.toLowerCase();
         if (lowerKey === "email" || lowerKey === "cookie" || lowerKey === "authorization") {
           copy[key] = "[REDACTED]";
         } else if (lowerKey === "drugids" || lowerKey === "selecteddrugs" || lowerKey === "drugs") {
           copy[key] = "[REDACTED]";
         } else {
-          copy[key] = scrubPIIData((value as Record<string, unknown>)[key]);
+          copy[key] = scrubPIIData(obj[key]);
         }
       }
     }
-    return copy;
+    return copy as unknown as T;
   }
   return value;
 }
@@ -104,7 +105,7 @@ Sentry.init({
             .replace(/("drugIds"\s*:\s*\[)[^\]]*(\])/gi, "$1\"[REDACTED]\"$2");
         }
         if (breadcrumb.data) {
-          breadcrumb.data = scrubPIIData(breadcrumb.data) as Record<string, unknown> | undefined;
+          breadcrumb.data = scrubPIIData(breadcrumb.data);
         }
       }
     }

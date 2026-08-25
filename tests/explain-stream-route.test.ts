@@ -2,6 +2,10 @@ import { POST } from "../app/api/explain/route";
 import { redis } from "@/lib/redis";
 import * as gemini from "@/lib/gemini";
 
+jest.mock("@/lib/auth", () => ({
+  verifyCSRF: jest.fn().mockReturnValue(true),
+}));
+
 jest.mock("@/lib/redis", () => ({
   redis: {
     get: jest.fn(),

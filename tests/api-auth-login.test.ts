@@ -3,13 +3,20 @@ import crypto from "crypto";
 import { POST } from "@/app/api/auth/login/route";
 import * as Sentry from "@sentry/nextjs";
 import { prisma } from "@/lib/prisma";
-import { redis } from "@/lib/redis";
 
+
+const mockExec = jest.fn();
 
 jest.mock("@/lib/redis", () => ({
   redis: {
+    pipeline: jest.fn(() => ({
+      incr: jest.fn(),
+      expire: jest.fn(),
+      exec: (...args: unknown[]) => mockExec(...args),
+    })),
     incr: jest.fn(),
     expire: jest.fn(),
+    get: jest.fn(),
   },
 }));
 
@@ -34,6 +41,7 @@ jest.mock("@/lib/prisma", () => ({
 describe("POST /api/auth/login", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockExec.mockResolvedValue([1, 1]);
   });
 
   const createMockRequest = (body: Record<string, unknown>) => {
@@ -46,7 +54,7 @@ describe("POST /api/auth/login", () => {
   it("should return 429 if rate limit is exceeded", async () => {
     const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
 
-    (redis.incr as jest.Mock).mockResolvedValueOnce(6); // Exceed limit
+    mockExec.mockResolvedValueOnce([6, 1]); // Exceed limit
 
     const req = createMockRequest({ email: "test@example.com" });
     const res = await POST(req);
@@ -61,7 +69,7 @@ describe("POST /api/auth/login", () => {
   it("should return 503 if redis.incr throws an error", async () => {
     const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
 
-    (redis.incr as jest.Mock).mockRejectedValueOnce(new Error("Redis connection failed"));
+    mockExec.mockRejectedValueOnce(new Error("Redis connection failed"));
 
     const req = createMockRequest({ email: "test@example.com" });
     const res = await POST(req);

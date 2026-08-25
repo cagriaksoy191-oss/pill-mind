@@ -99,10 +99,10 @@ async function checkRateLimit(request: Request) {
     const ip = getClientIp(request);
     const rateLimitKey = `ratelimit:login:${ip}`;
 
-    const currentRequests = await redis.incr(rateLimitKey);
-    if (currentRequests === 1) {
-      await redis.expire(rateLimitKey, 60 * 5); // 5 minutes window
-    }
+    const pipeline = redis.pipeline();
+    pipeline.incr(rateLimitKey);
+    pipeline.expire(rateLimitKey, 60 * 5, "nx"); // 5 minutes window
+    const [currentRequests] = await pipeline.exec<[number, number]>();
 
     if (currentRequests > 5) {
       console.error(

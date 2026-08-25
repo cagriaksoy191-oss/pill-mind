@@ -32,7 +32,6 @@ describe("Performance Optimization", () => {
     await findFoodInteractionsDB(drugIds, resolvedCache);
     await findContraindicationsDB(drugIds, { age: 65, diseases: ["hypertension"] }, resolvedCache);
 
-    console.log("Number of drug.findMany calls:", mockFindMany.mock.calls.length);
     expect(mockFindMany.mock.calls.length).toBe(1);
   });
 });

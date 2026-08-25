@@ -104,7 +104,7 @@ Sentry.init({
             .replace(/("drugIds"\s*:\s*\[)[^\]]*(\])/gi, "$1\"[REDACTED]\"$2");
         }
         if (breadcrumb.data) {
-          breadcrumb.data = scrubPIIData(breadcrumb.data) as { [key: string]: any } | undefined;
+          breadcrumb.data = scrubPIIData(breadcrumb.data) as Record<string, unknown> | undefined;
         }
       }
     }

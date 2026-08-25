@@ -3,7 +3,7 @@ import * as Sentry from "@sentry/nextjs";
 
 const EMAIL_REGEX = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
 
-function scrubPIIData(value: any): any {
+function scrubPIIData(value: unknown): unknown {
   if (!value) return value;
   if (typeof value === "string") {
     return value
@@ -15,7 +15,7 @@ function scrubPIIData(value: any): any {
     return value.map(scrubPIIData);
   }
   if (typeof value === "object") {
-    const copy: any = {};
+    const copy: Record<string, unknown> = {};
     for (const key in value) {
       if (Object.prototype.hasOwnProperty.call(value, key)) {
         const lowerKey = key.toLowerCase();
@@ -24,7 +24,7 @@ function scrubPIIData(value: any): any {
         } else if (lowerKey === "drugids" || lowerKey === "selecteddrugs" || lowerKey === "drugs") {
           copy[key] = "[REDACTED]";
         } else {
-          copy[key] = scrubPIIData(value[key]);
+          copy[key] = scrubPIIData((value as Record<string, unknown>)[key]);
         }
       }
     }
@@ -60,7 +60,7 @@ Sentry.init({
       }
       if (event.request.cookies) {
         if (typeof event.request.cookies === "string") {
-          (event.request as any).cookies = "[REDACTED]";
+          (event.request as { cookies?: unknown }).cookies = "[REDACTED]";
         } else {
           for (const key in event.request.cookies) {
             event.request.cookies[key] = "[REDACTED]";
@@ -96,7 +96,7 @@ Sentry.init({
             .replace(/("drugIds"\s*:\s*\[)[^\]]*(\])/gi, "$1\"[REDACTED]\"$2");
         }
         if (breadcrumb.data) {
-          breadcrumb.data = scrubPIIData(breadcrumb.data);
+          breadcrumb.data = scrubPIIData(breadcrumb.data) as Record<string, unknown> | undefined;
         }
       }
     }

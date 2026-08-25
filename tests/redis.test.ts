@@ -1,5 +1,9 @@
 import { jest } from '@jest/globals';
 
+jest.mock("@/lib/auth", () => ({
+  verifyCSRF: jest.fn().mockReturnValue(true),
+}));
+
 describe('Redis Initialization', () => {
   let consoleErrorSpy: jest.SpiedFunction<typeof console.error>;
   let consoleInfoSpy: jest.SpiedFunction<typeof console.info>;

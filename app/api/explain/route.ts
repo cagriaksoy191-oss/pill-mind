@@ -1,5 +1,6 @@
 
 import { jsonNoStore } from "@/lib/http";
+import { verifyCSRF } from "@/lib/auth";
 import * as Sentry from "@sentry/nextjs";
 import {
   callGeminiForCoverage,
@@ -386,6 +387,12 @@ async function handleCoverageStream(drugIds: string[]) {
 
 export async function POST(request: Request) {
   try {
+    if (!verifyCSRF(request)) {
+      return jsonNoStore(
+        { error: "Güvenlik doğrulaması başarısız oldu (CSRF engellendi)." },
+        403
+      );
+    }
     // 1. Safe JSON Extraction
     let body: unknown;
     try {

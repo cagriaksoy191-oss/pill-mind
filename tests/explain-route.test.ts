@@ -1,3 +1,4 @@
+import { verifyCSRF } from "@/lib/auth";
 import { POST, getCachedExplanation, setCachedExplanation } from "../app/api/explain/route";
 import { redis } from "@/lib/redis";
 import * as Sentry from "@sentry/nextjs";
@@ -8,6 +9,10 @@ import {
   getCoverageContext,
   callGeminiForCoverage,
 } from "@/lib/gemini";
+
+jest.mock("@/lib/auth", () => ({
+  verifyCSRF: jest.fn().mockReturnValue(true),
+}));
 
 jest.mock("@/lib/redis", () => ({
   redis: {
@@ -78,6 +83,25 @@ describe("setCachedExplanation", () => {
 });
 
 describe("POST /api/explain", () => {
+  it("should return 403 when verifyCSRF returns false", async () => {
+    (verifyCSRF as jest.Mock).mockReturnValueOnce(false);
+
+    const req = new Request("http://localhost/api/explain", {
+      method: "POST",
+      body: JSON.stringify({ interactionId: "test-interaction" }),
+      headers: { "Content-Type": "application/json" }
+    });
+
+    const res = await POST(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(403);
+    expect(data).toEqual({
+      error: "Güvenlik doğrulaması başarısız oldu (CSRF engellendi)."
+    });
+  });
+
+
   let consoleWarnSpy: jest.SpyInstance;
   let consoleInfoSpy: jest.SpyInstance;
   let consoleErrorSpy: jest.SpyInstance;

@@ -57,11 +57,12 @@ describe("useCoverageExplanation hook", () => {
     });
   });
 
-  it("should handle API errors (!res.ok)", async () => {
+  it("should handle HTTP 500 API errors (!res.ok)", async () => {
     // Suppress console.error in tests
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
     (global.fetch as jest.Mock).mockResolvedValueOnce({
+      status: 500,
       ok: false,
     });
 
@@ -152,83 +153,50 @@ describe("useCoverageExplanation hook", () => {
     });
   });
 
-  it("should handle stream error response", async () => {
-    const encoder = new TextEncoder();
-
-    const chunks = [
-      encoder.encode('data: {"error": "Safety block", "code": "UNSAFE_ALERT"}\n'),
-      encoder.encode('data: [DONE]\n')
-    ];
-
-    let chunkIndex = 0;
-
-    const mockReader = {
-      read: jest.fn().mockImplementation(() => {
-        if (chunkIndex < chunks.length) {
-          return Promise.resolve({ done: false, value: chunks[chunkIndex++] });
+  it.each([
+    ["UNSAFE_ALERT", "safety_block"],
+    ["REJECTED", "safety_block"],
+    ["INTERNAL_SERVER_ERROR", "api_error"],
+    [undefined, "api_error"]
+  ])(
+    "should handle stream error payload with code %s mapping to reason %s",
+    async (code, expectedReason) => {
+      const encoder = new TextEncoder();
+      const errorPayload = { error: "Streaming error occurred", ...(code ? { code } : {}) };
+      const chunks = [
+        encoder.encode(`data: ${JSON.stringify(errorPayload)}\n`),
+        encoder.encode('data: [DONE]\n')
+      ];
+      let chunkIndex = 0;
+      const mockReader = {
+        read: jest.fn().mockImplementation(() => {
+          if (chunkIndex < chunks.length) {
+            return Promise.resolve({ done: false, value: chunks[chunkIndex++] });
+          }
+          return Promise.resolve({ done: true, value: undefined });
+        })
+      };
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        headers: new Headers({ "Content-Type": "text/event-stream" }),
+        body: {
+          getReader: () => mockReader,
         }
-        return Promise.resolve({ done: true, value: undefined });
-      })
-    };
-
-    (global.fetch as jest.Mock).mockResolvedValueOnce({
-      ok: true,
-      headers: new Headers({ "Content-Type": "text/event-stream" }),
-      body: {
-        getReader: () => mockReader,
-      }
-    });
-
-    const { result } = renderHook(() => useCoverageExplanation(["drug1", "drug2"]));
-
-    await act(async () => {
-      await result.current.handleRequestCoverageExplanation();
-    });
-
-    await waitFor(() => {
-      expect(result.current.coverageExplanation).toEqual({
-        source: "error",
-        error: "Safety block",
-        reason: "safety_block"
       });
-      expect(result.current.isCoverageLoading).toBe(false);
-    });
-  });
-
-  it("should handle stream error response with REJECTED code", async () => {
-    const encoder = new TextEncoder();
-    const chunks = [
-      encoder.encode('data: {"error": "Safety block", "code": "REJECTED"}\n'),
-      encoder.encode('data: [DONE]\n')
-    ];
-    let chunkIndex = 0;
-    const mockReader = {
-      read: jest.fn().mockImplementation(() => {
-        if (chunkIndex < chunks.length) {
-          return Promise.resolve({ done: false, value: chunks[chunkIndex++] });
-        }
-        return Promise.resolve({ done: true, value: undefined });
-      })
-    };
-    (global.fetch as jest.Mock).mockResolvedValueOnce({
-      ok: true,
-      headers: new Headers({ "Content-Type": "text/event-stream" }),
-      body: {
-        getReader: () => mockReader,
-      }
-    });
-    const { result } = renderHook(() => useCoverageExplanation(["drug1", "drug2"]));
-    await act(async () => {
-      await result.current.handleRequestCoverageExplanation();
-    });
-    await waitFor(() => {
-      expect(result.current.coverageExplanation).toEqual({
-        source: "error",
-        error: "Safety block",
-        reason: "safety_block"
+      const { result } = renderHook(() => useCoverageExplanation(["drug1", "drug2"]));
+      await act(async () => {
+        await result.current.handleRequestCoverageExplanation();
       });
-    });
-  });
+      await waitFor(() => {
+        expect(result.current.coverageExplanation).toEqual({
+          source: "error",
+          error: "Streaming error occurred",
+          reason: expectedReason,
+        });
+        expect(result.current.isCoverageLoading).toBe(false);
+      });
+    }
+  );
 
   it("should handle unparseable JSON stream chunks gracefully", async () => {
     const encoder = new TextEncoder();

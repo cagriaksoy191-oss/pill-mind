@@ -1,4 +1,5 @@
 import { POST } from "../app/api/check/route";
+import { verifyCSRF } from "@/lib/auth";
 import { findInteractionsDB } from "@/lib/interactions";
 import { redis } from "@/lib/redis";
 
@@ -6,6 +7,10 @@ jest.mock("@/lib/interactions", () => ({
   findInteractionsDB: jest.fn(),
   checkAccumulationDB: jest.fn().mockResolvedValue([]),
   resolveDrugsDB: jest.fn().mockResolvedValue([{}]),
+}));
+
+jest.mock("@/lib/auth", () => ({
+  verifyCSRF: jest.fn().mockReturnValue(true),
 }));
 
 jest.mock("@/lib/redis", () => ({
@@ -23,6 +28,24 @@ describe("POST /api/check", () => {
   beforeEach(() => {
     jest.spyOn(console, 'error').mockImplementation(() => {});
     jest.clearAllMocks();
+  });
+
+  it("should return 403 when verifyCSRF returns false", async () => {
+    (verifyCSRF as jest.Mock).mockReturnValueOnce(false);
+
+    const req = new Request("http://localhost/api/check", {
+      method: "POST",
+      body: JSON.stringify({ drugIds: ["drug-1", "drug-2"] }),
+      headers: { "Content-Type": "application/json" },
+    });
+
+    const res = await POST(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(403);
+    expect(data).toEqual({
+      error: "Güvenlik doğrulaması başarısız oldu (CSRF engellendi).",
+    });
   });
 
   it("should return 400 if drugIds is missing", async () => {

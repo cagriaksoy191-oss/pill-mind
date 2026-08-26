@@ -1,4 +1,5 @@
 import { jsonNoStore } from "@/lib/http";
+import { verifyCSRF } from "@/lib/auth";
 import {
   findInteractionsDB,
   checkAccumulationDB,
@@ -119,6 +120,12 @@ async function checkRateLimit(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    if (!verifyCSRF(request)) {
+      return jsonNoStore(
+        { error: "Güvenlik doğrulaması başarısız oldu (CSRF engellendi)." },
+        403
+      );
+    }
     const parsed = await parseAndValidateRequest(request);
     if (parsed.errorResponse) return parsed.errorResponse;
     const drugIds = parsed.drugIds!;

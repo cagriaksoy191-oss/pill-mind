@@ -29,6 +29,14 @@ describe("getCoverageContext", () => {
 });
 
 describe("getInteractionContext", () => {
+  const origDb = process.env.DATABASE_URL;
+  beforeAll(() => {
+    delete process.env.DATABASE_URL;
+  });
+  afterAll(() => {
+    if (origDb) process.env.DATABASE_URL = origDb;
+  });
+
   it("should return null for invalid interaction IDs (empty, non-string, too long)", async () => {
     expect(await getInteractionContext("")).toBeNull();
     // @ts-expect-error - testing invalid type

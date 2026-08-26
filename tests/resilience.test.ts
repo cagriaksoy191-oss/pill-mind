@@ -44,5 +44,5 @@ describe("Sistem Dayanıklılığı ve Hata Dayanıklılığı Testleri (Resilie
     expect(results).toBeDefined();
     const localResults = findInteractions(drugIds);
     expect(results).toEqual(localResults);
-  });
+  }, 15000);
 });

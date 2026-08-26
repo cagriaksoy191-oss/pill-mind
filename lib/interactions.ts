@@ -208,31 +208,23 @@ function formatInteractionResult(match: Interaction): CheckResult {
   };
 }
 
-function findInteractionsForDrug(
-  mapA: Map<string, Interaction>,
-  drugIds: string[],
-  startIndex: number,
-  results: CheckResult[]
-): void {
-  for (let j = startIndex; j < drugIds.length; j++) {
-    const match = mapA.get(drugIds[j]);
-    if (match) {
-      results.push(formatInteractionResult(match));
-    }
-  }
-}
-
 export function findInteractions(drugIds: string[]): CheckResult[] {
   if (!Array.isArray(drugIds) || drugIds.length < 2) {
     return [];
   }
 
   const results: CheckResult[] = [];
+  const len = drugIds.length;
 
-  for (let i = 0; i < drugIds.length; i++) {
+  for (let i = 0; i < len; i++) {
     const mapA = interactionsMap.get(drugIds[i]);
     if (mapA) {
-      findInteractionsForDrug(mapA, drugIds, i + 1, results);
+      for (let j = i + 1; j < len; j++) {
+        const match = mapA.get(drugIds[j]);
+        if (match) {
+          results.push(formatInteractionResult(match));
+        }
+      }
     }
   }
 

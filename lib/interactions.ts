@@ -165,12 +165,19 @@ for (const d of drugsData as Drug[]) {
 }
 
 
-const contraindicationsMap = new Map<string, RawContraindication[]>();
+const contraindicationsMap = new Map<string, Map<string, RawContraindication[]>>();
 for (const contra of (contraindicationsData as RawContraindication[])) {
-  if (!contraindicationsMap.has(contra.drugId)) {
-    contraindicationsMap.set(contra.drugId, []);
+  let diseaseMap = contraindicationsMap.get(contra.drugId);
+  if (!diseaseMap) {
+    diseaseMap = new Map<string, RawContraindication[]>();
+    contraindicationsMap.set(contra.drugId, diseaseMap);
   }
-  contraindicationsMap.get(contra.drugId)!.push(contra);
+  let contras = diseaseMap.get(contra.diseaseIcd);
+  if (!contras) {
+    contras = [];
+    diseaseMap.set(contra.diseaseIcd, contras);
+  }
+  contras.push(contra);
 }
 
 const interactionsMap = new Map<string, Map<string, Interaction>>();
@@ -820,23 +827,25 @@ function resolveDrugIds(drugIds: string[]): Set<string> {
 
 function checkDiseaseContraindications(resolvedIds: Set<string>, patientContext: PatientContext, results: ContraindicationResult[]) {
   if (patientContext && patientContext.diseases && Array.isArray(patientContext.diseases) && patientContext.diseases.length > 0) {
-    const patientDiseasesSet = new Set(patientContext.diseases);
     for (const drugId of resolvedIds) {
-      const contras = contraindicationsMap.get(drugId);
-      if (contras) {
-        for (const contra of contras) {
-          if (patientDiseasesSet.has(contra.diseaseIcd)) {
-            const drug = drugsMap.get(contra.drugId);
-            results.push({
-              id: contra.id,
-              drugId: contra.drugId,
-              drugName: drug?.name ?? contra.drugId,
-              type: "disease",
-              severity: contra.severity.toLowerCase() as "high" | "medium" | "low",
-              message: contra.effect,
-              diseaseIcd: contra.diseaseIcd,
-              diseaseName: contra.diseaseName
-            });
+      const diseaseMap = contraindicationsMap.get(drugId);
+      if (diseaseMap) {
+        for (const diseaseIcd of patientContext.diseases) {
+          const contras = diseaseMap.get(diseaseIcd);
+          if (contras) {
+            for (const contra of contras) {
+              const drug = drugsMap.get(contra.drugId);
+              results.push({
+                id: contra.id,
+                drugId: contra.drugId,
+                drugName: drug?.name ?? contra.drugId,
+                type: "disease",
+                severity: contra.severity.toLowerCase() as "high" | "medium" | "low",
+                message: contra.effect,
+                diseaseIcd: contra.diseaseIcd,
+                diseaseName: contra.diseaseName
+              });
+            }
           }
         }
       }

@@ -128,17 +128,15 @@ describe("POST /api/auth/register", () => {
     });
   });
 
-  it("should return 400 if email is invalid", async () => {
-    const req = createMockRequest({ email: "invalid-email" });
-    const res = await POST(req);
-
-    expect(res.status).toBe(400);
-    const data = await res.json();
-    expect(data.error).toBe("Geçersiz bir e-posta adresi girdiniz.");
-  });
-
-  it("should return 400 if email is missing", async () => {
-    const req = createMockRequest({});
+  it.each([
+    ["invalid email format", { email: "invalid-email" }],
+    ["missing email field", {}],
+    ["empty string email", { email: "" }],
+    ["spaces only email", { email: "   " }],
+    ["missing @ domain", { email: "user.domain.com" }],
+    ["missing domain TLD", { email: "user@domain" }],
+  ])("should return 400 when input has %s", async (_, body) => {
+    const req = createMockRequest(body);
     const res = await POST(req);
 
     expect(res.status).toBe(400);

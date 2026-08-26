@@ -5,7 +5,6 @@ import { useInteractionExplanations } from "./useInteractionExplanations";
 import { useCoverageExplanation } from "./useCoverageExplanation";
 import { PatientContext } from "@/lib/interactions";
 
-
 const fetchApiInteractions = async (drugIds: string[], patientContext: PatientContext | undefined) => {
   const res = await fetch("/api/check", {
     method: "POST",
@@ -46,47 +45,54 @@ export function useInteractions(selectedDrugIds: string[], patientContext?: Pati
     handleRequestCoverageExplanation,
   } = useCoverageExplanation(selectedDrugIds);
 
-
   const isOffline = useOfflineStatus();
 
   const serializedContext = JSON.stringify(patientContext);
 
-
+  const { resetState, setIsChecking, setCheckingError, applyResults } = state;
 
   // Automatically check interactions when selected drugs change
   useEffect(() => {
     const checkInteractions = async () => {
       if (selectedDrugIds.length < 2) {
-        state.resetState();
+        resetState();
         setCoverageExplanation(null);
         setShowCoveragePanel(false);
         return;
       }
 
-      state.setIsChecking(true);
-      state.setCheckingError(null);
+      setIsChecking(true);
+      setCheckingError(null);
+      const parsedPatientContext = serializedContext ? (JSON.parse(serializedContext) as PatientContext) : undefined;
       try {
-        const data = await fetchApiInteractions(selectedDrugIds, patientContext);
-        state.applyResults(data);
+        const data = await fetchApiInteractions(selectedDrugIds, parsedPatientContext);
+        applyResults(data);
       } catch (err) {
         console.warn("[PillMind Check Engine] Sunucu API hatası veya ağ kaybı, çevrimdışı yerel tarama çekirdeği devreye alınıyor:", err);
         try {
-          const localData = await fetchLocalInteractions(selectedDrugIds, patientContext);
-          state.applyResults(localData);
-          state.setCheckingError(null);
+          const localData = await fetchLocalInteractions(selectedDrugIds, parsedPatientContext);
+          applyResults(localData);
+          setCheckingError(null);
         } catch (localErr) {
           console.error("Local fallback failed:", localErr);
-          state.setCheckingError("Bağlantı hatası: Yerel çevrimdışı tarama motoru yüklenemedi.");
+          setCheckingError("Bağlantı hatası: Yerel çevrimdışı tarama motoru yüklenemedi.");
         }
       } finally {
-        state.setIsChecking(false);
+        setIsChecking(false);
       }
     };
 
     checkInteractions();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedDrugIds, serializedContext]); // Omitting complex object dependencies to prevent infinite loop
-
+  }, [
+    selectedDrugIds,
+    serializedContext,
+    resetState,
+    setCoverageExplanation,
+    setShowCoveragePanel,
+    setIsChecking,
+    setCheckingError,
+    applyResults,
+  ]);
 
   return {
     interactions: state.interactions,

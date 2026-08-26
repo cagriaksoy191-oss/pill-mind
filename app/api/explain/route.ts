@@ -1,4 +1,3 @@
-
 import { jsonNoStore } from "@/lib/http";
 import { verifyCSRF } from "@/lib/auth";
 import * as Sentry from "@sentry/nextjs";
@@ -43,10 +42,6 @@ function getErrorReason(error: unknown) {
   return "api_error";
 }
 
-
-
-
-
 export interface CachedExplanation {
   explanation: string;
   generatedAt: string;
@@ -84,6 +79,36 @@ export async function setCachedExplanation(cacheKey: string, data: CachedExplana
   }
 }
 
+function buildCacheData(result: {
+  explanation: string;
+  generatedAt: string;
+  parsedJSON?: {
+    kaynakOzeti?: string;
+    belirsizlikNotu?: string;
+    hastaDiliRiskEtiketi?: string;
+    hekimModuKisaMekanizma?: string;
+    yasakliEylemKontrolu?: string;
+    sourceIds?: string[];
+  } | null;
+}): CachedExplanation {
+  if (result.parsedJSON) {
+    return {
+      explanation: result.explanation,
+      generatedAt: result.generatedAt,
+      kaynakOzeti: result.parsedJSON.kaynakOzeti ?? undefined,
+      belirsizlikNotu: result.parsedJSON.belirsizlikNotu ?? undefined,
+      hastaDiliRiskEtiketi: result.parsedJSON.hastaDiliRiskEtiketi ?? undefined,
+      hekimModuKisaMekanizma: result.parsedJSON.hekimModuKisaMekanizma ?? undefined,
+      yasakliEylemKontrolu: result.parsedJSON.yasakliEylemKontrolu ?? undefined,
+      sourceIds: result.parsedJSON.sourceIds ?? undefined,
+    };
+  }
+  return {
+    explanation: result.explanation,
+    generatedAt: result.generatedAt,
+  };
+}
+
 async function handleInteraction(interactionId: unknown) {
   if (typeof interactionId !== "string" || interactionId.trim() === "" || interactionId.length > 100) {
     return jsonNoStore({ error: "Geçersiz veya aşırı uzun interactionId." }, 400);
@@ -118,25 +143,7 @@ async function handleInteraction(interactionId: unknown) {
   // Gemini Execution
   try {
     const result = await callGeminiForInteraction(ctx);
-    let cacheData: CachedExplanation;
-
-    if (result.parsedJSON) {
-      cacheData = {
-        explanation: result.explanation,
-        generatedAt: result.generatedAt,
-        kaynakOzeti: result.parsedJSON.kaynakOzeti ?? undefined,
-        belirsizlikNotu: result.parsedJSON.belirsizlikNotu ?? undefined,
-        hastaDiliRiskEtiketi: result.parsedJSON.hastaDiliRiskEtiketi ?? undefined,
-        hekimModuKisaMekanizma: result.parsedJSON.hekimModuKisaMekanizma ?? undefined,
-        yasakliEylemKontrolu: result.parsedJSON.yasakliEylemKontrolu ?? undefined,
-        sourceIds: result.parsedJSON.sourceIds ?? undefined,
-      };
-    } else {
-      cacheData = {
-        explanation: result.explanation,
-        generatedAt: result.generatedAt,
-      };
-    }
+    const cacheData = buildCacheData(result);
 
     await setCachedExplanation(cacheKey, cacheData);
     console.info(`[Redis] Cache WRITE for interaction: ${interactionId}`);
@@ -212,25 +219,7 @@ async function handleCoverage(drugIds: unknown) {
   // Gemini Execution
   try {
     const result = await callGeminiForCoverage(ctx);
-    let cacheData: CachedExplanation;
-
-    if (result.parsedJSON) {
-      cacheData = {
-        explanation: result.explanation,
-        generatedAt: result.generatedAt,
-        kaynakOzeti: result.parsedJSON.kaynakOzeti ?? undefined,
-        belirsizlikNotu: result.parsedJSON.belirsizlikNotu ?? undefined,
-        hastaDiliRiskEtiketi: result.parsedJSON.hastaDiliRiskEtiketi ?? undefined,
-        hekimModuKisaMekanizma: result.parsedJSON.hekimModuKisaMekanizma ?? undefined,
-        yasakliEylemKontrolu: result.parsedJSON.yasakliEylemKontrolu ?? undefined,
-        sourceIds: result.parsedJSON.sourceIds ?? undefined,
-      };
-    } else {
-      cacheData = {
-        explanation: result.explanation,
-        generatedAt: result.generatedAt,
-      };
-    }
+    const cacheData = buildCacheData(result);
 
     await setCachedExplanation(cacheKey, cacheData);
     console.info(`[Redis] Cache WRITE for coverage: ${sortedIds}`);
@@ -252,7 +241,6 @@ async function handleCoverage(drugIds: unknown) {
     );
   }
 }
-
 
 function createCachedStreamResponse(cached: CachedExplanation) {
   return new Response(
@@ -385,59 +373,105 @@ async function handleCoverageStream(drugIds: string[]) {
   return createLiveStreamResponse(prompt, cacheKey, false);
 }
 
-export async function POST(request: Request) {
-  try {
-    if (!verifyCSRF(request)) {
-      return jsonNoStore(
+async function parseRequestBody(request: Request): Promise<{
+  data?: Record<string, unknown>;
+  errorResponse?: Response;
+}> {
+  if (!verifyCSRF(request)) {
+    return {
+      errorResponse: jsonNoStore(
         { error: "Güvenlik doğrulaması başarısız oldu (CSRF engellendi)." },
         403
+      ),
+    };
+  }
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return { errorResponse: jsonNoStore({ error: "Geçersiz JSON gövdesi." }, 400) };
+  }
+
+  if (typeof body !== "object" || body === null) {
+    return { errorResponse: jsonNoStore({ error: "Geçersiz istek yapısı." }, 400) };
+  }
+
+  return { data: body as Record<string, unknown> };
+}
+
+async function applyRateLimit(request: Request): Promise<Response | null> {
+  if (!redis) return null;
+
+  try {
+    const ip = getClientIp(request);
+    const rateLimitKey = `ratelimit:explain:${ip}`;
+
+    const currentRequests = await redis.incr(rateLimitKey);
+    if (currentRequests === 1) {
+      await redis.expire(rateLimitKey, 60);
+    }
+
+    if (currentRequests > 15) {
+      console.warn(`[Security Alert] Rate limit exceeded for IP: ${ip}`);
+      return jsonNoStore(
+        {
+          error: "Çok fazla istek gönderildi. Lütfen bir dakika bekleyin.",
+          source: "error" as const,
+          reason: "rate_limited",
+        },
+        429
       );
     }
-    // 1. Safe JSON Extraction
-    let body: unknown;
-    try {
-      body = await request.json();
-    } catch {
-      return jsonNoStore({ error: "Geçersiz JSON gövdesi." }, 400);
-    }
+  } catch (redisErr) {
+    console.warn("Rate limit redis error:", redisErr);
+    Sentry.captureException(redisErr);
+  }
 
-    if (typeof body !== "object" || body === null) {
-      return jsonNoStore({ error: "Geçersiz istek yapısı." }, 400);
-    }
+  return null;
+}
 
-    const { interactionId, drugIds, stream } = body as Record<string, unknown>;
-
-    // 2. IP-based Fail-safe Rate Limiter via Upstash Redis
-    if (redis) {
-      try {
-        // Secure IP resolution, avoiding untrusted headers like x-forwarded-for or x-real-ip
-        const ip = getClientIp(request);
-        const rateLimitKey = `ratelimit:explain:${ip}`;
-
-        const currentRequests = await redis.incr(rateLimitKey);
-        if (currentRequests === 1) {
-          await redis.expire(rateLimitKey, 60); // 1-minute window
-        }
-
-        if (currentRequests > 15) { // Limit to 15 requests per minute
-          console.warn(`[Security Alert] Rate limit exceeded for IP: ${ip}`);
-          return jsonNoStore(
-            {
-              error: "Çok fazla istek gönderildi. Lütfen bir dakika bekleyin.",
-              source: "error" as const,
-              reason: "rate_limited"
-            },
-            429
-          );
-        }
-      } catch (redisErr) {
-        // Fail-safe: If Redis is down, log it but let the application continue
-        console.warn("Rate limit redis error:", redisErr);
-        Sentry.captureException(redisErr);
+async function routeExplainRequest(
+  interactionId: unknown,
+  drugIds: unknown,
+  stream: unknown
+): Promise<Response> {
+  if (interactionId !== undefined) {
+    if (stream === true) {
+      if (typeof interactionId !== "string" || interactionId.trim() === "" || interactionId.length > 100) {
+        return jsonNoStore({ error: "Geçersiz veya aşırı uzun interactionId." }, 400);
       }
+      return await handleInteractionStream(interactionId);
     }
+    return await handleInteraction(interactionId);
+  }
 
-    // 3. Fallback Check (Demo Mode / API Key Availability)
+  if (drugIds !== undefined) {
+    if (stream === true) {
+      if (
+        !Array.isArray(drugIds) ||
+        drugIds.length < 2 ||
+        drugIds.length > 10 ||
+        !drugIds.every((id) => typeof id === "string" && id.trim() !== "" && id.length <= 50)
+      ) {
+        return jsonNoStore({ error: "drugIds 2 ila 10 adet geçerli kimlik içeren bir dizi olmalıdır." }, 400);
+      }
+      return await handleCoverageStream(drugIds);
+    }
+    return await handleCoverage(drugIds);
+  }
+
+  return jsonNoStore({ error: "interactionId veya en az 2 drugId alanı gereklidir." }, 400);
+}
+
+export async function POST(request: Request) {
+  try {
+    const { data, errorResponse } = await parseRequestBody(request);
+    if (errorResponse) return errorResponse;
+
+    const rateLimitResponse = await applyRateLimit(request);
+    if (rateLimitResponse) return rateLimitResponse;
+
     if (shouldUseFallback()) {
       return jsonNoStore(
         {
@@ -450,37 +484,13 @@ export async function POST(request: Request) {
       );
     }
 
-    // 4. Strict Validation for interactionId
-    if (interactionId !== undefined) {
-      if (stream === true) {
-        if (typeof interactionId !== "string" || interactionId.trim() === "" || interactionId.length > 100) {
-          return jsonNoStore({ error: "Geçersiz veya aşırı uzun interactionId." }, 400);
-        }
-        return await handleInteractionStream(interactionId);
-      }
-      return await handleInteraction(interactionId);
-    }
-
-    // 5. Strict Validation for drugIds
-    if (drugIds !== undefined) {
-      if (stream === true) {
-        if (
-          !Array.isArray(drugIds) ||
-          drugIds.length < 2 ||
-          drugIds.length > 10 ||
-          !drugIds.every(id => typeof id === "string" && id.trim() !== "" && id.length <= 50)
-        ) {
-          return jsonNoStore({ error: "drugIds 2 ila 10 adet geçerli kimlik içeren bir dizi olmalıdır." }, 400);
-        }
-        return await handleCoverageStream(drugIds);
-      }
-      return await handleCoverage(drugIds);
-    }
-
-    return jsonNoStore({ error: "interactionId veya en az 2 drugId alanı gereklidir." }, 400);
-
+    const { interactionId, drugIds, stream } = data!;
+    return await routeExplainRequest(interactionId, drugIds, stream);
   } catch (error) {
     console.error("[Severe API Error] Explain route crashed:", error);
-    return jsonNoStore({ error: "Açıklama oluşturulurken beklenmeyen bir sunucu hatası oluştu." }, 500);
+    return jsonNoStore(
+      { error: "Açıklama oluşturulurken beklenmeyen bir sunucu hatası oluştu." },
+      500
+    );
   }
 }

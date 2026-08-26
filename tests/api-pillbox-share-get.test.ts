@@ -72,7 +72,40 @@ describe("GET /api/pillbox/share/[token]", () => {
     expect(data.error).toBe("Bu paylaşım bağlantısının süresi dolmuş.");
   });
 
-  it("should return 200 and data successfully", async () => {
+  it("should return 200 and filter drugs from resolvedDrugsCache if it returns an array", async () => {
+    const mockShare = {
+      token: "valid-token",
+      drugIds: ["drug-1", "drug-2"],
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      createdAt: new Date(),
+    };
+    (prisma.pillboxShare.findUnique as jest.Mock).mockResolvedValue(mockShare);
+
+    const mockCachedDrugs = [
+      { id: "drug-1", name: "Cached Aspirin" },
+      { id: "drug-2", name: "Cached Paracetamol" },
+      { id: "drug-3", name: "Cached Ibuprofen" },
+    ];
+    (resolveDrugsDB as jest.Mock).mockResolvedValue(mockCachedDrugs);
+    (findInteractionsDB as jest.Mock).mockResolvedValue([]);
+    (checkAccumulationDB as jest.Mock).mockResolvedValue([]);
+    (findFoodInteractionsDB as jest.Mock).mockResolvedValue([]);
+    (findContraindicationsDB as jest.Mock).mockResolvedValue([]);
+
+    const req = createMockRequest();
+    const res = await GET(req, { params: Promise.resolve({ token: "valid-token" }) });
+
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.success).toBe(true);
+    expect(data.drugs).toEqual([
+      { id: "drug-1", name: "Cached Aspirin" },
+      { id: "drug-2", name: "Cached Paracetamol" },
+    ]);
+    expect(prisma.drug.findMany).not.toHaveBeenCalled();
+  });
+
+  it("should return 200 and data successfully via DB fallback when cache is not an array", async () => {
     const mockShare = {
       token: "valid-token",
       drugIds: ["drug-1", "drug-2"],

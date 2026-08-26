@@ -752,3 +752,112 @@ describe("parseGeminiResponse", () => {
     expect(() => parseGeminiResponse(nonJson)).toThrow("Model çıktısı geçerli bir JSON formatında değil.");
   });
 });
+
+describe("streamGeminiContent & executeSpeculativeStreamFetch", () => {
+  const originalFetch = global.fetch;
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    jest.restoreAllMocks();
+  });
+
+  it("should handle error when a model fetch fails, log warning, and fall back to working model", async () => {
+    const consoleWarnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+
+    // Mock fetch: first call fails (e.g. 500 API Error), second call succeeds
+    const encoder = new TextEncoder();
+    const mockResponseBody = new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode(JSON.stringify({
+          candidates: [{ content: { parts: [{ text: "Streamed response text" }] } }]
+        })));
+        controller.close();
+      }
+    });
+
+    let fetchCount = 0;
+    global.fetch = jest.fn().mockImplementation((url: string) => {
+      fetchCount++;
+      if (fetchCount === 1) {
+        return Promise.resolve({
+          ok: false,
+          status: 500,
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        body: mockResponseBody,
+      });
+    });
+
+    const { streamGeminiContent } = await import("../lib/gemini");
+    const generator = streamGeminiContent("Test prompt");
+    const chunks: string[] = [];
+    for await (const chunk of generator) {
+      chunks.push(chunk);
+    }
+
+    expect(chunks).toEqual(["Streamed response text"]);
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("[GEMINI STREAM] Model"),
+      expect.any(Error)
+    );
+  });
+
+  it("should throw error when all models in the stream chain fail", async () => {
+    jest.spyOn(console, "warn").mockImplementation(() => {});
+
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 503,
+    });
+
+    const { streamGeminiContent } = await import("../lib/gemini");
+    const generator = streamGeminiContent("Test prompt");
+
+    await expect(async () => {
+      for await (const chunk of generator) {
+        // consumes stream
+      }
+    }).rejects.toThrow("API Error 503");
+  });
+
+  it("should handle speculative timeout and launch fallback model", async () => {
+    jest.spyOn(console, "info").mockImplementation(() => {});
+
+    const encoder = new TextEncoder();
+    const mockResponseBody = new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode(JSON.stringify({
+          candidates: [{ content: { parts: [{ text: "Fallback stream text" }] } }]
+        })));
+        controller.close();
+      }
+    });
+
+    let fetchCount = 0;
+    global.fetch = jest.fn().mockImplementation(() => {
+      fetchCount++;
+      if (fetchCount === 1) {
+        // Slow response that triggers speculative timeout
+        return new Promise((resolve) => setTimeout(() => resolve({ ok: false, status: 504 }), 3000));
+      }
+      return Promise.resolve({
+        ok: true,
+        body: mockResponseBody,
+      });
+    });
+
+    const { streamGeminiContent } = await import("../lib/gemini");
+    const generator = streamGeminiContent("Test prompt");
+    const chunks: string[] = [];
+    for await (const chunk of generator) {
+      chunks.push(chunk);
+    }
+
+    expect(chunks).toEqual(["Fallback stream text"]);
+    expect(console.info).toHaveBeenCalledWith(
+      expect.stringContaining("taking longer than 1500ms. Launching fallback speculatively.")
+    );
+  }, 10000);
+});

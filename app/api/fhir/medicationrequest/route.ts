@@ -4,8 +4,6 @@ import { getSession, verifyCSRF } from "@/lib/auth";
 import { createOperationOutcomeResponse } from "@/lib/utils/fhir";
 import { findInteractionsDB, checkAccumulationDB, findFoodInteractionsDB, findContraindicationsDB, resolveDrugsDB, PatientContext } from "@/lib/interactions";
 
-
-
 export const dynamic = "force-dynamic";
 
 export interface FhirRequestBody {
@@ -30,15 +28,20 @@ export interface FhirRequestBody {
   };
 }
 
-
 function parseFhirRequest(body: FhirRequestBody): { drugIds: string[], patientContext: PatientContext | undefined } {
   let drugIds: string[] = [];
   let patientContext: PatientContext | undefined = undefined;
 
   // 1. Parse FHIR Parameters
   if (body.resourceType === "Parameters" && Array.isArray(body.parameter)) {
-    const medsParam = body.parameter.find(p => p.name === "medications");
-    const ctxParam = body.parameter.find(p => p.name === "patientContext");
+    let medsParam;
+    let ctxParam;
+    for (const p of body.parameter) {
+      if (p.name === "medications") medsParam = p;
+      else if (p.name === "patientContext") ctxParam = p;
+
+      if (medsParam && ctxParam) break;
+    }
 
     if (medsParam && medsParam.valueString) {
       const parts = medsParam.valueString.split(",");
@@ -70,14 +73,20 @@ function parseFhirRequest(body: FhirRequestBody): { drugIds: string[], patientCo
   }
   // 2. Parse FHIR Bundle of MedicationRequests
   else if (body.resourceType === "Bundle" && Array.isArray(body.entry)) {
-    for (const entry of body.entry) {
-      const resource = entry.resource;
+    const entries = body.entry;
+    const len = entries.length;
+    for (let i = 0; i < len; i++) {
+      const resource = entries[i].resource;
       if (resource && resource.resourceType === "MedicationRequest") {
-        const ref = resource.medicationReference?.reference;
+        const medRef = resource.medicationReference;
+        const ref = medRef && medRef.reference;
         if (ref && ref.startsWith("Medication/")) {
           drugIds.push(ref.slice(11));
-        } else if (resource.medicationCodeableConcept?.text) {
-          drugIds.push(resource.medicationCodeableConcept.text.toLowerCase());
+        } else {
+          const text = resource.medicationCodeableConcept && resource.medicationCodeableConcept.text;
+          if (text) {
+            drugIds.push(text.toLowerCase());
+          }
         }
       }
     }

@@ -1,4 +1,3 @@
-// app/api/fhir/medication/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getSession, verifyCSRF } from "@/lib/auth";
 import { createOperationOutcomeResponse } from "@/lib/utils/fhir";
@@ -6,7 +5,7 @@ import { getAllDrugs } from "@/lib/interactions";
 
 export const dynamic = "force-dynamic";
 
-type PrismaDrugWithIngredient = {
+export type PrismaDrugWithIngredient = {
   id: string;
   name: string;
   activeIngredient: string;
@@ -15,6 +14,14 @@ type PrismaDrugWithIngredient = {
   rxcui: string | null;
   ingredient: { id: string; name: string; normalizedName: string; rxcui: string | null; atcCode: string | null } | null;
 };
+
+const inMemoryCache = new Map<string, { data: PrismaDrugWithIngredient[]; expiresAt: number }>();
+const IN_MEMORY_TTL_MS = 60 * 60 * 1000; // 1 hour
+const REDIS_TTL_SEC = 60 * 60 * 24; // 24 hours
+
+export function clearDrugsListCache(): void {
+  inMemoryCache.clear();
+}
 
 function parsePaginationParams(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -38,19 +45,60 @@ function parsePaginationParams(request: NextRequest) {
   return { take, skip };
 }
 
-async function fetchDrugsList(take: number, skip: number): Promise<PrismaDrugWithIngredient[]> {
+export async function fetchDrugsList(take: number, skip: number): Promise<PrismaDrugWithIngredient[]> {
+  const cacheKey = `fhir:medication:${take}:${skip}`;
+  const now = Date.now();
+
+  // 1. Check in-memory cache
+  const cachedMemory = inMemoryCache.get(cacheKey);
+  if (cachedMemory && cachedMemory.expiresAt > now) {
+    return cachedMemory.data;
+  }
+
+  // 2. Check Redis cache if available
+  try {
+    const { redis } = await import("@/lib/redis");
+    if (redis) {
+      const cachedRedis = await redis.get<PrismaDrugWithIngredient[]>(cacheKey);
+      if (cachedRedis) {
+        inMemoryCache.set(cacheKey, { data: cachedRedis, expiresAt: now + IN_MEMORY_TTL_MS });
+        return cachedRedis;
+      }
+    }
+  } catch (err) {
+    console.warn("[Redis] Medication cache read error:", err);
+  }
+
+  // 3. Query Prisma Database
   try {
     const { prisma } = await import("@/lib/prisma");
-    return await prisma.drug.findMany({
+    const drugs = await prisma.drug.findMany({
       take,
       skip,
       include: {
         ingredient: true
       }
     });
-  } catch {
-    // Fallback
-    return getAllDrugs().slice(skip, skip + take).map(d => ({
+
+    // Populate in-memory cache if result is valid
+    if (drugs) {
+      inMemoryCache.set(cacheKey, { data: drugs, expiresAt: now + IN_MEMORY_TTL_MS });
+
+      // Populate Redis cache asynchronously / safely
+      try {
+        const { redis } = await import("@/lib/redis");
+        if (redis) {
+          await redis.set(cacheKey, drugs, { ex: REDIS_TTL_SEC });
+        }
+      } catch (err) {
+        console.warn("[Redis] Medication cache write error:", err);
+      }
+    }
+
+    return drugs ?? [];
+  } catch (dbError) {
+    // Fallback logic
+    const fallbackDrugs = getAllDrugs().slice(skip, skip + take).map(d => ({
       id: d.id,
       name: d.name,
       activeIngredient: d.activeIngredient,
@@ -59,6 +107,8 @@ async function fetchDrugsList(take: number, skip: number): Promise<PrismaDrugWit
       rxcui: null,
       ingredient: null
     }));
+
+    return fallbackDrugs;
   }
 }
 
@@ -120,7 +170,7 @@ export async function GET(request: NextRequest) {
 
     const { take, skip } = parsePaginationParams(request);
     const drugsList = await fetchDrugsList(take, skip);
-    const entries = drugsList.map(mapDrugToFHIREntry);
+    const entries = (drugsList || []).map(mapDrugToFHIREntry);
 
     return NextResponse.json({
       resourceType: "Bundle",

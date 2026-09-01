@@ -1,5 +1,6 @@
-import { GET } from "../app/api/fhir/medication/route";
+import { GET, clearDrugsListCache } from "../app/api/fhir/medication/route";
 import { getAllDrugs } from "@/lib/interactions";
+import { prisma } from "@/lib/prisma";
 
 jest.mock("@/lib/prisma", () => ({
   prisma: {
@@ -20,12 +21,11 @@ jest.mock("@/lib/interactions", () => ({
 
 describe("GET /api/fhir/medication", () => {
   beforeEach(() => {
-    jest.resetModules();
     jest.clearAllMocks();
+    clearDrugsListCache();
   });
 
   it("should return a bundle of drugs from the database with correct FHIR Medication format", async () => {
-    const { prisma } = require("@/lib/prisma");
     (prisma.drug.findMany as jest.Mock).mockResolvedValue([
       {
         id: "drug-1",
@@ -53,9 +53,9 @@ describe("GET /api/fhir/medication", () => {
       }
     ]);
 
-    const req = new Request("http://localhost/api/fhir/medication") as any;
+    const req = new Request("http://localhost/api/fhir/medication") as unknown as Request & { cookies: unknown };
     req.cookies = { get: jest.fn().mockReturnValue({ value: "mock-session-cookie" }) };
-    const res = await GET(req);
+    const res = await GET(req as any);
     const data = await res.json();
 
     expect(res.status).toBe(200);
@@ -81,7 +81,6 @@ describe("GET /api/fhir/medication", () => {
   });
 
   it("should fallback to getAllDrugs if database query fails", async () => {
-    const { prisma } = require("@/lib/prisma");
     (prisma.drug.findMany as jest.Mock).mockRejectedValue(new Error("DB Connection Error"));
 
     (getAllDrugs as jest.Mock).mockReturnValue([
@@ -94,9 +93,9 @@ describe("GET /api/fhir/medication", () => {
       }
     ]);
 
-    const req = new Request("http://localhost/api/fhir/medication") as any;
+    const req = new Request("http://localhost/api/fhir/medication") as unknown as Request & { cookies: unknown };
     req.cookies = { get: jest.fn().mockReturnValue({ value: "mock-session-cookie" }) };
-    const res = await GET(req);
+    const res = await GET(req as any);
     const data = await res.json();
 
     expect(res.status).toBe(200);
@@ -110,7 +109,6 @@ describe("GET /api/fhir/medication", () => {
   });
 
   it("should return 500 OperationOutcome if an unexpected error occurs", async () => {
-    const { prisma } = require("@/lib/prisma");
     (prisma.drug.findMany as jest.Mock).mockRejectedValue(new Error("DB Connection Error"));
 
     // Make fallback throw as well to trigger the outer catch
@@ -118,9 +116,9 @@ describe("GET /api/fhir/medication", () => {
       throw new Error("Unexpected Failure");
     });
 
-    const req = new Request("http://localhost/api/fhir/medication") as any;
+    const req = new Request("http://localhost/api/fhir/medication") as unknown as Request & { cookies: unknown };
     req.cookies = { get: jest.fn().mockReturnValue({ value: "mock-session-cookie" }) };
-    const res = await GET(req);
+    const res = await GET(req as any);
     const data = await res.json();
 
     expect(res.status).toBe(500);
@@ -128,15 +126,14 @@ describe("GET /api/fhir/medication", () => {
     expect(data.issue[0].severity).toBe("error");
     expect(data.issue[0].code).toBe("exception");
     expect(data.issue[0].diagnostics).toBe("Unexpected Failure");
-    });
+  });
 
   it("should parse _count and _offset and pass to findMany", async () => {
-    const { prisma } = require("@/lib/prisma");
     (prisma.drug.findMany as jest.Mock).mockResolvedValue([]);
 
-    const req = new Request("http://localhost/api/fhir/medication?_count=10&_offset=20") as any;
+    const req = new Request("http://localhost/api/fhir/medication?_count=10&_offset=20") as unknown as Request & { cookies: unknown };
     req.cookies = { get: jest.fn().mockReturnValue({ value: "mock-session-cookie" }) };
-    await GET(req);
+    await GET(req as any);
 
     expect(prisma.drug.findMany).toHaveBeenCalledWith({
       take: 10,
@@ -146,5 +143,4 @@ describe("GET /api/fhir/medication", () => {
       }
     });
   });
-
 });

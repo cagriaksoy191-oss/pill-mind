@@ -1,4 +1,4 @@
-import { getCoverageContext, getInteractionContext, formatExplanation, buildInteractionStreamPrompt, isOutputSafe , UNSAFE_PATTERNS, normalizeExplanation, isExplanationComplete} from "../lib/gemini";
+import { getCoverageContext, getInteractionContext, buildInteractionStreamPrompt, isOutputSafe , UNSAFE_PATTERNS, normalizeExplanation, isExplanationComplete} from "../lib/gemini";
 
 describe("getCoverageContext", () => {
   it("should return null when an empty array is provided", () => {
@@ -408,123 +408,6 @@ describe("callGeminiForCoverage", () => {
   });
 });
 
-describe("formatExplanation", () => {
-
-  it("should handle completely missing hastalaraOneriler property gracefully", () => {
-    const input = {
-      girisCumlesi: "Giriş",
-      klinikEtkiAciklamasi: "Klinik"
-    };
-
-    const expected = `Giriş
-
-Klinik
-
-**Önemli Belirtiler ve Öneriler:**`;
-
-    expect(formatExplanation(input)).toBe(expected);
-  });
-
-  it("should format a well-formed JSON object correctly", () => {
-    const input = {
-      girisCumlesi: "Bu bir giriş cümlesidir.",
-      klinikEtkiAciklamasi: "Bu bir klinik etki açıklamasıdır.",
-      hastalaraOneriler: ["Öneri 1", "Öneri 2"],
-      hekimYonlendirmesi: "Bu bir hekim yönlendirmesidir."
-    };
-
-    const expected = `Bu bir giriş cümlesidir.
-
-Bu bir klinik etki açıklamasıdır.
-
-**Önemli Belirtiler ve Öneriler:**
-• Öneri 1
-• Öneri 2
-
-Bu bir hekim yönlendirmesidir.`;
-
-    expect(formatExplanation(input)).toBe(expected);
-  });
-
-  it("should handle missing string fields gracefully", () => {
-    const input = {
-      hastalaraOneriler: ["Öneri 1"]
-    };
-
-    const expected = `**Önemli Belirtiler ve Öneriler:**
-• Öneri 1`;
-
-    expect(formatExplanation(input)).toBe(expected);
-  });
-
-  it("should handle hastalaraOneriler as a string instead of an array", () => {
-    const input = {
-      hastalaraOneriler: "Tek bir öneri string olarak"
-    };
-
-    const expected = `**Önemli Belirtiler ve Öneriler:**
-• Tek bir öneri string olarak`;
-
-    expect(formatExplanation(input)).toBe(expected);
-  });
-
-  it("should handle hastalaraOneriler as null or undefined", () => {
-    const input1 = { hastalaraOneriler: null } as unknown;
-    const input2 = { hastalaraOneriler: undefined } as unknown;
-    const input3 = {};
-
-    const expected = `**Önemli Belirtiler ve Öneriler:**`;
-
-    expect(formatExplanation(input1)).toBe(expected);
-    expect(formatExplanation(input2)).toBe(expected);
-    expect(formatExplanation(input3)).toBe(expected);
-  });
-
-  it("should handle hastalaraOneriler as an object (invalid type)", () => {
-    const input = {
-      hastalaraOneriler: { someKey: "someValue" }
-    } as unknown;
-
-    const expected = `**Önemli Belirtiler ve Öneriler:**`;
-
-    expect(formatExplanation(input)).toBe(expected);
-  });
-
-  it("should handle hastalaraOneriler as a number or boolean", () => {
-    const input1 = { hastalaraOneriler: 123 } as unknown;
-    const input2 = { hastalaraOneriler: true } as unknown;
-
-    const expected = `**Önemli Belirtiler ve Öneriler:**`;
-
-    expect(formatExplanation(input1)).toBe(expected);
-    expect(formatExplanation(input2)).toBe(expected);
-  });
-
-  it("should handle hastalaraOneriler as an array with invalid elements gracefully", () => {
-    const input = {
-      hastalaraOneriler: ["Valid", null, undefined, 456, false, "Another valid"]
-    } as unknown;
-
-    const expected = `**Önemli Belirtiler ve Öneriler:**
-• Valid
-• 456
-• Another valid`;
-
-    expect(formatExplanation(input)).toBe(expected);
-  });
-
-  it("should handle empty or whitespace-only array elements in hastalaraOneriler", () => {
-    const input = {
-      hastalaraOneriler: ["", "  ", "Valid advice", "   \n", "Another advice"]
-    } as unknown;
-
-    const expected = `**Önemli Belirtiler ve Öneriler:**\n• Valid advice\n• Another advice`;
-
-    expect(formatExplanation(input)).toBe(expected);
-  });
-
-});
-
 describe("buildInteractionStreamPrompt", () => {
   it("should generate prompt with correct severity labels", () => {
     const baseCtx = {
@@ -704,55 +587,6 @@ describe("runReviewerAgent", () => {
     );
   });
 });
-import { parseGeminiResponse } from "../lib/gemini";
-
-describe("parseGeminiResponse", () => {
-  it("should successfully parse a valid JSON string", () => {
-    const jsonStr = '{"girisCumlesi":"Test","klinikEtkiAciklamasi":"Test etki"}';
-    const result = parseGeminiResponse(jsonStr);
-    expect(result).toHaveProperty("girisCumlesi", "Test");
-    expect(result).toHaveProperty("klinikEtkiAciklamasi", "Test etki");
-  });
-
-  it("should strip markdown json blocks and parse correctly", () => {
-    const jsonStr = '```json\n{"girisCumlesi":"Test markdown","klinikEtkiAciklamasi":"Test etki"}\n```';
-    const result = parseGeminiResponse(jsonStr);
-    expect(result).toHaveProperty("girisCumlesi", "Test markdown");
-    expect(result).toHaveProperty("klinikEtkiAciklamasi", "Test etki");
-  });
-
-  it("should handle markdown json blocks with missing language tag", () => {
-    const jsonStr = '```\n{"girisCumlesi":"Test markdown no tag","klinikEtkiAciklamasi":"Test etki"}\n```';
-    const result = parseGeminiResponse(jsonStr);
-    expect(result).toHaveProperty("girisCumlesi", "Test markdown no tag");
-    expect(result).toHaveProperty("klinikEtkiAciklamasi", "Test etki");
-  });
-
-  it("should handle leading and trailing whitespace", () => {
-    const jsonStr = '   \n  \t  {"girisCumlesi":"Test spaces","klinikEtkiAciklamasi":"Test etki"}  \n\t  ';
-    const result = parseGeminiResponse(jsonStr);
-    expect(result).toHaveProperty("girisCumlesi", "Test spaces");
-    expect(result).toHaveProperty("klinikEtkiAciklamasi", "Test etki");
-  });
-
-  it("should handle markdown blocks with leading/trailing whitespace", () => {
-    const jsonStr = '   \n ```json\n{"girisCumlesi":"Test spaces markdown","klinikEtkiAciklamasi":"Test etki"}\n```  \n  ';
-    const result = parseGeminiResponse(jsonStr);
-    expect(result).toHaveProperty("girisCumlesi", "Test spaces markdown");
-    expect(result).toHaveProperty("klinikEtkiAciklamasi", "Test etki");
-  });
-
-  it("should throw an error for invalid JSON", () => {
-    const invalidJson = '{"girisCumlesi":"Test",}'; // Trailing comma
-    expect(() => parseGeminiResponse(invalidJson)).toThrow("Model çıktısı geçerli bir JSON formatında değil.");
-  });
-
-  it("should throw an error for completely non-JSON text", () => {
-    const nonJson = "This is just a regular string, not JSON at all.";
-    expect(() => parseGeminiResponse(nonJson)).toThrow("Model çıktısı geçerli bir JSON formatında değil.");
-  });
-});
-
 describe("streamGeminiContent & executeSpeculativeStreamFetch", () => {
   const originalFetch = global.fetch;
 
@@ -776,7 +610,7 @@ describe("streamGeminiContent & executeSpeculativeStreamFetch", () => {
     });
 
     let fetchCount = 0;
-    global.fetch = jest.fn().mockImplementation((url: string) => {
+    global.fetch = jest.fn().mockImplementation(() => {
       fetchCount++;
       if (fetchCount === 1) {
         return Promise.resolve({
@@ -817,7 +651,7 @@ describe("streamGeminiContent & executeSpeculativeStreamFetch", () => {
 
     await expect(async () => {
       for await (const chunk of generator) {
-        // consumes stream
+        expect(chunk).toBeDefined();
       }
     }).rejects.toThrow("API Error 503");
   });

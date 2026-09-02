@@ -13,7 +13,7 @@ import FoodInteractions from '@/components/MedicalReportSections/FoodInteraction
 import PolypharmacyReport from '@/components/MedicalReportSections/PolypharmacyReport';
 import ReportHeader from '@/components/MedicalReportSections/ReportHeader';
 import SelectedDrugsList from '@/components/MedicalReportSections/SelectedDrugsList';
-import { CheckResult, Drug } from '@/lib/interactions';
+import { ExplanationData, CheckResult, Drug } from '@/lib/interactions';
 
 describe('MedicalReportSections', () => {
   describe('AccumulationWarnings', () => {
@@ -75,89 +75,163 @@ describe('MedicalReportSections', () => {
       expect(screen.getByText('Kayıtlı veri setinde bilinen etkileşim saptanmadı.')).toBeInTheDocument();
     });
 
-    it('renders interactions with patient explanations and clinical mode table', () => {
-      const mockInteractions: CheckResult[] = [
-        {
-          drug1Name: 'Drug Alpha',
-          drug2Name: 'Drug Beta',
-          interaction: {
-            id: 'int-101',
-            drug1Id: 'd1',
-            drug2Id: 'd2',
-            severity: 'high',
-            summary: 'High risk of arrhythmia',
-            clinicalDetail: 'Prolongs QT interval',
-            mechanisms: [{ type: 'Pharmacodynamic', mechanism: 'Synergistic QT prolongation' }],
-            evidences: [
-              {
-                source: { title: 'Journal of Cardiology', url: 'https://example.com/study' },
-                summary: 'Observed QT prolongation in clinical trials',
-                date: '2022-05-10',
-                type: 'clinical_trial'
-              }
-            ],
-            verificationStatus: 'verified',
-            evidenceLevel: 'fda_approved',
-            source: 'FDA',
-            createdAt: new Date(),
-            updatedAt: new Date()
+    it.each([
+      {
+        scenario: 'complete data with evidence URL and custom explanation',
+        interactions: [
+          {
+            drug1Name: 'Drug Alpha',
+            drug2Name: 'Drug Beta',
+            interaction: {
+              id: 'int-101',
+              drug1Id: 'd1',
+              drug2Id: 'd2',
+              severity: 'high',
+              summary: 'High risk of arrhythmia',
+              clinicalDetail: 'Prolongs QT interval',
+              mechanisms: [{ type: 'Pharmacodynamic', mechanism: 'Synergistic QT prolongation' }],
+              evidences: [
+                {
+                  source: { title: 'Journal of Cardiology', url: 'https://example.com/study' },
+                  summary: 'Observed QT prolongation in clinical trials',
+                  date: '2022-05-10',
+                  type: 'clinical_trial'
+                }
+              ],
+              verificationStatus: 'verified',
+              evidenceLevel: 'fda_approved',
+              source: 'FDA',
+              createdAt: new Date(),
+              updatedAt: new Date()
+            }
           }
-        }
-      ];
-
-      const explanations = {
-        'int-101': {
-          explanation: 'These two medicines may affect your heart rhythm if taken together.'
-        }
-      };
-
-      render(<DrugInteractions interactions={mockInteractions} explanations={explanations} />);
-
-      expect(screen.getByText('1. Hasta İçin Sadeleştirilmiş Etkileşim Açıklamaları')).toBeInTheDocument();
-      expect(screen.getByText('HIGH RİSK')).toBeInTheDocument();
-      expect(screen.getByText('Drug Alpha & Drug Beta Etkileşimi')).toBeInTheDocument();
-      expect(screen.getByText('High risk of arrhythmia')).toBeInTheDocument();
-      expect(screen.getByText('These two medicines may affect your heart rhythm if taken together.')).toBeInTheDocument();
-
-      expect(screen.getByText('2. Sağlık Profesyonelleri İçin Klinik Detaylar (Klinik Mod)')).toBeInTheDocument();
-      expect(screen.getByText(/Mekanizma:/)).toBeInTheDocument();
-      expect(screen.getByText(/Prolongs QT interval/)).toBeInTheDocument();
-      expect(screen.getByText('- Pharmacodynamic: Synergistic QT prolongation')).toBeInTheDocument();
-      expect(screen.getByText('Journal of Cardiology')).toBeInTheDocument();
-      expect(screen.getByText('https://example.com/study')).toBeInTheDocument();
-      expect(screen.getByText('“Observed QT prolongation in clinical trials”')).toBeInTheDocument();
-    });
-
-    it('handles interaction without optional mechanisms, evidences, clinicalDetail, or explanations', () => {
-      const mockInteractions: CheckResult[] = [
-        {
-          drug1Name: 'Drug X',
-          drug2Name: 'Drug Y',
-          interaction: {
-            id: 'int-102',
-            drug1Id: 'dx',
-            drug2Id: 'dy',
-            severity: 'low',
-            summary: 'Minor interaction',
-            verificationStatus: 'unverified',
-            evidenceLevel: 'literature',
-            source: 'Database',
-            createdAt: new Date(),
-            updatedAt: new Date()
+        ],
+        explanations: {
+          'int-101': {
+            explanation: 'These two medicines may affect your heart rhythm if taken together.'
           }
-        }
-      ];
+        },
+        expectedText: [
+          '1. Hasta İçin Sadeleştirilmiş Etkileşim Açıklamaları',
+          'HIGH RİSK',
+          'Drug Alpha & Drug Beta Etkileşimi',
+          'High risk of arrhythmia',
+          'These two medicines may affect your heart rhythm if taken together.',
+          '2. Sağlık Profesyonelleri İçin Klinik Detaylar (Klinik Mod)',
+          '- Pharmacodynamic: Synergistic QT prolongation',
+          'Journal of Cardiology',
+          'https://example.com/study',
+          '“Observed QT prolongation in clinical trials”',
+          'Kanıt: fda_approved',
+          'Onay: verified'
+        ],
+        unexpectedText: []
+      },
+      {
+        scenario: 'minimal data without mechanisms, evidences, clinicalDetail, or explanations',
+        interactions: [
+          {
+            drug1Name: 'Drug X',
+            drug2Name: 'Drug Y',
+            interaction: {
+              id: 'int-102',
+              drug1Id: 'dx',
+              drug2Id: 'dy',
+              severity: 'low',
+              summary: 'Minor interaction',
+              verificationStatus: 'unverified',
+              evidenceLevel: 'literature',
+              source: 'Database',
+              createdAt: new Date(),
+              updatedAt: new Date()
+            }
+          }
+        ],
+        explanations: {},
+        expectedText: [
+          'LOW RİSK',
+          'Drug X & Drug Y Etkileşimi',
+          'Minor interaction',
+          'Kanıt: literature',
+          'Onay: unverified'
+        ],
+        unexpectedText: ['Mekanizma Detayları:', 'Bilimsel Referanslar:']
+      },
+      {
+        scenario: 'fallback defaults when evidenceLevel and verificationStatus are omitted',
+        interactions: [
+          {
+            drug1Name: 'Aspirin',
+            drug2Name: 'Warfarin',
+            interaction: {
+              id: 'int-103',
+              drug1Id: 'd_asp',
+              drug2Id: 'd_war',
+              severity: 'critical',
+              summary: 'Increased bleeding risk',
+              source: 'Clinical Guideline',
+              createdAt: new Date(),
+              updatedAt: new Date()
+            }
+          }
+        ],
+        explanations: {},
+        expectedText: [
+          'CRITICAL RİSK',
+          'Aspirin & Warfarin Etkileşimi',
+          'Kanıt: FDA_APPROVED',
+          'Onay: VERIFIED'
+        ],
+        unexpectedText: []
+      },
+      {
+        scenario: 'evidence without optional source URL',
+        interactions: [
+          {
+            drug1Name: 'Drug A',
+            drug2Name: 'Drug B',
+            interaction: {
+              id: 'int-104',
+              drug1Id: 'da',
+              drug2Id: 'db',
+              severity: 'moderate',
+              summary: 'Moderate risk',
+              evidences: [
+                {
+                  source: { title: 'Internal Medical Review' },
+                  summary: 'Case report evidence',
+                  date: '2023-01-01',
+                  type: 'case_report'
+                }
+              ],
+              source: 'Internal',
+              createdAt: new Date(),
+              updatedAt: new Date()
+            }
+          }
+        ],
+        explanations: {},
+        expectedText: [
+          'MODERATE RİSK',
+          'Internal Medical Review',
+          '“Case report evidence”'
+        ],
+        unexpectedText: []
+      }
+    ])(
+      'renders correctly for $scenario',
+      ({ interactions, explanations, expectedText, unexpectedText }: { interactions: CheckResult[]; explanations: Record<string, ExplanationData>; expectedText: string[]; unexpectedText: string[] }) => {
+        render(<DrugInteractions interactions={interactions} explanations={explanations} />);
 
-      render(<DrugInteractions interactions={mockInteractions} explanations={{}} />);
+        expectedText.forEach((text) => {
+          expect(screen.getByText(text)).toBeInTheDocument();
+        });
 
-      expect(screen.getByText('LOW RİSK')).toBeInTheDocument();
-      expect(screen.getByText('Drug X & Drug Y Etkileşimi')).toBeInTheDocument();
-      expect(screen.getByText('Minor interaction')).toBeInTheDocument();
-      expect(screen.getByText('Kanıt: literature')).toBeInTheDocument();
-      expect(screen.getByText('Onay: unverified')).toBeInTheDocument();
-      expect(screen.queryByText('Mekanizma Detayları:')).not.toBeInTheDocument();
-      expect(screen.queryByText('Bilimsel Referanslar:')).not.toBeInTheDocument();
-    });
+        unexpectedText.forEach((text) => {
+          expect(screen.queryByText(text)).not.toBeInTheDocument();
+        });
+      }
+    );
   });
 
   describe('FoodInteractions', () => {

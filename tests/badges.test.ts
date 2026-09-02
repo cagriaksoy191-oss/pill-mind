@@ -38,19 +38,29 @@ describe("getEvidenceLevelBadge", () => {
   ])(
     "should return correct badge for valid level input %p",
     (level, expectedBadge) => {
-      expect(getEvidenceLevelBadge(level)).toEqual(expectedBadge);
+      const result = getEvidenceLevelBadge(level);
+      expect(result).toEqual(expectedBadge);
+      expect(result).toHaveProperty("label");
+      expect(result).toHaveProperty("style");
+      expect(result).toHaveProperty("desc");
     }
   );
 
   it.each([
     [undefined, fdaApprovedBadge],
+    [null as unknown as string, fdaApprovedBadge],
     ["", fdaApprovedBadge],
+    ["   ", fdaApprovedBadge],
     ["UNKNOWN_LEVEL", fdaApprovedBadge],
     ["INVALID_EVIDENCE", fdaApprovedBadge],
   ])(
     "should return default FDA_APPROVED badge for invalid or missing level input %p",
     (level, expectedBadge) => {
-      expect(getEvidenceLevelBadge(level)).toEqual(expectedBadge);
+      const result = getEvidenceLevelBadge(level);
+      expect(result).toEqual(expectedBadge);
+      expect(result).toHaveProperty("label");
+      expect(result).toHaveProperty("style");
+      expect(result).toHaveProperty("desc");
     }
   );
 });

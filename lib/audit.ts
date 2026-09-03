@@ -4,7 +4,7 @@ import { prisma } from "./prisma";
 /**
  * Mask sensitive PII such as emails and phone numbers to ensure GDPR/KVKK compliance.
  */
-export function redactPII(text: string): string {
+function redactPII(text: string): string {
   if (!text) return text;
   
   // Redact email addresses (e.g., john.doe@example.com -> j***e@example.com)

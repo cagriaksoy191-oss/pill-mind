@@ -23,7 +23,6 @@ jest.mock("@/lib/auth", () => ({
 
 jest.mock("@/lib/audit", () => ({
   writeAuditLog: jest.fn().mockResolvedValue({ id: "audit-1" }),
-  redactPII: (text: string) => text,
 }));
 
 jest.mock("@/lib/interactions", () => ({

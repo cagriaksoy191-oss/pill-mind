@@ -1,4 +1,4 @@
-import { redactPII, writeAuditLog } from '../lib/audit';
+import { writeAuditLog } from '../lib/audit';
 import { prisma } from '../lib/prisma';
 
 jest.mock('../lib/prisma', () => ({
@@ -14,38 +14,116 @@ describe('Audit Utility', () => {
     jest.clearAllMocks();
   });
 
-  describe('redactPII', () => {
-    it('should leave non-PII text unchanged', () => {
-      expect(redactPII('Hello World, this is normal text.')).toBe('Hello World, this is normal text.');
+  describe('PII Redaction via writeAuditLog', () => {
+    it('should leave non-PII text unchanged in details', async () => {
+      await writeAuditLog({
+        eventType: 'TEST_EVENT',
+        entityType: 'TEST',
+        details: 'Hello World, this is normal text.',
+      });
+
+      expect(prisma.auditLog.create).toHaveBeenCalledWith({
+        data: {
+          eventType: 'TEST_EVENT',
+          entityType: 'TEST',
+          entityId: undefined,
+          userId: undefined,
+          details: 'Hello World, this is normal text.',
+        },
+      });
     });
 
-    it('should mask standard email addresses', () => {
-      expect(redactPII('Contact me at john.doe@example.com')).toBe('Contact me at j***e@example.com');
-      expect(redactPII('test@test.com')).toBe('t***t@test.com');
+    it('should mask standard email addresses', async () => {
+      await writeAuditLog({
+        eventType: 'USER_LOGIN',
+        entityType: 'USER',
+        details: 'Contact me at john.doe@example.com or test@test.com',
+      });
+
+      expect(prisma.auditLog.create).toHaveBeenCalledWith({
+        data: {
+          eventType: 'USER_LOGIN',
+          entityType: 'USER',
+          entityId: undefined,
+          userId: undefined,
+          details: 'Contact me at j***e@example.com or t***t@test.com',
+        },
+      });
     });
 
-    it('should mask short email addresses', () => {
-      expect(redactPII('ab@example.com')).toBe('***@example.com');
-      expect(redactPII('a@example.com')).toBe('***@example.com');
+    it('should mask short email addresses', async () => {
+      await writeAuditLog({
+        eventType: 'USER_LOGIN',
+        entityType: 'USER',
+        details: 'Emails: ab@example.com and a@example.com',
+      });
+
+      expect(prisma.auditLog.create).toHaveBeenCalledWith({
+        data: {
+          eventType: 'USER_LOGIN',
+          entityType: 'USER',
+          entityId: undefined,
+          userId: undefined,
+          details: 'Emails: ***@example.com and ***@example.com',
+        },
+      });
     });
 
-    it('should mask common phone numbers', () => {
-      expect(redactPII('My phone is +1 555-123-4567.')).toBe('My phone is [TELEFON MASKELENDİ].');
-      expect(redactPII('Call (555) 123-4567')).toBe('Call [TELEFON MASKELENDİ]');
-      expect(redactPII('Or 555-123-4567')).toBe('Or [TELEFON MASKELENDİ]');
-      expect(redactPII('+90 532 123 4567')).toBe('[TELEFON MASKELENDİ]');
+    it('should mask common phone numbers', async () => {
+      await writeAuditLog({
+        eventType: 'USER_UPDATE',
+        entityType: 'USER',
+        details: 'My phone is +1 555-123-4567. Call (555) 123-4567 or 555-123-4567 or +90 532 123 4567.',
+      });
+
+      expect(prisma.auditLog.create).toHaveBeenCalledWith({
+        data: {
+          eventType: 'USER_UPDATE',
+          entityType: 'USER',
+          entityId: undefined,
+          userId: undefined,
+          details: 'My phone is [TELEFON MASKELENDİ]. Call [TELEFON MASKELENDİ] or [TELEFON MASKELENDİ] or [TELEFON MASKELENDİ].',
+        },
+      });
     });
 
-    it('should handle falsy values', () => {
-      expect(redactPII('')).toBe('');
-      // @ts-ignore
-      expect(redactPII(null)).toBe(null);
+    it('should handle falsy or empty details', async () => {
+      await writeAuditLog({
+        eventType: 'SYSTEM_EVENT',
+        entityType: 'SYSTEM',
+        details: '',
+      });
+
+      expect(prisma.auditLog.create).toHaveBeenCalledWith({
+        data: {
+          eventType: 'SYSTEM_EVENT',
+          entityType: 'SYSTEM',
+          entityId: undefined,
+          userId: undefined,
+          details: null,
+        },
+      });
     });
 
-    it('should mask multiple instances in a string', () => {
+    it('should mask multiple instances in a string', async () => {
       const text = 'Emails: a@b.com, long.name@domain.co.uk. Phones: 555-123-4567, +1 (555) 987-6543.';
       const expected = 'Emails: ***@b.com, l***e@domain.co.uk. Phones: [TELEFON MASKELENDİ], [TELEFON MASKELENDİ].';
-      expect(redactPII(text)).toBe(expected);
+
+      await writeAuditLog({
+        eventType: 'AUDIT_TEST',
+        entityType: 'TEST',
+        details: text,
+      });
+
+      expect(prisma.auditLog.create).toHaveBeenCalledWith({
+        data: {
+          eventType: 'AUDIT_TEST',
+          entityType: 'TEST',
+          entityId: undefined,
+          userId: undefined,
+          details: expected,
+        },
+      });
     });
   });
 

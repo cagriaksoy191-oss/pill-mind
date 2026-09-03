@@ -1,6 +1,5 @@
 import drugsData from "@/data/drugs.json";
 import interactionsData from "@/data/interactions.json";
-import foodInteractionsData from "@/data/foodInteractions.json";
 import contraindicationsData from "@/data/contraindications.json";
 
 import {
@@ -8,7 +7,6 @@ import {
   RawInteraction,
   Interaction,
   RawContraindication,
-  FoodInteraction,
 } from "./types";
 
 /**
@@ -61,16 +59,6 @@ for (const int of (interactionsData as RawInteraction[])) {
 
   if (!interactionsMap.has(mappedInt.drug2)) interactionsMap.set(mappedInt.drug2, new Map<string, Interaction>());
   interactionsMap.get(mappedInt.drug2)!.set(mappedInt.drug1, mappedInt);
-}
-
-export const foodInteractionsMap = new Map<string, FoodInteraction[]>();
-for (const foodInt of (foodInteractionsData as FoodInteraction[])) {
-  let list = foodInteractionsMap.get(foodInt.drugId);
-  if (!list) {
-    list = [];
-    foodInteractionsMap.set(foodInt.drugId, list);
-  }
-  list.push(foodInt);
 }
 
 export function getDrugsByIds(ids: string[]): Drug[] {

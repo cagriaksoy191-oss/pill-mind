@@ -42,7 +42,7 @@ function getErrorReason(error: unknown) {
   return "api_error";
 }
 
-export interface CachedExplanation {
+interface CachedExplanation {
   explanation: string;
   generatedAt: string;
   kaynakOzeti?: string;

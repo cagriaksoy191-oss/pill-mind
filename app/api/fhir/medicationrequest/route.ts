@@ -6,7 +6,7 @@ import { findInteractionsDB, checkAccumulationDB, findFoodInteractionsDB, findCo
 
 export const dynamic = "force-dynamic";
 
-export interface FhirRequestBody {
+interface FhirRequestBody {
   resourceType?: string;
   parameter?: Array<{
     name?: string;

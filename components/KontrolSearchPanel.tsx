@@ -6,7 +6,7 @@ import DrugSelector from "@/components/DrugSelector";
 import VirtualPillbox from "@/components/VirtualPillbox";
 import PatientProfileBar, { PatientContext } from "@/components/PatientProfileBar";
 
-export interface KontrolSearchPanelProps {
+interface KontrolSearchPanelProps {
   drugs: Drug[];
   selectedDrugIds: string[];
   setSelectedDrugIds: Dispatch<SetStateAction<string[]>>;

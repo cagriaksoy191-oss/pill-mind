@@ -8,7 +8,7 @@ export interface Evidence {
   summary: string;
 }
 
-export interface Mechanism {
+interface Mechanism {
   type: string;
   mechanism: string;
   pharmacokinetic: boolean;

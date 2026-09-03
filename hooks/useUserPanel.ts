@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 
-export interface SavedPillbox {
+interface SavedPillbox {
   id: string;
   name: string;
   drugIds: string[];

@@ -102,7 +102,7 @@ function matchSubsequence(query: string, target: string): number {
   return 0;
 }
 
-export interface FuzzyResult<T> {
+interface FuzzyResult<T> {
   item: T;
   score: number;
 }

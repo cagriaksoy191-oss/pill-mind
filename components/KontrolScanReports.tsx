@@ -13,7 +13,7 @@ import {
 import LiveReportsPanel from "@/components/LiveReports/LiveReportsPanel";
 import { CoverageExplanation } from "@/hooks/useCoverageExplanation";
 
-export interface KontrolScanReportsProps {
+interface KontrolScanReportsProps {
   selectedDrugIds: string[];
   setSelectedDrugIds: Dispatch<SetStateAction<string[]>>;
   selectedDrugs: Drug[];

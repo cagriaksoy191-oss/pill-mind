@@ -1,4 +1,4 @@
-import { GET as getMedications } from "@/app/api/fhir/medication/route";
+import { GET as getMedications, clearDrugsListCache } from "@/app/api/fhir/medication/route";
 import { POST as processMedicationRequest } from "@/app/api/fhir/medicationrequest/route";
 import { POST as createShare } from "@/app/api/pillbox/share/route";
 import { GET as getShare } from "@/app/api/pillbox/share/[token]/route";
@@ -19,6 +19,10 @@ import {
 jest.mock("@/lib/auth", () => ({
   getSession: jest.fn(),
   verifyCSRF: jest.fn().mockReturnValue(true),
+}));
+
+jest.mock("@/lib/redis", () => ({
+  redis: null,
 }));
 
 jest.mock("@/lib/audit", () => ({
@@ -76,6 +80,7 @@ describe("PillMind 3.0 Enterprise and FHIR API Tests", () => {
 
   describe("HL7 FHIR Medication (GET /api/fhir/medication)", () => {
     beforeEach(() => {
+      clearDrugsListCache();
       (getSession as jest.Mock).mockResolvedValue({ userId: "user-1", email: "test@pillmind.com" });
       (verifyCSRF as jest.Mock).mockReturnValue(true);
     });

@@ -15,6 +15,10 @@ jest.mock("@/lib/auth", () => ({
   verifyCSRF: jest.fn().mockReturnValue(true),
 }));
 
+jest.mock("@/lib/redis", () => ({
+  redis: null,
+}));
+
 jest.mock("@/lib/interactions", () => ({
   getAllDrugs: jest.fn(),
 }));

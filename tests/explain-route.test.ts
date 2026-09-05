@@ -128,46 +128,52 @@ describe("POST /api/explain", () => {
   });
 
 
-  it("should return 400 when body is missing/invalid JSON", async () => {
-    const req = new Request("http://localhost/api/explain", {
-      method: "POST",
-      body: "invalid-json", // Invalid JSON string
-      headers: { "Content-Type": "application/json" }
-    });
+  it.each([
+    {
+      description: "body is missing/invalid JSON string",
+      buildRequest: () =>
+        new Request("http://localhost/api/explain", {
+          method: "POST",
+          body: "invalid-json",
+          headers: { "Content-Type": "application/json" },
+        }),
+      expectedStatus: 400,
+      expectedError: "Geçersiz JSON gövdesi.",
+    },
+    {
+      description: "request.json() throws parsing error",
+      buildRequest: () => {
+        const req = new Request("http://localhost/api/explain", {
+          method: "POST",
+        });
+        req.json = jest.fn().mockRejectedValueOnce(new Error("Parse error"));
+        return req;
+      },
+      expectedStatus: 400,
+      expectedError: "Geçersiz JSON gövdesi.",
+    },
+    {
+      description: "body is a primitive string instead of an object",
+      buildRequest: () =>
+        new Request("http://localhost/api/explain", {
+          method: "POST",
+          body: JSON.stringify("a string instead of object"),
+          headers: { "Content-Type": "application/json" },
+        }),
+      expectedStatus: 400,
+      expectedError: "Geçersiz istek yapısı.",
+    },
+  ])(
+    "should return $expectedStatus when $description",
+    async ({ buildRequest, expectedStatus, expectedError }) => {
+      const req = buildRequest();
+      const res = await POST(req);
+      const data = await res.json();
 
-    const res = await POST(req);
-    const data = await res.json();
-
-    expect(res.status).toBe(400);
-    expect(data).toEqual({ error: "Geçersiz JSON gövdesi." });
-  });
-
-  it("should return 400 when request.json() throws", async () => {
-    const req = new Request("http://localhost/api/explain", {
-      method: "POST",
-    });
-    req.json = jest.fn().mockRejectedValueOnce(new Error("Parse error"));
-
-    const res = await POST(req);
-    const data = await res.json();
-
-    expect(res.status).toBe(400);
-    expect(data).toEqual({ error: "Geçersiz JSON gövdesi." });
-  });
-
-  it("should return 400 when body is not an object", async () => {
-    const req = new Request("http://localhost/api/explain", {
-      method: "POST",
-      body: JSON.stringify("a string instead of object"),
-      headers: { "Content-Type": "application/json" }
-    });
-
-    const res = await POST(req);
-    const data = await res.json();
-
-    expect(res.status).toBe(400);
-    expect(data).toEqual({ error: "Geçersiz istek yapısı." });
-  });
+      expect(res.status).toBe(expectedStatus);
+      expect(data).toEqual({ error: expectedError });
+    }
+  );
 
   it("should gracefully fallback to live AI when Redis cache read fails", async () => {
     const fakeError = new Error("Redis read timeout");

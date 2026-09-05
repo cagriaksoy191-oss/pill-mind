@@ -78,6 +78,7 @@ This document tracks all features that are fully implemented, compiled, and test
     *   `tests/accessibility.test.tsx`: `useFocusTrap` hook'unun odak hapsetme davranışı, `DrugSelector` klavye navigasyon olayları (ArrowDown, ArrowUp, Enter) ve `aria-live` assertive anonsörlerinin durumu mock DOM ile test edilmiştir.
     *   `tests/redis.test.ts`: Redis bağlantı hataları ve offline durumlarında `/api/check` ve `/api/explain` API rotalarının rate-limiter bypass ve live AI fallback resilience davranışları test edilmiştir.
     *   `tests/enterprise.test.ts`: HL7 FHIR Medication/MedicationRequest uyumluluğu, 24 saatlik süre aşımı sınırları, admin klinik onayı ve GDPR/KVKK maskeleme audit süreçleri test edilmiştir.
+    *   `tests/food.test.ts`: Senkron ve asenkron besin-ilaç etkileşim motoru (`findFoodInteractions`, `findFoodInteractionsDB`), takma ad çözümlemesi, büyük-küçük harf toleransı, 5000'lik önbellek sınırı, veritabanı kesintisinde `[SIFRE]` fallback'i ve Prisma hata toleransı test edilmiştir.
 *   **Uçtan Uca (E2E) Testleri (Playwright)**:
     *   `tests/e2e.spec.ts`: Autocomplete klavye gezinimi, seçili chip strict mode yönetimi, dinamik buton ARIA nitelikleri (`button[aria-controls^='explain-drawer-']`), asenkron drawer açılma durumları ve odak halkası standartları test edilmiştir.
 

@@ -61,18 +61,9 @@ export async function GET(
       drugs = (resolvedDrugsCache as DrugForDisplay[]).filter(d => drugIdsSet.has(d.id));
     }
 
-    // Fallback if cache missed the exact IDs or failed
+    // Fallback using curated local data if resolvedDrugsCache is empty or missing drug display names
     if (drugs.length === 0 && share.drugIds.length > 0) {
-      try {
-        drugs = await prisma.drug.findMany({
-          where: {
-            id: { in: share.drugIds },
-          },
-        });
-      } catch {
-        // Fallback using curated local data
-        drugs = getDrugsByIds(share.drugIds) as DrugForDisplay[];
-      }
+      drugs = getDrugsByIds(share.drugIds) as DrugForDisplay[];
     }
 
     const [interactions, accumulationWarnings, foodInteractions, contraindications] = await Promise.all([

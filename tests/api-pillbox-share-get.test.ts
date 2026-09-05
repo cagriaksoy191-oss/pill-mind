@@ -105,7 +105,7 @@ describe("GET /api/pillbox/share/[token]", () => {
     expect(prisma.drug.findMany).not.toHaveBeenCalled();
   });
 
-  it("should return 200 and data successfully via DB fallback when cache is not an array", async () => {
+  it("should return 200 and data successfully via local getDrugsByIds fallback when cache is not an array or empty", async () => {
     const mockShare = {
       token: "valid-token",
       drugIds: ["drug-1", "drug-2"],
@@ -114,8 +114,9 @@ describe("GET /api/pillbox/share/[token]", () => {
     };
     (prisma.pillboxShare.findUnique as jest.Mock).mockResolvedValue(mockShare);
 
-    const mockDrugs = [{ id: "drug-1", name: "Aspirin" }, { id: "drug-2", name: "Paracetamol" }];
-    (prisma.drug.findMany as jest.Mock).mockResolvedValue(mockDrugs);
+    const mockLocalDrugs = [{ id: "drug-1", name: "Aspirin" }, { id: "drug-2", name: "Paracetamol" }];
+    const { getDrugsByIds } = jest.requireMock("@/lib/interactions");
+    getDrugsByIds.mockReturnValue(mockLocalDrugs);
 
     const mockResolvedDrugsCache = new Map();
     (resolveDrugsDB as jest.Mock).mockResolvedValue(mockResolvedDrugsCache);
@@ -132,49 +133,12 @@ describe("GET /api/pillbox/share/[token]", () => {
     expect(data.success).toBe(true);
     expect(data.token).toBe("valid-token");
     expect(data.drugIds).toEqual(["drug-1", "drug-2"]);
-    expect(data.drugs).toEqual(mockDrugs);
+    expect(data.drugs).toEqual(mockLocalDrugs);
     expect(data.interactions).toEqual([{ severity: "High" }]);
     expect(data.accumulationWarnings).toEqual([{ issue: "Accumulation" }]);
     expect(data.foodInteractions).toEqual([{ warning: "No grapefruit" }]);
     expect(data.contraindications).toEqual([{ contraindication: "Liver disease" }]);
-  });
-
-  it("should fallback to local data if prisma.drug.findMany fails", async () => {
-    const mockShare = {
-      token: "valid-token",
-      drugIds: ["drug-1", "drug-2"],
-      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // Valid for tomorrow
-      createdAt: new Date(),
-    };
-    (prisma.pillboxShare.findUnique as jest.Mock).mockResolvedValue(mockShare);
-
-    // Make prisma.drug.findMany throw
-    (prisma.drug.findMany as jest.Mock).mockRejectedValue(new Error("Database offline"));
-
-    // Mock local data
-    const { getDrugsByIds } = jest.requireMock("@/lib/interactions");
-    getDrugsByIds.mockReturnValue([
-      { id: "drug-1", name: "Local Aspirin" },
-      { id: "drug-2", name: "Local Paracetamol" }
-    ]);
-
-    const mockResolvedDrugsCache = new Map();
-    (resolveDrugsDB as jest.Mock).mockResolvedValue(mockResolvedDrugsCache);
-    (findInteractionsDB as jest.Mock).mockResolvedValue([]);
-    (checkAccumulationDB as jest.Mock).mockResolvedValue([]);
-    (findFoodInteractionsDB as jest.Mock).mockResolvedValue([]);
-    (findContraindicationsDB as jest.Mock).mockResolvedValue([]);
-
-    const req = createMockRequest();
-    const res = await GET(req, { params: Promise.resolve({ token: "valid-token" }) });
-
-    expect(res.status).toBe(200);
-    const data = await res.json();
-    expect(data.success).toBe(true);
-    expect(data.drugs).toEqual([
-      { id: "drug-1", name: "Local Aspirin" },
-      { id: "drug-2", name: "Local Paracetamol" }
-    ]);
+    expect(prisma.drug.findMany).not.toHaveBeenCalled();
   });
 
   it("should return 500 if an internal error occurs", async () => {

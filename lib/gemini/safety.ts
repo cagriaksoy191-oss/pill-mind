@@ -38,7 +38,7 @@ const UNSAFE_PATTERNS_RAW = [
   "yerine\\s+.*\\s+kullan[a-zA-ZıİğĞüşŞöÖçÇ]*",
 ];
 
-export const UNSAFE_PATTERNS = UNSAFE_PATTERNS_RAW.map((pattern) => {
+const UNSAFE_PATTERNS = UNSAFE_PATTERNS_RAW.map((pattern) => {
   return new RegExp(
     `(?:^|[^a-zA-Z0-9ıİğĞüşŞöÖçÇ])${pattern}(?:$|[^a-zA-Z0-9ıİğĞüşŞöÖçÇ])`,
     "i"

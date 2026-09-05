@@ -19,6 +19,13 @@ for (const int of interactionsData as InteractionRecord[]) {
   interactionsMap.set(int.id, int);
 }
 
+const dbInteractionsCache = new Map<string, InteractionRecord | null>();
+const MAX_DB_CACHE_SIZE = 5000;
+
+export function clearDbInteractionsCache(): void {
+  dbInteractionsCache.clear();
+}
+
 export async function getInteractionContext(
   interactionId: string
 ): Promise<InteractionContext | null> {
@@ -32,8 +39,10 @@ export async function getInteractionContext(
   const staticInt = interactionsMap.get(interactionId);
   if (staticInt) {
     interaction = staticInt;
+  } else if (dbInteractionsCache.has(interactionId)) {
+    interaction = dbInteractionsCache.get(interactionId) ?? null;
   } else {
-    // If not in static JSON, look up the database UUID
+    // If not in static JSON or cache, look up the database UUID
     if (process.env.DATABASE_URL && !process.env.DATABASE_URL.includes("[SIFRE]")) {
       try {
         const { prisma } = await import("@/lib/prisma");
@@ -60,6 +69,11 @@ export async function getInteractionContext(
             mechanisms: dbMatch.mechanisms,
           };
         }
+
+        if (dbInteractionsCache.size >= MAX_DB_CACHE_SIZE) {
+          dbInteractionsCache.clear();
+        }
+        dbInteractionsCache.set(interactionId, interaction);
       } catch (err) {
         console.warn("[getInteractionContext] Database lookup failed:", err);
       }

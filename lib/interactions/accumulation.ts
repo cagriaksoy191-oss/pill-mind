@@ -8,6 +8,29 @@ interface AccumulationCoreInput {
   pharmacologicalGroup?: string | null;
 }
 
+const ingredientKeyCache = new Map<string, string>();
+const groupKeyCache = new Map<string, string>();
+
+function getIngredientKey(ingredient: string): string {
+  if (!ingredient) return "";
+  let key = ingredientKeyCache.get(ingredient);
+  if (key === undefined) {
+    key = ingredient.toLowerCase().trim();
+    ingredientKeyCache.set(ingredient, key);
+  }
+  return key;
+}
+
+function getGroupKey(group: string): string {
+  if (!group) return "";
+  let key = groupKeyCache.get(group);
+  if (key === undefined) {
+    key = group.toUpperCase().trim();
+    groupKeyCache.set(group, key);
+  }
+  return key;
+}
+
 function processAccumulationCore(drugs: AccumulationCoreInput[]): AccumulationWarning[] {
   const warnings: AccumulationWarning[] = [];
 
@@ -16,7 +39,7 @@ function processAccumulationCore(drugs: AccumulationCoreInput[]): AccumulationWa
 
   for (let i = 0; i < drugs.length; i++) {
     const drug = drugs[i];
-    const ingredientKey = drug.activeIngredient.toLowerCase().trim();
+    const ingredientKey = getIngredientKey(drug.activeIngredient);
 
     // 1. Aynı Etken Madde Çakışması
     const ingData = ingredientMap.get(ingredientKey);
@@ -29,7 +52,7 @@ function processAccumulationCore(drugs: AccumulationCoreInput[]): AccumulationWa
 
     // 2. Aynı Farmakolojik Grup
     if (drug.pharmacologicalGroup) {
-      const groupKey = drug.pharmacologicalGroup.toUpperCase().trim();
+      const groupKey = getGroupKey(drug.pharmacologicalGroup);
       const groupData = groupMap.get(groupKey);
       if (groupData === undefined) {
         groupMap.set(groupKey, {

@@ -5,7 +5,7 @@ import {
   DrugClinicalMetadata
 } from "./types";
 import { drugsMap, contraindicationsMap, DRUG_ALIASES } from "./data";
-import { getDrugClinicalMetadata } from "./metadata";
+import { getDrugClinicalMetadata, getBatchDrugClinicalMetadata } from "./metadata";
 import { resolveDrugsDB } from "./interactions";
 
 const resolveCache = new Map<string, string>();
@@ -188,9 +188,19 @@ function checkClinicalContraindications(
   patientContext: PatientContext,
   results: ContraindicationResult[]
 ) {
-  for (const drug of drugs) {
+  if (drugs.length === 0) return;
+
+  const drugIds: string[] = new Array(drugs.length);
+  for (let i = 0; i < drugs.length; i++) {
+    drugIds[i] = drugs[i].id;
+  }
+
+  const metadataBatchMap = getBatchDrugClinicalMetadata(drugIds);
+
+  for (let i = 0; i < drugs.length; i++) {
+    const drug = drugs[i];
     const drugId = drug.id;
-    const meta = getDrugClinicalMetadata(drugId);
+    const meta = metadataBatchMap.get(drugId) ?? getDrugClinicalMetadata(drugId);
 
     checkPregnancyContraindications(drugId, drug.name, meta, patientContext, results);
     checkBreastfeedingContraindications(drugId, drug.name, meta, patientContext, results);

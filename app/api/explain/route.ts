@@ -413,7 +413,7 @@ async function applyRateLimit(request: Request): Promise<Response | null> {
     }
 
     if (currentRequests > 15) {
-      console.warn(`[Security Alert] Rate limit exceeded for IP: ${ip}`);
+      console.warn("[Security Alert] Rate limit exceeded for explain endpoint");
       return jsonNoStore(
         {
           error: "Çok fazla istek gönderildi. Lütfen bir dakika bekleyin.",

@@ -1,4 +1,4 @@
-import { findContraindicationsDB } from "../lib/interactions";
+import { findContraindicationsDB, clearContraindicationsCache } from "../lib/interactions";
 
 // Mock Prisma
 const mockFindManyDrug = jest.fn();
@@ -25,10 +25,9 @@ describe("findContraindicationsDB Performance", () => {
     jest.clearAllMocks();
   });
 
-  it("should benchmark contraindication finding with many contras", async () => {
+  it("should benchmark contraindication finding with cache hit vs miss", async () => {
     const drugIds = Array.from({ length: 50 }, (_, i) => `drug-${i}`);
 
-    // Generate 50 dummy drugs
     const resolvedDrugsCache = drugIds.map(id => ({
       id,
       name: `Name ${id}`,
@@ -37,10 +36,9 @@ describe("findContraindicationsDB Performance", () => {
       pharmacologicalGroup: "Group"
     }));
 
-    // Create 10000 fake contraindications for the db
     const dbContras = Array.from({ length: 10000 }, (_, i) => ({
       id: `contra-${i}`,
-      drugId: `drug-${i % 50}`, // Maps to our dummy drugs
+      drugId: `drug-${i % 50}`,
       diseaseIcd: `ICD-${i % 10}`,
       diseaseName: `Disease ${i % 10}`,
       effect: `Effect ${i}`,
@@ -49,14 +47,30 @@ describe("findContraindicationsDB Performance", () => {
 
     mockFindManyContra.mockResolvedValue(dbContras);
 
-    const start = performance.now();
+    // Baseline: Cache misses (clearing cache every iteration)
+    clearContraindicationsCache();
+    const startMiss = performance.now();
+    for (let i = 0; i < 100; i++) {
+        clearContraindicationsCache();
+        await findContraindicationsDB(drugIds, { diseases: ["ICD-1", "ICD-2"] }, resolvedDrugsCache);
+    }
+    const endMiss = performance.now();
+    const durationMiss = endMiss - startMiss;
+
+    // Optimized: Cache hits (cache populated once)
+    clearContraindicationsCache();
+    const startHit = performance.now();
     for (let i = 0; i < 100; i++) {
         await findContraindicationsDB(drugIds, { diseases: ["ICD-1", "ICD-2"] }, resolvedDrugsCache);
     }
-    const end = performance.now();
+    const endHit = performance.now();
+    const durationHit = endHit - startHit;
 
-    console.log(`[BENCHMARK] findContraindicationsDB with 10000 db results (100 iterations): ${(end - start).toFixed(2)} ms`);
-    expect(mockFindManyContra).toHaveBeenCalledTimes(100);
+    console.log(`[BENCHMARK Cache Miss] findContraindicationsDB (100 iterations x 10000 items): ${durationMiss.toFixed(2)} ms`);
+    console.log(`[BENCHMARK Cache Hit] findContraindicationsDB (100 iterations x 10000 items): ${durationHit.toFixed(2)} ms`);
+
+    // Total DB calls should be 100 for misses + 1 for hits
+    expect(mockFindManyContra).toHaveBeenCalledTimes(101);
   });
 
   it("should handle empty diseases array without querying db", async () => {

@@ -93,7 +93,7 @@ async function checkRateLimit(request: Request) {
 
     if (currentRequests > 30) {
       console.error(
-        `[Security Alert] Rate limit exceeded for check endpoint, IP: ${ip}`,
+        "[Security Alert] Rate limit exceeded for check endpoint",
       );
       return jsonNoStore(
         { error: "Çok fazla istek gönderildi. Lütfen bir dakika bekleyin." },

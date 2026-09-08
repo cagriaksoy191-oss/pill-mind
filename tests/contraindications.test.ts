@@ -1,4 +1,4 @@
-import { findContraindications, findContraindicationsDB } from "@/lib/interactions/contraindications";
+import { findContraindications, findContraindicationsDB, clearContraindicationsCache } from "@/lib/interactions/contraindications";
 import { resolveDrugsDB } from "@/lib/interactions/interactions";
 import { prisma } from "@/lib/prisma";
 import { Drug } from "@/lib/interactions/types";
@@ -24,6 +24,7 @@ describe("Contraindications Engine (contraindications.ts)", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    clearContraindicationsCache();
     process.env = { ...originalEnv };
   });
 
@@ -337,6 +338,80 @@ describe("Contraindications Engine (contraindications.ts)", () => {
         expect(results[0].type).toBe("disease");
 
         consoleErrorSpy.mockRestore();
+      });
+
+      describe("Caching & In-Flight Request Deduplication", () => {
+        it("caches contraindication query results to avoid subsequent DB queries for same key", async () => {
+          const mockResolvedDrugs: Drug[] = [
+            { id: "aspirin", name: "Aspirin 100mg", activeIngredient: "Aspirin" },
+          ];
+          const mockDbContras = [
+            {
+              id: "contra-db-1",
+              drugId: "aspirin",
+              diseaseIcd: "K25",
+              diseaseName: "Peptik Ülser",
+              effect: "Gastrointestinal kanama riski",
+              severity: "HIGH",
+            },
+          ];
+
+          (prisma.contraindication.findMany as jest.Mock).mockResolvedValue(mockDbContras);
+
+          // First call - cache miss
+          const res1 = await findContraindicationsDB(["aspirin"], { diseases: ["K25"] }, mockResolvedDrugs);
+          expect(prisma.contraindication.findMany).toHaveBeenCalledTimes(1);
+
+          // Second call - cache hit
+          const res2 = await findContraindicationsDB(["aspirin"], { diseases: ["K25"] }, mockResolvedDrugs);
+          expect(prisma.contraindication.findMany).toHaveBeenCalledTimes(1);
+          expect(res1).toEqual(res2);
+        });
+
+        it("coalesces concurrent duplicate in-flight requests into a single DB query", async () => {
+          const mockResolvedDrugs: Drug[] = [
+            { id: "aspirin", name: "Aspirin 100mg", activeIngredient: "Aspirin" },
+          ];
+          const mockDbContras = [
+            {
+              id: "contra-db-1",
+              drugId: "aspirin",
+              diseaseIcd: "K25",
+              diseaseName: "Peptik Ülser",
+              effect: "Gastrointestinal kanama riski",
+              severity: "HIGH",
+            },
+          ];
+
+          (prisma.contraindication.findMany as jest.Mock).mockImplementation(() => {
+            return new Promise((resolve) => {
+              setImmediate(() => resolve(mockDbContras));
+            });
+          });
+
+          const req1 = findContraindicationsDB(["aspirin"], { diseases: ["K25"] }, mockResolvedDrugs);
+          const req2 = findContraindicationsDB(["aspirin"], { diseases: ["K25"] }, mockResolvedDrugs);
+
+          const [res1, res2] = await Promise.all([req1, req2]);
+
+          expect(prisma.contraindication.findMany).toHaveBeenCalledTimes(1);
+          expect(res1).toEqual(res2);
+        });
+
+        it("clears cache when clearContraindicationsCache is called", async () => {
+          const mockResolvedDrugs: Drug[] = [
+            { id: "aspirin", name: "Aspirin 100mg", activeIngredient: "Aspirin" },
+          ];
+          (prisma.contraindication.findMany as jest.Mock).mockResolvedValue([]);
+
+          await findContraindicationsDB(["aspirin"], { diseases: ["K25"] }, mockResolvedDrugs);
+          expect(prisma.contraindication.findMany).toHaveBeenCalledTimes(1);
+
+          clearContraindicationsCache();
+
+          await findContraindicationsDB(["aspirin"], { diseases: ["K25"] }, mockResolvedDrugs);
+          expect(prisma.contraindication.findMany).toHaveBeenCalledTimes(2);
+        });
       });
     });
   });

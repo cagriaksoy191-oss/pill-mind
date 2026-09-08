@@ -11,6 +11,14 @@ import { LRUCache } from "../lruCache";
 
 const MAX_CACHE_SIZE = 5000;
 const resolveCache = new LRUCache<string, string>(MAX_CACHE_SIZE);
+const contraindicationsCache = new LRUCache<string, { id: string; drugId: string; diseaseIcd: string; diseaseName: string; effect: string; severity: string; }[]>(1000);
+const inFlightContraindicationsMap = new Map<string, Promise<{ id: string; drugId: string; diseaseIcd: string; diseaseName: string; effect: string; severity: string; }[]>>();
+
+export function clearContraindicationsCache(): void {
+  contraindicationsCache.clear();
+  inFlightContraindicationsMap.clear();
+}
+
 
 function resolveDrugIds(drugIds: string[]): Set<string> {
   const resolvedIds = new Set<string>();
@@ -283,7 +291,6 @@ export async function findContraindicationsDB(
       return results;
     }
 
-    const { prisma } = await import("@/lib/prisma");
     let resolvedDrugs = resolvedDrugsCache as Drug[];
     if (!resolvedDrugsCache || !Array.isArray(resolvedDrugsCache) || resolvedDrugsCache.length === 0) {
       resolvedDrugs = await resolveDrugsDB(drugIds);
@@ -298,12 +305,34 @@ export async function findContraindicationsDB(
     }
 
     if (patientContext.diseases && Array.isArray(patientContext.diseases) && patientContext.diseases.length > 0) {
-      const dbContras = await prisma.contraindication.findMany({
-        where: {
-          drugId: { in: resolvedDrugIds },
-          diseaseIcd: { in: patientContext.diseases }
+      const sortedDrugIds = [...resolvedDrugIds].sort().join(",");
+      const sortedDiseases = [...patientContext.diseases].sort().join(",");
+      const cacheKey = `${sortedDrugIds}|${sortedDiseases}`;
+
+      let dbContras = contraindicationsCache.get(cacheKey);
+
+      if (!dbContras) {
+        let queryPromise = inFlightContraindicationsMap.get(cacheKey);
+        if (!queryPromise) {
+          queryPromise = (async () => {
+            const { prisma } = await import("@/lib/prisma");
+            return await prisma.contraindication.findMany({
+              where: {
+                drugId: { in: resolvedDrugIds },
+                diseaseIcd: { in: patientContext.diseases }
+              }
+            });
+          })();
+          inFlightContraindicationsMap.set(cacheKey, queryPromise);
         }
-      });
+
+        try {
+          dbContras = await queryPromise;
+          contraindicationsCache.set(cacheKey, dbContras);
+        } finally {
+          inFlightContraindicationsMap.delete(cacheKey);
+        }
+      }
 
       processDbContraindications({
         dbContras,

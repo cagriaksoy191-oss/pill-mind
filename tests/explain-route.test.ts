@@ -364,7 +364,7 @@ describe("POST /api/explain", () => {
         reason: "rate_limited"
       });
 
-      expect(consoleWarnSpy).toHaveBeenCalledWith("[Security Alert] Rate limit exceeded for IP: 192.168.1.1");
+      expect(consoleWarnSpy).toHaveBeenCalledWith("[Security Alert] Rate limit exceeded for explain endpoint");
     } finally {
       delete process.env.VERCEL;
     }

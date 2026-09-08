@@ -1,4 +1,4 @@
-﻿import { findFoodInteractions, findFoodInteractionsDB } from "@/lib/interactions/food";
+﻿import { findFoodInteractions, findFoodInteractionsDB, clearFoodInteractionsCache } from "@/lib/interactions/food";
 import { resolveDrugsDB } from "@/lib/interactions/interactions";
 import { prisma } from "@/lib/prisma";
 import { Drug } from "@/lib/interactions/types";
@@ -21,6 +21,7 @@ describe("Food Interactions Engine (food.ts)", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    clearFoodInteractionsCache();
     process.env = { ...originalEnv };
   });
 

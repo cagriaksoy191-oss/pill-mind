@@ -2,9 +2,16 @@ import { Drug, FoodInteraction, FoodInteractionResult } from "./types";
 import { drugsMap, DRUG_ALIASES } from "./data";
 import { resolveDrugsDB } from "./interactions";
 import foodInteractionsData from "@/data/foodInteractions.json";
+import { LRUCache } from "../lruCache";
 
-const resolveCache = new Map<string, string>();
-const MAX_CACHE_SIZE = 5000;
+const resolveCache = new LRUCache<string, string>(5000);
+const foodInteractionsCache = new LRUCache<string, FoodInteractionResult[]>(1000);
+const inFlightFoodInteractionsMap = new Map<string, Promise<FoodInteractionResult[]>>();
+
+export function clearFoodInteractionsCache(): void {
+  foodInteractionsCache.clear();
+  inFlightFoodInteractionsMap.clear();
+}
 
 function resolveDrugIds(drugIds: string[]): Set<string> {
   const resolvedIds = new Set<string>();
@@ -16,9 +23,6 @@ function resolveDrugIds(drugIds: string[]): Set<string> {
 
     let canonicalId = resolveCache.get(idOrName);
     if (canonicalId === undefined) {
-      if (resolveCache.size >= MAX_CACHE_SIZE) {
-        resolveCache.clear();
-      }
       const lower = idOrName.toLowerCase().trim();
       canonicalId = DRUG_ALIASES[lower] || "";
       resolveCache.set(idOrName, canonicalId);
@@ -55,28 +59,51 @@ export async function findFoodInteractionsDB(drugIds: string[], resolvedDrugsCac
     return findFoodInteractions(drugIds);
   }
   try {
-    const { prisma } = await import("@/lib/prisma");
     let resolvedDrugs = resolvedDrugsCache as Drug[];
     if (!resolvedDrugsCache || !Array.isArray(resolvedDrugsCache) || resolvedDrugsCache.length === 0) {
       resolvedDrugs = await resolveDrugsDB(drugIds);
     }
     const resolvedDrugIds = resolvedDrugs.map(d => d.id);
-    const foodInts = await prisma.foodInteraction.findMany({
-      where: {
-        drugId: { in: resolvedDrugIds }
-      },
-      include: {
-        drug: true
-      }
-    });
-    return foodInts.map(f => ({
-      id: f.id,
-      drugId: f.drugId,
-      drugName: f.drug.name,
-      substance: f.substance,
-      effect: f.effect,
-      severity: f.severity.toLowerCase() as "high" | "medium" | "low"
-    }));
+    const cacheKey = [...resolvedDrugIds].sort().join(",");
+
+    const cachedResults = foodInteractionsCache.get(cacheKey);
+    if (cachedResults) {
+      return cachedResults;
+    }
+
+    if (inFlightFoodInteractionsMap.has(cacheKey)) {
+      return inFlightFoodInteractionsMap.get(cacheKey)!;
+    }
+
+    const queryPromise = (async () => {
+      const { prisma } = await import("@/lib/prisma");
+      const foodInts = await prisma.foodInteraction.findMany({
+        where: {
+          drugId: { in: resolvedDrugIds }
+        },
+        include: {
+          drug: true
+        }
+      });
+      return foodInts.map(f => ({
+        id: f.id,
+        drugId: f.drugId,
+        drugName: f.drug.name,
+        substance: f.substance,
+        effect: f.effect,
+        severity: f.severity.toLowerCase() as "high" | "medium" | "low"
+      }));
+    })();
+
+    inFlightFoodInteractionsMap.set(cacheKey, queryPromise);
+
+    try {
+      const results = await queryPromise;
+      foodInteractionsCache.set(cacheKey, results);
+      return results;
+    } finally {
+      inFlightFoodInteractionsMap.delete(cacheKey);
+    }
   } catch (error) {
     console.error("[PillMind CMIO Engine] Food interactions DB query failed, using local fallback:", error);
     return findFoodInteractions(drugIds);

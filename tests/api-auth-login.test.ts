@@ -52,7 +52,7 @@ describe("POST /api/auth/login", () => {
 
 
   it("should return 429 if rate limit is exceeded", async () => {
-    const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
     mockExec.mockResolvedValueOnce([6, 1]); // Exceed limit
 
@@ -62,8 +62,10 @@ describe("POST /api/auth/login", () => {
     expect(res.status).toBe(429);
     const data = await res.json();
     expect(data.error).toBe("Çok fazla giriş denemesi yapıldı. Lütfen daha sonra tekrar deneyin.");
+    expect(consoleErrorSpy).toHaveBeenCalledWith("[Security Alert] Rate limit exceeded for login endpoint");
+    expect(consoleErrorSpy.mock.calls[0][0]).not.toContain("127.0.0.1");
 
-    consoleWarnSpy.mockRestore();
+    consoleErrorSpy.mockRestore();
   });
 
   it("should return 503 if redis.incr throws an error", async () => {

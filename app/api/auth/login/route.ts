@@ -62,12 +62,13 @@ function verifyOtp(cleanEmail: string, otp: string, otpToken: string): NextRespo
   return null;
 }
 
-async function createSessionResponse(user: { id: string, email: string }) {
+async function createSessionResponse(user: { id: string, email: string, role?: string }) {
   // 7 Günlük oturum süresi belirlenir
   const expiresAt = Date.now() + 1000 * 60 * 60 * 24 * 7;
   const sessionToken = await encryptSession({
     userId: user.id,
     email: user.email,
+    role: user.role,
     expires: expiresAt,
   });
 

@@ -14,6 +14,7 @@ export const getJwtSecret = () => {
 export interface SessionData {
   userId: string;
   email: string;
+  role?: string;
   expires: number;
 }
 

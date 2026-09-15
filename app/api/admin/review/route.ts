@@ -5,8 +5,46 @@ import { NextRequest, NextResponse } from "next/server";
 import { jsonNoStore } from "@/lib/http";
 import { getSession, verifyCSRF, SessionData } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { redis } from "@/lib/redis";
 import { writeAuditLog } from "@/lib/audit";
 import { Status, DrugInteraction, ClinicalReview } from "@prisma/client";
+
+async function getUserRole(userId: string, sessionRole?: string): Promise<string | null> {
+  if (sessionRole) {
+    return sessionRole;
+  }
+
+  const cacheKey = `user:role:${userId}`;
+  if (redis) {
+    try {
+      const cachedRole = await redis.get<string>(cacheKey);
+      if (cachedRole !== null) {
+        return cachedRole;
+      }
+    } catch {
+      // Ignore Redis errors and fallback to DB
+    }
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true }
+  });
+
+  if (!user) {
+    return null;
+  }
+
+  if (redis) {
+    try {
+      await redis.set(cacheKey, user.role, { ex: 300 });
+    } catch {
+      // Ignore Redis write errors
+    }
+  }
+
+  return user.role;
+}
 
 export const dynamic = "force-dynamic";
 
@@ -20,12 +58,9 @@ async function checkAuthorization(request: NextRequest): Promise<{ errorResponse
     return { errorResponse: jsonNoStore({ error: "Klinik onay işlemi gerçekleştirmek için lütfen giriş yapın." }, 401) };
   }
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.userId },
-    select: { role: true }
-  });
+  const role = await getUserRole(session.userId, session.role);
 
-  if (!user || (user.role !== "ADMIN" && user.role !== "CLINICAL_REVIEWER")) {
+  if (!role || (role !== "ADMIN" && role !== "CLINICAL_REVIEWER")) {
     return { errorResponse: jsonNoStore({ error: "Klinik onay işlemi için yetkiniz bulunmamaktadır." }, 403) };
   }
 

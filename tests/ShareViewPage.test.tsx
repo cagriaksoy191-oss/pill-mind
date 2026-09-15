@@ -129,6 +129,54 @@ describe("ShareViewPage", () => {
     expect(screen.getByText(/mevcut değil veya sistem yöneticisi tarafından kaldırılmış/i)).toBeInTheDocument();
   });
 
+  it("handles non-ok API response without json.error property using fallback error message", async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      json: async () => ({})
+    });
+
+    render(<ShareViewPage params={mockParamsPromise} />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Paylaşım Bulunamadı/i)).toBeInTheDocument();
+    });
+  });
+
+  it("handles fetch network failure via catch block", async () => {
+    (global.fetch as jest.Mock).mockRejectedValueOnce(new Error("Network connection error"));
+
+    render(<ShareViewPage params={mockParamsPromise} />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Paylaşım Bulunamadı/i)).toBeInTheDocument();
+    });
+  });
+
+  it("handles non-ok API response without json.error property using fallback error message", async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      json: async () => ({})
+    });
+
+    render(<ShareViewPage params={mockParamsPromise} />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Paylaşım Bulunamadı/i)).toBeInTheDocument();
+    });
+  });
+
+  it("handles fetch network failure via catch block", async () => {
+    (global.fetch as jest.Mock).mockRejectedValueOnce(new Error("Network connection error"));
+
+    render(<ShareViewPage params={mockParamsPromise} />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Paylaşım Bulunamadı/i)).toBeInTheDocument();
+    });
+  });
+
   it("renders success state with data", async () => {
     (global.fetch as jest.Mock).mockResolvedValueOnce({
       ok: true,

@@ -7,13 +7,8 @@ import { getClientIp } from "@/lib/ip";
 
 
 import { prisma } from "@/lib/prisma";
-import { encryptSession, verifyCSRF } from "@/lib/auth";
+import { encryptSession, verifyCSRF, getJwtSecret } from "@/lib/auth";
 import * as Sentry from "@sentry/nextjs";
-
-const getJwtSecret = () => {
-  if (!process.env.JWT_SECRET) throw new Error("JWT_SECRET is not set");
-  return process.env.JWT_SECRET;
-};
 
 function generateOtpResponse(cleanEmail: string) {
   const generatedOtp = crypto.randomInt(100000, 1000000).toString();

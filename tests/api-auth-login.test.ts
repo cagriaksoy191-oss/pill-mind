@@ -25,6 +25,7 @@ jest.mock("@/lib/ip", () => ({
 }));
 
 jest.mock("@/lib/auth", () => ({
+  ...jest.requireActual("@/lib/auth"),
   verifyCSRF: jest.fn().mockReturnValue(true),
   encryptSession: jest.fn().mockReturnValue("mock-session-token"),
 }));

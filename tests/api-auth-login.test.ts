@@ -1,6 +1,7 @@
 process.env.JWT_SECRET = 'test-secret-key-that-is-at-least-32-chars';
 import crypto from "crypto";
 import { POST } from "@/app/api/auth/login/route";
+import { writeAuditLog } from "@/lib/audit";
 import * as Sentry from "@sentry/nextjs";
 import { prisma } from "@/lib/prisma";
 
@@ -18,6 +19,10 @@ jest.mock("@/lib/redis", () => ({
     expire: jest.fn(),
     get: jest.fn(),
   },
+}));
+
+jest.mock("@/lib/audit", () => ({
+  writeAuditLog: jest.fn().mockResolvedValue(undefined),
 }));
 
 jest.mock("@/lib/ip", () => ({
@@ -63,6 +68,11 @@ describe("POST /api/auth/login", () => {
     expect(res.status).toBe(429);
     const data = await res.json();
     expect(data.error).toBe("Çok fazla giriş denemesi yapıldı. Lütfen daha sonra tekrar deneyin.");
+    expect(writeAuditLog).toHaveBeenCalledWith({
+      eventType: "RATE_LIMIT_EXCEEDED",
+      entityType: "AUTH_LOGIN",
+      details: "Rate limit exceeded for login endpoint, IP: 127.0.0.1",
+    });
     expect(consoleErrorSpy).toHaveBeenCalledWith("[Security Alert] Rate limit exceeded for login endpoint");
     expect(consoleErrorSpy.mock.calls[0][0]).not.toContain("127.0.0.1");
 

@@ -9,6 +9,7 @@ import { getClientIp } from "@/lib/ip";
 import { prisma } from "@/lib/prisma";
 import { encryptSession, verifyCSRF, getJwtSecret } from "@/lib/auth";
 import * as Sentry from "@sentry/nextjs";
+import { writeAuditLog } from "@/lib/audit";
 
 function generateOtpResponse(cleanEmail: string) {
   const generatedOtp = crypto.randomInt(100000, 1000000).toString();
@@ -101,6 +102,11 @@ async function checkRateLimit(request: Request) {
     const [currentRequests] = await pipeline.exec<[number, number]>();
 
     if (currentRequests > 5) {
+      await writeAuditLog({
+        eventType: "RATE_LIMIT_EXCEEDED",
+        entityType: "AUTH_LOGIN",
+        details: `Rate limit exceeded for login endpoint, IP: ${ip}`,
+      });
       console.error(
         "[Security Alert] Rate limit exceeded for login endpoint"
       );

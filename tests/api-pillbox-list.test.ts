@@ -93,6 +93,39 @@ describe("GET /api/pillbox/list", () => {
     });
   });
 
+  it("should cap limit parameter at MAX_LIMIT (100)", async () => {
+    (getSession as jest.Mock).mockResolvedValue({ userId: "user-1", email: "test@test.com", expires: Date.now() + 10000 });
+
+    (prisma.savedPillbox.findMany as jest.Mock).mockResolvedValue([]);
+    (prisma.savedPillbox.count as jest.Mock).mockResolvedValue(0);
+
+    const req = createMockRequest("http://localhost:3000/api/pillbox/list?limit=1000");
+    const res = await GET(req);
+
+    expect(res.status).toBe(200);
+    expect(prisma.savedPillbox.findMany).toHaveBeenCalledWith({
+      where: { userId: "user-1" },
+      orderBy: { createdAt: "desc" },
+      take: 100
+    });
+  });
+
+  it("should ignore invalid or negative pagination parameters", async () => {
+    (getSession as jest.Mock).mockResolvedValue({ userId: "user-1", email: "test@test.com", expires: Date.now() + 10000 });
+
+    (prisma.savedPillbox.findMany as jest.Mock).mockResolvedValue([]);
+    (prisma.savedPillbox.count as jest.Mock).mockResolvedValue(0);
+
+    const req = createMockRequest("http://localhost:3000/api/pillbox/list?limit=-10&offset=-5");
+    const res = await GET(req);
+
+    expect(res.status).toBe(200);
+    expect(prisma.savedPillbox.findMany).toHaveBeenCalledWith({
+      where: { userId: "user-1" },
+      orderBy: { createdAt: "desc" }
+    });
+  });
+
   it("should return 500 if an internal error occurs", async () => {
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     (getSession as jest.Mock).mockResolvedValue({ userId: "user-1", email: "test@test.com", expires: Date.now() + 10000 });

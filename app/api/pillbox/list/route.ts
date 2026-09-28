@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+const MAX_LIMIT = 100;
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getSession(request);
@@ -17,16 +19,29 @@ export async function GET(request: NextRequest) {
     const limitParam = searchParams.get("limit");
     const offsetParam = searchParams.get("offset");
 
-    const take = limitParam ? parseInt(limitParam, 10) : undefined;
-    const skip = offsetParam ? parseInt(offsetParam, 10) : undefined;
+    let take: number | undefined = undefined;
+    if (limitParam) {
+      const parsedLimit = parseInt(limitParam, 10);
+      if (!isNaN(parsedLimit) && parsedLimit > 0) {
+        take = Math.min(parsedLimit, MAX_LIMIT);
+      }
+    }
+
+    let skip: number | undefined = undefined;
+    if (offsetParam) {
+      const parsedOffset = parseInt(offsetParam, 10);
+      if (!isNaN(parsedOffset) && parsedOffset >= 0) {
+        skip = parsedOffset;
+      }
+    }
 
     // Kullanıcının kayıtlı tüm kutularını çek (Paralel sorgu ile gecikme %50 azaltıldı)
     const [pillboxes, total] = await Promise.all([
       prisma.savedPillbox.findMany({
         where: { userId: session.userId },
         orderBy: { createdAt: "desc" },
-        ...(take ? { take } : {}),
-        ...(skip ? { skip } : {}),
+        ...(take !== undefined ? { take } : {}),
+        ...(skip !== undefined ? { skip } : {}),
       }),
       prisma.savedPillbox.count({
         where: { userId: session.userId },

@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 const MAX_LIMIT = 100;
+const MAX_OFFSET = 10000;
 
 export async function GET(request: NextRequest) {
   try {
@@ -31,7 +32,7 @@ export async function GET(request: NextRequest) {
     if (offsetParam) {
       const parsedOffset = parseInt(offsetParam, 10);
       if (!isNaN(parsedOffset) && parsedOffset >= 0) {
-        skip = parsedOffset;
+        skip = Math.min(parsedOffset, MAX_OFFSET);
       }
     }
 

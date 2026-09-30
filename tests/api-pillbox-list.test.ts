@@ -110,6 +110,23 @@ describe("GET /api/pillbox/list", () => {
     });
   });
 
+  it("should cap offset parameter at MAX_OFFSET (10000)", async () => {
+    (getSession as jest.Mock).mockResolvedValue({ userId: "user-1", email: "test@test.com", expires: Date.now() + 10000 });
+
+    (prisma.savedPillbox.findMany as jest.Mock).mockResolvedValue([]);
+    (prisma.savedPillbox.count as jest.Mock).mockResolvedValue(0);
+
+    const req = createMockRequest("http://localhost:3000/api/pillbox/list?offset=50000");
+    const res = await GET(req);
+
+    expect(res.status).toBe(200);
+    expect(prisma.savedPillbox.findMany).toHaveBeenCalledWith({
+      where: { userId: "user-1" },
+      orderBy: { createdAt: "desc" },
+      skip: 10000
+    });
+  });
+
   it("should ignore invalid or negative pagination parameters", async () => {
     (getSession as jest.Mock).mockResolvedValue({ userId: "user-1", email: "test@test.com", expires: Date.now() + 10000 });
 

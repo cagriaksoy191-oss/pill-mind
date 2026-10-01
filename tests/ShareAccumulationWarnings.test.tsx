@@ -9,32 +9,38 @@ import ShareAccumulationWarnings from "@/components/ShareView/ShareAccumulationW
 import { AccumulationWarning } from "@/components/ShareView/types";
 
 describe("ShareAccumulationWarnings", () => {
-  it("renders null when warnings is undefined", () => {
-    const { container } = render(<ShareAccumulationWarnings warnings={undefined} />);
+  it.each([
+    ["undefined", undefined],
+    ["empty array", []],
+  ])("renders null when warnings prop is %s", (_, warnings) => {
+    const { container } = render(<ShareAccumulationWarnings warnings={warnings} />);
     expect(container.firstChild).toBeNull();
   });
 
-  it("renders null when warnings is an empty array", () => {
-    const { container } = render(<ShareAccumulationWarnings warnings={[]} />);
-    expect(container.firstChild).toBeNull();
-  });
-
-  it("renders accumulation warnings correctly with and without detail", () => {
+  it("renders accumulation warnings list correctly with message and detail", () => {
     const mockWarnings: AccumulationWarning[] = [
       {
-        message: "Çift doz NSAİİ birikimi saptandı.",
-        detail: "İbuprofen ve Naproksen aynı anda kullanılmaktadır.",
+        type: "active_ingredient",
         severity: "high",
+        message: "Çift doz NSAİİ birikimi saptandı.",
+        triggerDrugs: ["drug-1", "drug-2"],
+        detail: "İbuprofen ve Naproksen aynı anda kullanılmaktadır.",
       },
       {
-        message: "Farmakolojik sınıf birikimi uyarısı.",
+        type: "pharmacological_group",
         severity: "medium",
+        message: "Farmakolojik sınıf birikimi uyarısı.",
+        triggerDrugs: ["drug-3"],
       },
     ];
 
     render(<ShareAccumulationWarnings warnings={mockWarnings} />);
 
     expect(screen.getByText(/Doz Aşımı \/ Grup Birikim Uyarıları/i)).toBeInTheDocument();
+
+    const listItems = screen.getAllByRole("listitem");
+    expect(listItems).toHaveLength(2);
+
     expect(screen.getByText("Çift doz NSAİİ birikimi saptandı.")).toBeInTheDocument();
     expect(
       screen.getByText("İbuprofen ve Naproksen aynı anda kullanılmaktadır.")

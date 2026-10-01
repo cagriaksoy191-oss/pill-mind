@@ -28,77 +28,104 @@ describe("CoveragePatientView", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders cache badge, explanation, generatedAt timestamp, and clinical disclaimer for source='cache'", () => {
-    render(
-      <CoveragePatientView
-        isCoverageLoading={false}
-        coverageExplanation={{
-          source: "cache",
-          explanation: "Önbellekten alınan güvenli klinik açıklama.",
-          generatedAt: "14:30:00",
-        }}
-        handleRequestCoverageExplanation={mockHandleRequest}
-      />
-    );
+  describe("when source is cache or gemini_live", () => {
+    it.each([
+      {
+        source: "cache",
+        badgeText: "Önbellek Yanıtı",
+        explanation: "Önbellekten alınan güvenli klinik açıklama.",
+        generatedAt: "14:30:00",
+      },
+      {
+        source: "gemini_live",
+        badgeText: "Canlı Analiz",
+        explanation: "Canlı AI tarafından üretilmiş kapsam analizi.",
+        generatedAt: undefined,
+      },
+    ])(
+      "renders badge ($badgeText) and explanation for source='$source'",
+      ({ source, badgeText, explanation, generatedAt }) => {
+        render(
+          <CoveragePatientView
+            isCoverageLoading={false}
+            coverageExplanation={{
+              source,
+              explanation,
+              generatedAt,
+            }}
+            handleRequestCoverageExplanation={mockHandleRequest}
+          />
+        );
 
-    expect(screen.getByText("Önbellek Yanıtı")).toBeInTheDocument();
-    expect(screen.getByText("14:30:00")).toBeInTheDocument();
-    expect(
-      screen.getByText("Önbellekten alınan güvenli klinik açıklama.")
-    ).toBeInTheDocument();
-    expect(screen.getByText(/Klinik Uyarı:/i)).toBeInTheDocument();
+        expect(screen.getByText(badgeText)).toBeInTheDocument();
+        expect(screen.getByText(explanation)).toBeInTheDocument();
+        expect(screen.getByText(/Klinik Uyarı:/i)).toBeInTheDocument();
+
+        if (generatedAt) {
+          expect(screen.getByText(generatedAt)).toBeInTheDocument();
+        } else {
+          expect(screen.queryByText("14:30:00")).not.toBeInTheDocument();
+        }
+      }
+    );
   });
 
-  it("renders live analysis badge and explanation for source='gemini_live'", () => {
-    render(
-      <CoveragePatientView
-        isCoverageLoading={false}
-        coverageExplanation={{
-          source: "gemini_live",
-          explanation: "Canlı AI tarafından üretilmiş kapsam analizi.",
-        }}
-        handleRequestCoverageExplanation={mockHandleRequest}
-      />
-    );
+  describe("when source is error", () => {
+    it.each([
+      {
+        error: "Kota aşımı nedeniyle açıklama üretilemedi.",
+        expectedMessage: "Kota aşımı nedeniyle açıklama üretilemedi.",
+      },
+      {
+        error: undefined,
+        expectedMessage: "Canlı kombinasyon açıklaması şu anda sunulamıyor.",
+      },
+    ])(
+      "renders error view with message '$expectedMessage' and handles retry",
+      ({ error, expectedMessage }) => {
+        render(
+          <CoveragePatientView
+            isCoverageLoading={false}
+            coverageExplanation={{
+              source: "error",
+              error,
+            }}
+            handleRequestCoverageExplanation={mockHandleRequest}
+          />
+        );
 
-    expect(screen.getByText("Canlı Analiz")).toBeInTheDocument();
-    expect(
-      screen.getByText("Canlı AI tarafından üretilmiş kapsam analizi.")
-    ).toBeInTheDocument();
+        expect(screen.getByText("Analiz Tamamlanamadı")).toBeInTheDocument();
+        expect(screen.getByText(expectedMessage)).toBeInTheDocument();
+
+        const retryBtn = screen.getByRole("button", { name: /Yeniden Dene/i });
+        fireEvent.click(retryBtn);
+
+        expect(mockHandleRequest).toHaveBeenCalledTimes(1);
+      }
+    );
   });
 
-  it("renders error view and triggers retry button callback for source='error'", () => {
-    render(
-      <CoveragePatientView
-        isCoverageLoading={false}
-        coverageExplanation={{
-          source: "error",
-          error: "Kota aşımı nedeniyle açıklama üretilemedi.",
-        }}
-        handleRequestCoverageExplanation={mockHandleRequest}
-      />
-    );
+  it.each([
+    {
+      description: "coverageExplanation is null",
+      coverageExplanation: null,
+    },
+    {
+      description: "coverageExplanation source is unknown",
+      coverageExplanation: { source: "unknown_source", explanation: "Test" },
+    },
+  ])(
+    "returns null when $description and isCoverageLoading is false",
+    ({ coverageExplanation }) => {
+      const { container } = render(
+        <CoveragePatientView
+          isCoverageLoading={false}
+          coverageExplanation={coverageExplanation as any}
+          handleRequestCoverageExplanation={mockHandleRequest}
+        />
+      );
 
-    expect(screen.getByText("Analiz Tamamlanamadı")).toBeInTheDocument();
-    expect(
-      screen.getByText("Kota aşımı nedeniyle açıklama üretilemedi.")
-    ).toBeInTheDocument();
-
-    const retryBtn = screen.getByRole("button", { name: /Yeniden Dene/i });
-    fireEvent.click(retryBtn);
-
-    expect(mockHandleRequest).toHaveBeenCalledTimes(1);
-  });
-
-  it("returns null when coverageExplanation is null and isCoverageLoading is false", () => {
-    const { container } = render(
-      <CoveragePatientView
-        isCoverageLoading={false}
-        coverageExplanation={null}
-        handleRequestCoverageExplanation={mockHandleRequest}
-      />
-    );
-
-    expect(container.firstChild).toBeNull();
-  });
+      expect(container.firstChild).toBeNull();
+    }
+  );
 });

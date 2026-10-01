@@ -9,17 +9,15 @@ import ShareDrugsList from "@/components/ShareView/ShareDrugsList";
 import { Drug } from "@/components/ShareView/types";
 
 describe("ShareDrugsList", () => {
-  it("renders with 0 count when drugs is undefined", () => {
-    render(<ShareDrugsList drugs={undefined} />);
+  it.each([
+    ["undefined", undefined],
+    ["empty array", []],
+  ])("renders 0 count when drugs prop is %s", (_, drugsInput) => {
+    render(<ShareDrugsList drugs={drugsInput as Drug[] | undefined} />);
     expect(screen.getByText("Kutudaki İlaçlar (0)")).toBeInTheDocument();
   });
 
-  it("renders with 0 count when drugs is empty array", () => {
-    render(<ShareDrugsList drugs={[]} />);
-    expect(screen.getByText("Kutudaki İlaçlar (0)")).toBeInTheDocument();
-  });
-
-  it("renders list of drugs with active ingredient, category, and pharmacological group", () => {
+  it("renders list of drugs with active ingredient, category, and optional pharmacological group", () => {
     const mockDrugs: Drug[] = [
       {
         id: "d-1",
@@ -40,7 +38,7 @@ describe("ShareDrugsList", () => {
 
     expect(screen.getByText("Kutudaki İlaçlar (2)")).toBeInTheDocument();
 
-    // Check first drug
+    // Check first drug (with pharmacologicalGroup)
     expect(screen.getByText("Aspirin 100mg")).toBeInTheDocument();
     expect(screen.getByText("Asetilsalisilik Asit")).toBeInTheDocument();
     expect(screen.getByText(/Analjezik\s+\|\s+Antiagregan/)).toBeInTheDocument();

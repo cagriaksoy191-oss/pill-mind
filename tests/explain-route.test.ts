@@ -428,33 +428,41 @@ describe("POST /api/explain", () => {
     );
   });
 
-  it("should return 503 with error details when callGeminiForCoverage throws an error", async () => {
-    (redis!.get as jest.Mock).mockResolvedValueOnce(null);
+  it.each([
+    { errorMessage: "429 Too Many Requests / Quota exceeded", expectedReason: "rate_limited" },
+    { errorMessage: "Request timeout / AbortError", expectedReason: "timeout" },
+    { errorMessage: "Internal server error / unknown error", expectedReason: "api_error" },
+  ])(
+    "should return 503 with error details and reason $expectedReason when callGeminiForCoverage throws $errorMessage",
+    async ({ errorMessage, expectedReason }) => {
+      (redis!.get as jest.Mock).mockResolvedValueOnce(null);
 
-    (getCoverageContext as jest.Mock).mockReturnValue({
-      drugs: [{ id: "drug1", name: "Drug1" }, { id: "drug2", name: "Drug2" }],
-      combinations: []
-    });
+      (getCoverageContext as jest.Mock).mockReturnValue({
+        drugs: [{ id: "drug1", name: "Drug1" }, { id: "drug2", name: "Drug2" }],
+        combinations: []
+      });
 
-    const geminiError = new Error("Gemini quota exceeded or timeout");
-    (callGeminiForCoverage as jest.Mock).mockRejectedValueOnce(geminiError);
+      const geminiError = new Error(errorMessage);
+      (callGeminiForCoverage as jest.Mock).mockRejectedValueOnce(geminiError);
 
-    const req = new Request("http://localhost/api/explain", {
-      method: "POST",
-      body: JSON.stringify({ drugIds: ["drug1", "drug2"] }),
-      headers: {
-        "Content-Type": "application/json",
-      }
-    });
+      const req = new Request("http://localhost/api/explain", {
+        method: "POST",
+        body: JSON.stringify({ drugIds: ["drug1", "drug2"] }),
+        headers: {
+          "Content-Type": "application/json",
+        }
+      });
 
-    const res = await POST(req);
-    const data = await res.json();
+      const res = await POST(req);
+      const data = await res.json();
 
-    expect(res.status).toBe(503);
-    expect(data.error).toBe("Canlı AI açıklaması şu anda üretilemedi.");
-    expect(data.source).toBe("error");
-    expect(data.disclaimer).toBeDefined();
-  });
+      expect(res.status).toBe(503);
+      expect(data.error).toBe("Canlı AI açıklaması şu anda üretilemedi.");
+      expect(data.source).toBe("error");
+      expect(data.reason).toBe(expectedReason);
+      expect(data.disclaimer).toBeDefined();
+    }
+  );
 
   it("should bypass rate limiter and continue when Redis throws an error", async () => {
     const fakeRedisError = new Error("Redis connection failed");

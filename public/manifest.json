@@ -1,5 +1,5 @@
 {
-  "name": "PillMind Portal",
+  "name": "PillMind — Akıllı İlaç Güvenliği",
   "short_name": "PillMind",
   "description": "Tıbbi Düzeyde İlaç Etkileşim Kontrolü ve Canlı AI Açıklama Portalı",
   "start_url": "/kontrol",
@@ -8,16 +8,10 @@
   "theme_color": "#4f46e5",
   "icons": [
     {
-      "src": "/globe.svg",
-      "sizes": "192x192",
+      "src": "/pillmind-mark.svg",
+      "sizes": "any",
       "type": "image/svg+xml",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/globe.svg",
-      "sizes": "512x512",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "purpose": "any"
     }
   ]
 }

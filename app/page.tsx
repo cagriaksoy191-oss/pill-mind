@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Disclaimer from "@/components/Disclaimer";
+import PillMindBrand from "@/components/PillMindBrand";
 
 export default function HomePage() {
   return (
@@ -12,16 +13,9 @@ export default function HomePage() {
       <div className="absolute top-[50%] left-[40%] w-[25rem] h-[25rem] rounded-full bg-emerald-500/5 blur-[120px] pointer-events-none"></div>
 
       {/* Floating Header */}
-      <header className="w-full py-4 px-6 border-b border-white/5 bg-slate-950/40 backdrop-blur-md sticky top-0 z-50">
+      <header className="w-full py-2.5 px-4 sm:px-6 border-b border-white/5 bg-slate-950/40 backdrop-blur-md sticky top-0 z-50">
         <div className="max-w-5xl mx-auto flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-white font-bold text-lg shadow-md">
-              P
-            </div>
-            <h1 className="text-xl font-bold tracking-tight text-white">
-              PillMind
-            </h1>
-          </div>
+          <h1 className="flex"><PillMindBrand tone="light" /></h1>
           <div className="flex items-center gap-4">
             <Link
               href="/kontrol"

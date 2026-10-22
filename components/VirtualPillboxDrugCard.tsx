@@ -1,5 +1,6 @@
 import React from "react";
 import { Drug } from "./VirtualPillbox";
+import PillMindMark from "./PillMindMark";
 
 interface VirtualPillboxDrugCardProps {
   drug: Drug;
@@ -36,7 +37,7 @@ export function VirtualPillboxDrugCard({
         style={{ transform: "translateZ(20px)" }}
       >
         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 border border-white/10 flex items-center justify-center text-xl shadow-inner group-hover:scale-110 transition-transform duration-300">
-          💊
+          <PillMindMark className="h-8 w-7" />
         </div>
         <div>
           <h4 className="font-bold text-white text-sm group-hover:text-indigo-300 transition-colors">

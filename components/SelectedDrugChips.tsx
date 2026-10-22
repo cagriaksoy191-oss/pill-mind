@@ -1,4 +1,5 @@
 import { Drug } from "@/lib/interactions";
+import PillMindMark from "./PillMindMark";
 
 interface SelectedDrugChipsProps {
   selectedDrugs: Drug[];
@@ -18,7 +19,7 @@ export default function SelectedDrugChips({
           key={drug.id}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-indigo-50/90 to-purple-50/90 dark:from-indigo-950/40 dark:to-purple-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200/50 dark:border-indigo-800/40 rounded-xl text-sm font-semibold shadow-sm transition-all duration-200 hover:scale-[1.02]"
         >
-          <span className="text-base">💊</span>
+          <PillMindMark className="h-5 w-[18px] shrink-0" />
           <span>{drug.name}</span>
           <button
             onClick={() => onRemove(drug.id)}

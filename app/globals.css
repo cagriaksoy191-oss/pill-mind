@@ -26,6 +26,13 @@ body {
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
+.pillmind-brand-i {
+  background-image: linear-gradient(to bottom, #1b7ec1 0%, #1b7ec1 32%, currentColor 32%, currentColor 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
 /* Smooth scrolling */
 html {
   scroll-behavior: smooth;

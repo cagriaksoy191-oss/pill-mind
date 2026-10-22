@@ -72,7 +72,7 @@ export default function KontrolPage() {
       />
 
       {/* Main Workspace */}
-      <main className="flex-1 max-w-6xl mx-auto w-full px-6 pt-10 pb-16 relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 print:hidden">
+      <main className="flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 pt-6 sm:pt-8 pb-16 relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 print:hidden">
         {/* Left Side: Interaksiyon Arama ve Kutu Yönetimi */}
         <KontrolSearchPanel
           drugs={drugs}

@@ -42,7 +42,7 @@ export default function UserPanel({
       {!user ? (
         <button
           onClick={() => setShowModal(true)}
-          className="text-xs font-bold text-indigo-400 hover:text-white bg-indigo-500/10 hover:bg-indigo-600 px-4 py-2 rounded-xl border border-indigo-500/20 hover:border-indigo-500 transition-all duration-200 cursor-pointer"
+          className="text-xs font-bold text-indigo-400 hover:text-white bg-indigo-500/10 hover:bg-indigo-600 px-2.5 sm:px-4 py-2 rounded-xl border border-indigo-500/20 hover:border-indigo-500 transition-all duration-200 cursor-pointer"
         >
           🔐 Giriş Yap
         </button>

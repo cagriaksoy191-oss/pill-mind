@@ -54,8 +54,8 @@ describe("StatusHeader Component", () => {
 
   it("renders correctly with default props", () => {
     render(<StatusHeader {...defaultProps} />);
-    expect(screen.getByText("PillMind")).toBeInTheDocument();
-    expect(screen.getByText("Portal")).toBeInTheDocument();
+    expect(screen.getByLabelText("PillMind — Akıllı İlaç Güvenliği")).toBeInTheDocument();
+    expect(screen.getByText("Akıllı İlaç Güvenliği")).toBeInTheDocument();
     expect(screen.getByText("Ana Sayfa")).toBeInTheDocument();
     expect(screen.getByTestId("mock-user-panel")).toBeInTheDocument();
   });

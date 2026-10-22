@@ -1,6 +1,7 @@
 "use client";
 
 import { Drug } from "@/lib/interactions";
+import PillMindMark from "./PillMindMark";
 
 interface DrugListProps {
   filtered: Drug[];
@@ -42,7 +43,7 @@ export default function DrugList({
             >
               <div className="flex-1 min-w-0 pr-4">
                 <div className="font-bold text-slate-800 dark:text-slate-100 text-sm md:text-base truncate flex items-center gap-1.5">
-                  <span>💊</span>
+                  <PillMindMark className="h-6 w-[21px] shrink-0" />
                   <span>{drug.name}</span>
                 </div>
                 <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 truncate">

@@ -1,9 +1,9 @@
 // public/sw.js
-const CACHE_NAME = "pillmind-offline-cache-v2";
+const CACHE_NAME = "pillmind-offline-cache-v3-brand";
 const OFFLINE_URLS = [
   "/kontrol",
   "/manifest.json",
-  "/globe.svg",
+  "/pillmind-mark.svg",
   "/favicon.ico"
 ];
 

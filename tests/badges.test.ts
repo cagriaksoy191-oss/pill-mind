@@ -2,9 +2,9 @@ import { getEvidenceLevelBadge } from "../lib/utils/badges";
 
 describe("getEvidenceLevelBadge", () => {
   const fdaApprovedBadge = {
-    label: "FDA Onaylı",
+    label: "FDA Etiket Kaynağı",
     style: "bg-blue-500/10 text-blue-500 dark:text-blue-400 border-blue-500/20",
-    desc: "FDA Onaylı Prospektüs Verisi",
+    desc: "FDA ilaç etiketi kaynak kategorisi. Uygulamanın veya bu ilaç kombinasyonunun FDA onaylı olduğu anlamına gelmez.",
   };
 
   const clinicalGuidelineBadge = {
@@ -46,15 +46,20 @@ describe("getEvidenceLevelBadge", () => {
     }
   );
 
+  const unknownBadge = {
+    label: "Kaynak Düzeyi Belirtilmemiş",
+    style: "bg-slate-500/10 text-slate-500 dark:text-slate-400 border-slate-500/20",
+    desc: "Bu kayıt için kaynak düzeyi belirtilmemiştir.",
+  };
   it.each([
-    [undefined, fdaApprovedBadge],
-    [null as unknown as string, fdaApprovedBadge],
-    ["", fdaApprovedBadge],
-    ["   ", fdaApprovedBadge],
-    ["UNKNOWN_LEVEL", fdaApprovedBadge],
-    ["INVALID_EVIDENCE", fdaApprovedBadge],
+    [undefined, unknownBadge],
+    [null as unknown as string, unknownBadge],
+    ["", unknownBadge],
+    ["   ", unknownBadge],
+    ["UNKNOWN_LEVEL", unknownBadge],
+    ["INVALID_EVIDENCE", unknownBadge],
   ])(
-    "should return default FDA_APPROVED badge for invalid or missing level input %p",
+    "does not imply FDA evidence for invalid or missing level input %p",
     (level, expectedBadge) => {
       const result = getEvidenceLevelBadge(level);
       expect(result).toEqual(expectedBadge);

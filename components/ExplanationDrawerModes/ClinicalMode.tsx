@@ -1,4 +1,5 @@
 import React from 'react';
+import { getReferenceLink } from '@/lib/utils/referenceLink';
 
 interface ClinicalModeProps {
   evidenceBadge: { label: string; desc: string; style: string };
@@ -35,19 +36,16 @@ export function ClinicalMode({ evidenceBadge, clinicalDetail, source }: Clinical
             {source.split(";").map((src, i) => {
               const trimSrc = src.trim();
               if (!trimSrc) return null;
-              const isPubMed = trimSrc.toLowerCase().includes("pubmed");
-              const url = isPubMed
-                ? `https://pubmed.ncbi.nlm.nih.gov/?term=${encodeURIComponent(trimSrc)}`
-                : `https://www.google.com/search?q=${encodeURIComponent(trimSrc)}`;
+              const reference = getReferenceLink(trimSrc);
               return (
                 <a
                   key={i}
-                  href={url}
+                  href={reference.href}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-indigo-500/40 text-slate-600 dark:text-slate-400 hover:text-indigo-400 transition-colors"
                 >
-                  <span>📖</span> {trimSrc}
+                  <span>📖</span> {reference.label}
                 </a>
               );
             })}

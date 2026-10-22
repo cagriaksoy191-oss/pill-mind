@@ -2,11 +2,21 @@ import { Drug, FoodInteraction, FoodInteractionResult } from "./types";
 import { drugsMap, DRUG_ALIASES } from "./data";
 import { resolveDrugsDB } from "./interactions";
 import foodInteractionsData from "@/data/foodInteractions.json";
+import foodGuidanceData from "@/data/foodGuidance.json";
 import { LRUCache } from "../lruCache";
 
 const resolveCache = new LRUCache<string, string>(5000);
 const foodInteractionsCache = new LRUCache<string, FoodInteractionResult[]>(1000);
 const inFlightFoodInteractionsMap = new Map<string, Promise<FoodInteractionResult[]>>();
+
+/** The same source-backed guidance is returned in database and offline modes. */
+function withFoodGuidance(results: FoodInteractionResult[], drugs: {id:string;name?:string}[]): FoodInteractionResult[] {
+  const selected = new Map(drugs.map(drug => [drug.id, drug]));
+  const guidance: FoodInteractionResult[] = foodGuidanceData
+    .filter(item => selected.has(item.drugId) && !results.some(result => result.id === item.id))
+    .map(item => ({...item, drugName:selected.get(item.drugId)?.name ?? item.drugId, kind:"usage", severity:"low"}));
+  return [...results, ...guidance];
+}
 
 export function clearFoodInteractionsCache(): void {
   foodInteractionsCache.clear();
@@ -51,7 +61,7 @@ export function findFoodInteractions(drugIds: string[]): FoodInteractionResult[]
       });
     }
   }
-  return results;
+  return withFoodGuidance(results, [...resolvedIds].map(id => ({id, name:drugsMap.get(id)?.name})));
 }
 
 export async function findFoodInteractionsDB(drugIds: string[], resolvedDrugsCache?: unknown[]): Promise<FoodInteractionResult[]> {
@@ -85,14 +95,14 @@ export async function findFoodInteractionsDB(drugIds: string[], resolvedDrugsCac
           drug: true
         }
       });
-      return foodInts.map(f => ({
+      return withFoodGuidance(foodInts.map(f => ({
         id: f.id,
         drugId: f.drugId,
         drugName: f.drug.name,
         substance: f.substance,
         effect: f.effect,
         severity: f.severity.toLowerCase() as "high" | "medium" | "low"
-      }));
+      })), resolvedDrugs);
     })();
 
     inFlightFoodInteractionsMap.set(cacheKey, queryPromise);

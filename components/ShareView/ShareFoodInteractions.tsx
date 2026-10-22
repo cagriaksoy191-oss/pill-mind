@@ -18,8 +18,10 @@ export default function ShareFoodInteractions({ interactions }: ShareFoodInterac
         {interactions.map((f, idx) => (
           <div key={idx} className="p-3 rounded-xl bg-white/5 border border-white/5 text-xs">
             <p className="font-bold text-white">
-              {f.drugName} &amp; <span className="text-amber-300">{f.substance}</span>
+              {f.drugName} &amp; <span className={f.kind === "usage" ? "text-sky-300" : "text-amber-300"}>{f.substance}</span>
+              {f.kind === "usage" && <span className="ml-2 text-[10px] text-sky-300">Kullanım bilgisi</span>}
             </p>
+            {f.sourceUrl?.startsWith("https://dailymed.nlm.nih.gov/") && <a href={f.sourceUrl} target="_blank" rel="noopener noreferrer" className="inline-block mt-1 text-[10px] text-slate-400 underline">NIH DailyMed · İlaç etiketi</a>}
             <p className="text-slate-300 mt-1 text-[11px] leading-relaxed">
               {f.effect}
             </p>

@@ -1,4 +1,8 @@
 import { CheckResult, ExplanationData, InteractionMechanism, Evidence } from "@/lib/interactions";
+import { getEvidenceLevelBadge } from "@/lib/utils/badges";
+import { getReferenceLink } from "@/lib/utils/referenceLink";
+
+const riskLabels: Record<string,string> = {high: "Yüksek", medium: "Orta", low: "Düşük", critical: "Kritik", moderate: "Orta"};
 
 interface DrugInteractionsProps {
   interactions: CheckResult[];
@@ -32,7 +36,7 @@ export default function DrugInteractions({ interactions, explanations }: DrugInt
             <div key={i} className="p-4 rounded-xl border border-slate-200 bg-white">
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200">
-                  {res.interaction.severity.toUpperCase()} RİSK
+                  {riskLabels[res.interaction.severity] || "Düzey belirtilmemiş"} RİSK
                 </span>
                 <h3 className="font-bold text-slate-900 text-xs">
                   {res.drug1Name} &amp; {res.drug2Name} Etkileşimi
@@ -72,14 +76,21 @@ export default function DrugInteractions({ interactions, explanations }: DrugInt
                   <span className="font-bold block text-slate-900 mt-1">{res.drug2Name}</span>
                 </td>
                 <td className="border border-slate-300 p-2">
-                  <span className="font-semibold block uppercase text-[10px]">{res.interaction.severity} Risk</span>
-                  <span className="text-[9px] text-slate-500 block mt-1">Kanıt: {res.interaction.evidenceLevel || "FDA_APPROVED"}</span>
-                  <span className="text-[9px] text-emerald-600 block">Onay: {res.interaction.verificationStatus || "VERIFIED"}</span>
+                  <span className="font-semibold block uppercase text-[10px]">{riskLabels[res.interaction.severity] || "Düzey belirtilmemiş"} Risk</span>
+                  <span className="text-[9px] text-slate-500 block mt-1">Kaynak: {getEvidenceLevelBadge(res.interaction.evidenceLevel).label}</span>
+                  {res.interaction.verificationStatus && <span className="text-[9px] text-slate-500 block">Veri kaydı: {res.interaction.verificationStatus.toLowerCase() === "verified" ? "Doğrulanmış" : "İnceleme aşamasında"}</span>}
                 </td>
                 <td className="border border-slate-300 p-2 leading-relaxed">
                   {res.interaction.clinicalDetail && (
                     <p className="mb-2"><span className="font-semibold">Mekanizma:</span> {res.interaction.clinicalDetail}</p>
                   )}
+                  {res.interaction.source && !res.interaction.evidences?.length && <p className="text-[9px] text-slate-600 leading-relaxed">
+                    <span className="font-semibold">Kaynaklar: </span>
+                    {res.interaction.source.split(";").filter(s=>s.trim()).map((s,index)=>{
+                      const reference=getReferenceLink(s);
+                      return <a key={index} href={reference.href} target="_blank" rel="noopener noreferrer" className="underline mr-2">{reference.label}</a>;
+                    })}
+                  </p>}
 
                   {res.interaction.mechanisms && res.interaction.mechanisms.length > 0 && (
                     <div className="mb-2">

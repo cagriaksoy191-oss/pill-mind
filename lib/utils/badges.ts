@@ -2,9 +2,9 @@ export function getEvidenceLevelBadge(level?: string) {
   switch (level?.toUpperCase()) {
     case "FDA_APPROVED":
       return {
-        label: "FDA Onaylı",
+        label: "FDA Etiket Kaynağı",
         style: "bg-blue-500/10 text-blue-500 dark:text-blue-400 border-blue-500/20",
-        desc: "FDA Onaylı Prospektüs Verisi"
+        desc: "FDA ilaç etiketi kaynak kategorisi. Uygulamanın veya bu ilaç kombinasyonunun FDA onaylı olduğu anlamına gelmez."
       };
     case "CLINICAL_GUIDELINE":
       return {
@@ -26,9 +26,9 @@ export function getEvidenceLevelBadge(level?: string) {
       };
     default:
       return {
-        label: "FDA Onaylı",
-        style: "bg-blue-500/10 text-blue-500 dark:text-blue-400 border-blue-500/20",
-        desc: "FDA Onaylı Prospektüs Verisi"
+        label: "Kaynak Düzeyi Belirtilmemiş",
+        style: "bg-slate-500/10 text-slate-500 dark:text-slate-400 border-slate-500/20",
+        desc: "Bu kayıt için kaynak düzeyi belirtilmemiştir."
       };
   }
 }

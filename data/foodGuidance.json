@@ -1,0 +1,11 @@
+[
+  {
+    "id": "food-guidance-metformin-meals",
+    "drugId": "metformin",
+    "substance": "Yemek / Öğün",
+    "kind": "usage",
+    "severity": "low",
+    "effect": "Metformin tabletlerin yemekle birlikte alınması bulantı, ishal ve mide rahatsızlığını azaltmaya yardımcı olabilir. İlacınızın formuna uygun kullanımı doktorunuz veya eczacınızla doğrulayın.",
+    "sourceUrl": "https://dailymed.nlm.nih.gov/dailymed/fda/fdaDrugXsl.cfm?setid=06ade2e1-5981-4e3d-b7e9-7ff083eb4551&type=display"
+  }
+]

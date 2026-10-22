@@ -15,8 +15,9 @@ export default function FoodInteractions({ foodInteractions }: FoodInteractionsP
       <div className="flex flex-col gap-2">
         {foodInteractions.map((f, i) => (
           <div key={i} className="border-b border-slate-200/50 pb-1.5 last:border-0 last:pb-0">
-            <span className="font-bold text-slate-900">{f.drugName} &amp; {f.substance} ({f.severity.toUpperCase()} Risk):</span>
+            <span className="font-bold text-slate-900">{f.drugName} &amp; {f.substance} ({f.kind === "usage" ? "Kullanım Bilgisi" : `${({high:"Yüksek",medium:"Orta",low:"Düşük"} as const)[f.severity]} Risk`}):</span>
             <span className="block text-[11px] text-slate-700 mt-0.5 font-medium">{f.effect}</span>
+            {f.sourceUrl?.startsWith("https://dailymed.nlm.nih.gov/") && <a href={f.sourceUrl} className="block mt-1 text-[10px] text-slate-600 underline">NIH DailyMed · İlaç etiketi</a>}
           </div>
         ))}
       </div>

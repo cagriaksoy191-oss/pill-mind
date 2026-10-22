@@ -64,7 +64,7 @@ describe('MedicalReportSections', () => {
     it('renders disclaimer text properly', () => {
       render(<Disclaimer />);
       expect(screen.getByText('⚠️ Önemli Klinik Yasal Uyarı')).toBeInTheDocument();
-      expect(screen.getByText(/Bu rapor, yalnızca kürate edilmiş demo tıbbi veri setleri/i)).toBeInTheDocument();
+      expect(screen.getByText(/Bu rapor, uygulamanın kürate edilmiş veri kapsamındaki ilaç bilgilerini/i)).toBeInTheDocument();
     });
   });
 
@@ -113,7 +113,7 @@ describe('MedicalReportSections', () => {
         },
         expectedText: [
           '1. Hasta İçin Sadeleştirilmiş Etkileşim Açıklamaları',
-          'HIGH RİSK',
+          'Yüksek RİSK',
           'Drug Alpha & Drug Beta Etkileşimi',
           'High risk of arrhythmia',
           'These two medicines may affect your heart rhythm if taken together.',
@@ -122,8 +122,8 @@ describe('MedicalReportSections', () => {
           'Journal of Cardiology',
           'https://example.com/study',
           '“Observed QT prolongation in clinical trials”',
-          'Kanıt: fda_approved',
-          'Onay: verified'
+          'Kaynak: FDA Etiket Kaynağı',
+          'Veri kaydı: Doğrulanmış'
         ],
         unexpectedText: []
       },
@@ -149,16 +149,16 @@ describe('MedicalReportSections', () => {
         ],
         explanations: {},
         expectedText: [
-          'LOW RİSK',
+          'Düşük RİSK',
           'Drug X & Drug Y Etkileşimi',
           'Minor interaction',
-          'Kanıt: literature',
-          'Onay: unverified'
+          'Kaynak: Kaynak Düzeyi Belirtilmemiş',
+          'Veri kaydı: İnceleme aşamasında'
         ],
         unexpectedText: ['Mekanizma Detayları:', 'Bilimsel Referanslar:']
       },
       {
-        scenario: 'fallback defaults when evidenceLevel and verificationStatus are omitted',
+        scenario: 'missing evidence does not imply FDA approval or a verified record',
         interactions: [
           {
             drug1Name: 'Aspirin',
@@ -177,10 +177,9 @@ describe('MedicalReportSections', () => {
         ],
         explanations: {},
         expectedText: [
-          'CRITICAL RİSK',
+          'Kritik RİSK',
           'Aspirin & Warfarin Etkileşimi',
-          'Kanıt: FDA_APPROVED',
-          'Onay: VERIFIED'
+          'Kaynak: Kaynak Düzeyi Belirtilmemiş',
         ],
         unexpectedText: []
       },
@@ -212,7 +211,7 @@ describe('MedicalReportSections', () => {
         ],
         explanations: {},
         expectedText: [
-          'MODERATE RİSK',
+          'Orta RİSK',
           'Internal Medical Review',
           '“Case report evidence”'
         ],
@@ -246,7 +245,7 @@ describe('MedicalReportSections', () => {
       ];
       render(<FoodInteractions foodInteractions={foodInteractions} />);
       expect(screen.getByText('🥗 Gıda, Alkol ve Besin Etkileşim Raporu')).toBeInTheDocument();
-      expect(screen.getByText(/Warfarin & Grapefruit \(HIGH Risk\):/i)).toBeInTheDocument();
+        expect(screen.getByText(/Warfarin & Grapefruit \(Yüksek Risk\):/i)).toBeInTheDocument();
       expect(screen.getByText('Increases drug level')).toBeInTheDocument();
     });
   });
@@ -287,7 +286,8 @@ describe('MedicalReportSections', () => {
   describe('ReportHeader', () => {
     it('renders header elements properly', () => {
       render(<ReportHeader />);
-      expect(screen.getByText('💊 PillMind Klinik İlaç Etkileşim Raporu')).toBeInTheDocument();
+      expect(screen.getByRole('heading', {name:'Klinik İlaç Etkileşim Raporu'})).toBeInTheDocument();
+      expect(screen.getByLabelText('PillMind — Akıllı İlaç Güvenliği')).toBeInTheDocument();
       expect(screen.getByText(/CONFIDENTIAL \/ CLINICAL ANALYSIS REPORT/)).toBeInTheDocument();
     });
   });

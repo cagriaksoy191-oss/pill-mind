@@ -30,11 +30,15 @@ export default function CoveragePatientView({
     );
   }
 
-  if (coverageExplanation?.source === "gemini_live" || coverageExplanation?.source === "cache") {
+  if (coverageExplanation?.source === "gemini_live" || coverageExplanation?.source === "cache" || coverageExplanation?.source === "editorial_example") {
     return (
       <div className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center gap-2">
-          {coverageExplanation.source === "cache" ? (
+          {coverageExplanation.source === "editorial_example" ? (
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[9px] font-bold tracking-wide uppercase bg-sky-500/10 text-sky-400 border border-sky-500/20">
+              Kaynaklı Örnek Açıklama
+            </span>
+          ) : coverageExplanation.source === "cache" ? (
             <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[9px] font-bold tracking-wide uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
               Önbellek Yanıtı

@@ -44,6 +44,8 @@ export interface FoodInteraction {
   substance: string;
   effect: string;
   severity: "high" | "medium" | "low";
+  kind?: "interaction" | "usage";
+  sourceUrl?: string;
 }
 
 export interface SharedData {

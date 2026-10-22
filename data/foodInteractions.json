@@ -17,7 +17,7 @@
     "id": "food-int-3",
     "drugId": "metformin",
     "substance": "Alkol",
-    "effect": "Laktik asidoz riskini ciddi şekilde artırır. Alkol tüketimi ile birlikte Metformin kullanımı önerilmez.",
+    "effect": "Aşırı alkol tüketimi, metforminle ilişkili laktik asidoz riskini artırabilir. Alkol kullanımını doktorunuz veya eczacınızla değerlendirin.",
     "severity": "HIGH"
   },
   {

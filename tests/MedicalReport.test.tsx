@@ -96,7 +96,7 @@ describe('MedicalReport', () => {
     render(<MedicalReport {...props} />);
 
     expect(screen.getByText('🥗 Gıda, Alkol ve Besin Etkileşim Raporu')).toBeInTheDocument();
-    expect(screen.getByText(/Warfarin & Grapefruit \(high Risk\):/i)).toBeInTheDocument();
+    expect(screen.getByText(/Warfarin & Grapefruit \(Yüksek Risk\):/i)).toBeInTheDocument();
     expect(screen.getByText('Increases bleeding risk.')).toBeInTheDocument();
   });
 
@@ -134,7 +134,7 @@ describe('MedicalReport', () => {
     render(<MedicalReport {...props} />);
 
     expect(screen.getByText('1. Hasta İçin Sadeleştirilmiş Etkileşim Açıklamaları')).toBeInTheDocument();
-    expect(screen.getByText('HIGH RİSK')).toBeInTheDocument();
+    expect(screen.getByText('Yüksek RİSK')).toBeInTheDocument();
     expect(screen.getByText('DrugA & DrugB Etkileşimi')).toBeInTheDocument();
     expect(screen.getByText('Dangerous interaction.')).toBeInTheDocument();
     expect(screen.getByText('This is a test explanation.')).toBeInTheDocument();
@@ -146,7 +146,7 @@ describe('MedicalReport', () => {
     // Check table cells
     const tdDrugA = screen.getAllByText('DrugA');
     expect(tdDrugA.length).toBeGreaterThan(0);
-    expect(screen.getByText('high Risk')).toBeInTheDocument();
+    expect(screen.getByText('Yüksek Risk')).toBeInTheDocument();
     expect(screen.getByText(/Mekanizma:/)).toBeInTheDocument();
     expect(screen.getByText(/May cause heart failure\./)).toBeInTheDocument();
   });

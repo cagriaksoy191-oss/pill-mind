@@ -51,7 +51,7 @@ for (const int of (interactionsData as RawInteraction[])) {
   const mappedInt: Interaction = {
     ...int,
     severity: int.severity.toLowerCase() as "high" | "medium" | "low",
-    evidenceLevel: int.evidenceLevel ? int.evidenceLevel.toLowerCase() : "fda_approved",
+    evidenceLevel: int.evidenceLevel ? int.evidenceLevel.toLowerCase() : undefined,
     clinicalDetail: int.clinicalDetail || `${int.drug1} ve ${int.drug2} kombinasyonu yan etkilere yol açabilir. Kaynak: ${int.source}`
   };
   if (!interactionsMap.has(mappedInt.drug1)) interactionsMap.set(mappedInt.drug1, new Map<string, Interaction>());

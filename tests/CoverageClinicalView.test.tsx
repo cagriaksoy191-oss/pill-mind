@@ -14,9 +14,9 @@ describe('CoverageClinicalView', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (getEvidenceLevelBadge as jest.Mock).mockReturnValue({
-      label: 'FDA Onaylı',
+      label: 'FDA Etiket Kaynağı',
       style: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
-      desc: 'FDA Onaylı Prospektüs Verisi',
+      desc: 'FDA ilaç etiketi kaynağı',
     });
   });
 
@@ -58,7 +58,7 @@ describe('CoverageClinicalView', () => {
     render(<CoverageClinicalView interactions={mockInteractions} />);
 
     expect(screen.getByText('Aspirin & Warfarin')).toBeInTheDocument();
-    expect(screen.getByText('FDA Onaylı')).toBeInTheDocument();
+    expect(screen.getByText('FDA Etiket Kaynağı')).toBeInTheDocument();
     expect(getEvidenceLevelBadge).toHaveBeenCalledWith('FDA_APPROVED');
     expect(screen.getByText('Detailed clinical mechanism of Aspirin + Warfarin')).toBeInTheDocument();
   });

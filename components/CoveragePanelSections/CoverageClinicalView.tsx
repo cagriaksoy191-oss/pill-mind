@@ -1,5 +1,6 @@
 import { getEvidenceLevelBadge } from "@/lib/utils/badges";
 import { CheckResult } from "@/lib/interactions";
+import { getReferenceLink } from "@/lib/utils/referenceLink";
 
 interface CoverageClinicalViewProps {
   interactions?: CheckResult[];
@@ -35,19 +36,16 @@ export default function CoverageClinicalView({ interactions = [] }: CoverageClin
                     {res.interaction.source.split(";").map((s, idx) => {
                       const trimSrc = s.trim();
                       if (!trimSrc) return null;
-                      const isPubMed = trimSrc.toLowerCase().includes("pubmed");
-                      const url = isPubMed
-                        ? `https://pubmed.ncbi.nlm.nih.gov/?term=${encodeURIComponent(trimSrc)}`
-                        : `https://www.google.com/search?q=${encodeURIComponent(trimSrc)}`;
+                      const reference = getReferenceLink(trimSrc);
                       return (
                         <a
                           key={idx}
-                          href={url}
+                          href={reference.href}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-block mx-1 hover:text-indigo-400 underline"
                         >
-                          {trimSrc}
+                          {reference.label}
                         </a>
                       );
                     })}

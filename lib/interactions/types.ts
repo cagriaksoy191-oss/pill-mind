@@ -105,6 +105,9 @@ export interface FoodInteractionResult {
   substance: string;
   effect: string;
   severity: "high" | "medium" | "low";
+  /** Usage information is not a dangerous interaction or an additional warning. */
+  kind?: "interaction" | "usage";
+  sourceUrl?: string;
 }
 
 export interface PatientContext {

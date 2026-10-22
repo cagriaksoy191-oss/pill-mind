@@ -170,7 +170,7 @@ describe("Food Interactions Engine (food.ts)", () => {
           include: { drug: true },
         });
 
-        expect(results).toEqual([
+        expect(results).toEqual(expect.arrayContaining([
           {
             id: "food-2",
             drugId: "metformin",
@@ -179,7 +179,10 @@ describe("Food Interactions Engine (food.ts)", () => {
             effect: "Laktik asidoz riskini artırır",
             severity: "medium",
           },
-        ]);
+        ]));
+        expect(results.find(result => result.kind === "usage")).toEqual(expect.objectContaining({
+          drugId:"metformin", substance:"Yemek / Öğün", sourceUrl:expect.stringContaining("dailymed.nlm.nih.gov"),
+        }));
       });
 
       it("falls back to local check if resolveDrugsDB throws an error", async () => {

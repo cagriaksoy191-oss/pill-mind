@@ -31,6 +31,12 @@ describe("CoveragePatientView", () => {
   describe("when source is cache or gemini_live", () => {
     it.each([
       {
+        source: "editorial_example",
+        badgeText: "Kaynaklı Örnek Açıklama",
+        explanation: "Kaynaklarla hazırlanmış tanıtım örneği.",
+        generatedAt: "FDA / NIH etiket kaynakları",
+      },
+      {
         source: "cache",
         badgeText: "Önbellek Yanıtı",
         explanation: "Önbellekten alınan güvenli klinik açıklama.",
